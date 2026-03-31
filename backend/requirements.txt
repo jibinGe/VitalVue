@@ -1,0 +1,22 @@
+# --- Core Framework ---
+fastapi==0.109.2
+uvicorn[standard]==0.27.1  # High-performance ASGI server
+
+# --- Database (PostgreSQL) ---
+sqlalchemy==2.0.27         # ORM for Python
+asyncpg==0.29.0            # High-speed async driver for Postgres
+alembic==1.13.1            # Database migrations
+
+# --- Real-time & Caching (Redis) ---
+redis==5.0.1               # Redis client with async support
+sse-starlette==2.0.0       # Standardized SSE support for FastAPI/Starlette
+
+# --- Security & Auth ---
+python-jose[cryptography]==3.3.0  # JWT token handling
+passlib[bcrypt]==1.7.4            # Password hashing
+python-multipart==0.0.9           # For handling OAuth2 form data
+pydantic-settings==2.1.0          # Environment variable management
+
+# --- Utilities ---
+httpx==0.26.0              # Async HTTP client for external API calls
+python-dotenv==1.0.1       # Load local .env files
