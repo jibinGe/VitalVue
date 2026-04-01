@@ -38,7 +38,7 @@ app.add_middleware(
 
 # 3. Include Routers
 # We use prefixes to version the API (v1)
-# app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
+app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(discovery.router, prefix="/api/v1/discovery", tags=["Discovery"])
 app.include_router(patients.router, prefix="/api/v1/patients", tags=["Patients"])
 
