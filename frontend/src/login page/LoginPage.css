@@ -1,0 +1,252 @@
+:root {
+  --bg-dark: #0f0f15;
+  --card: rgba(37, 37, 39, 0.95);
+  --muted: #d3d6de;
+  --text: #fff;
+  --accent: linear-gradient(91.27deg, #b3884d 0%, #cca166 49%, #b2884d 99%);
+}
+
+.loginpage-wrapper {
+  position: fixed;
+  inset: 0;
+  min-height: 100vh;
+  width: 100vw;
+  background: radial-gradient(circle at 20% 20%, #283048 0%, #0f0f15 45%);
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  overflow: auto;
+  z-index: 0;
+  padding-right: 100px; /* moved card a bit more left */
+}
+
+.loginpage-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: url('/screenshot-placeholder.png') center/cover fixed no-repeat;
+  opacity: 0.12;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.loginpage-card {
+  position: absolute;
+  top: 50%;
+  left: 75%;
+  transform: translate(-50%, -50%);
+  width: min(360px, calc(100vw - 30px));
+  max-width: 360px;
+  padding: 28px 24px;
+  background: linear-gradient(163deg, rgba(24, 27, 35, 0.78) 0%, rgba(26, 30, 38, 0.62) 40%, rgba(20, 23, 31, 0.58) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  box-shadow: 0px 20px 48px rgba(0, 0, 0, 0.52), inset 0 0 0 0.5px rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  border-radius: 20px;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  overflow: hidden;
+}
+
+.loginpage-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 20px;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18), inset 0 5px 18px rgba(30, 41, 62, 0.55);
+  mix-blend-mode: hard-light;
+  opacity: 0.9;
+  z-index: 0;
+}
+
+.loginpage-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(140deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.03) 48%, rgba(255, 255, 255, 0.08) 100%);
+  border-radius: 20px;
+  opacity: 0.28;
+  mix-blend-mode: screen;
+  z-index: 0;
+}
+
+.loginpage-wrapper::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: radial-gradient(circle at 20% 20%, rgba(196, 212, 255, 0.18) 0%, transparent 45%), radial-gradient(circle at 80% 80%, rgba(255, 196, 137, 0.10) 0%, transparent 40%);
+  pointer-events: none;
+  filter: blur(18px);
+}
+
+.loginpage-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.loginpage-brand-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.brand-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.16);
+  color: var(--text);
+  font-weight: 700;
+}
+
+.brand-text h1 {
+  font-family: 'Lufga', sans-serif;
+  font-weight: 500;
+  font-size: 20px;
+  margin: 0;
+  color: #fff;
+  letter-spacing: 1px;
+}
+
+.brand-badge {
+  display: inline-block;
+  margin-top: 4px;
+  font-family: 'Lufga', sans-serif;
+  font-weight: 400;
+  font-size: 9px;
+  padding: 3px 8px;
+  border-radius: 100px;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+
+.loginpage-title-group h2 {
+  margin: 0;
+  font-family: 'Lufga', sans-serif;
+  font-size: 22px;
+  font-weight: 500;
+  color: #fff;
+  text-align: center;
+  letter-spacing: 0.5px;
+}
+
+.loginpage-title-group p {
+  margin: 8px 0 0;
+  font-family: 'Lufga', sans-serif;
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1.4;
+  letter-spacing: 0.3px;
+}
+
+.loginpage-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field-group label {
+  display: block;
+  font-family: 'Lufga', sans-serif;
+  font-size: 12px;
+  color: #e2e4e9;
+  text-align: left;
+  margin-left: 4px;
+}
+
+.field-group input {
+  width: 100%;
+  height: 40px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  outline: none;
+}
+
+.field-group input::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.or-separator {
+  text-align: center;
+  color: #e2e4e9;
+  font-family: 'Lufga', sans-serif;
+  font-size: 14px;
+  margin: 4px 0 -8px 0;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #fff;
+  font-family: 'Lufga', sans-serif;
+  font-size: 14px;
+}
+
+.checkbox-label input {
+  width: 16px;
+  height: 16px;
+}
+
+.help-link {
+  color: #80b5ff;
+  text-decoration: underline;
+  font-family: 'Lufga', sans-serif;
+  font-size: 14px;
+}
+
+.submit-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 52px;
+  border: none;
+  cursor: pointer;
+  border-radius: 16px;
+  background: var(--accent);
+  color: #fff;
+  font-family: 'Lufga', sans-serif;
+  font-size: 16px;
+  padding: 0 16px;
+}
+
+.submit-button .arrow {
+  transform: translateX(2px);
+}
