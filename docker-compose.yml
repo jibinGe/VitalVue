@@ -54,11 +54,17 @@ services:
     networks:
       - vitalvue_net
 
-  # frontend:
-  #   build: ./frontend
-  #   container_name: vitalvue_frontend
-  #   networks:
-  #     - vitalvue_net
+  frontend:
+    build: ./frontend
+    container_name: vitalvue_frontend
+    networks:
+      - vitalvue_net
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: npm run dev -- --host 0.0.0.0
 
   nginx:
     image: nginx:alpine
