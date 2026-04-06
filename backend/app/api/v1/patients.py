@@ -57,12 +57,7 @@ async def get_assigned_patients(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """
-    Fetch all patients assigned to the calling Doctor or Nurse,
-    including their latest vitals and room information.
-    """
-    
-    # 1. Base Query with joins for Names and Rooms
+    # 1. Base Query with joins for assigned staff names
     query = (
         select(Patient)
         .options(
@@ -71,33 +66,30 @@ async def get_assigned_patients(
         )
     )
 
-    # 2. Apply Role-Based Filtering
+    # 2. Role-Based Filtering
     if current_user.role == UserRole.NURSE:
-        # User is a Nurse, filter by nurse_id
         query = query.where(Patient.nurse_id == current_user.id)
     elif current_user.role == UserRole.DOCTOR:
-        # User is a Doctor, filter by doctor_id
         query = query.where(Patient.doctor_id == current_user.id)
     elif current_user.role in [UserRole.ORG_ADMIN, UserRole.MASTER_ADMIN]:
-        # Admins see everyone in their organization
         query = query.where(Patient.organization_id == current_user.organization_id)
     else:
-        raise HTTPException(status_code=403, detail="Access denied for this role")
+        raise HTTPException(status_code=403, detail="Access denied")
 
     result = await db.execute(query)
     patients = result.scalars().all()
 
-    # 3. Format the response with latest vitals
     response_data = []
     for p in patients:
-        # Fetch the most recent vital entry for this patient
-        vital_result = await db.execute(
+        # 3. Fetch the 20 latest vitals (All columns included)
+        vitals_query = (
             select(Vitals)
             .where(Vitals.patient_id == p.id)
             .order_by(Vitals.created_at.desc())
-            .limit(1)
+            .limit(20)
         )
-        latest_vitals = vital_result.scalars().first()
+        vitals_result = await db.execute(vitals_query)
+        latest_20_vitals = vitals_result.scalars().all()
 
         response_data.append({
             "id": p.id,
@@ -106,10 +98,10 @@ async def get_assigned_patients(
             "age": p.age,
             "gender": p.gender,
             "blood_group": p.blood_group,
-            "room_no": "101", # Placeholder: replace with p.room.room_number if linked
+            "room_no": "101", # Replace with p.room_id logic if needed
             "assigned_doctor": p.assigned_doctor.full_name if p.assigned_doctor else None,
             "assigned_nurse": p.assigned_nurse.full_name if p.assigned_nurse else None,
-            "latest_vitals": latest_vitals
+            "vitals_history": latest_20_vitals # Contains all data: HR, SpO2, AF_Warning, etc.
         })
 
     return response_data

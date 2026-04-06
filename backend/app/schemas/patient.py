@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
+from app.schemas.vitals import VitalIngestSchema as VitalsSchema
 
 class PatientVitalsSummary(BaseModel):
     heart_rate: int
@@ -20,7 +21,8 @@ class PatientDetailResponse(BaseModel):
     room_no: str
     assigned_doctor: Optional[str]
     assigned_nurse: Optional[str]
-    latest_vitals: Optional[PatientVitalsSummary]
+    # Changed to List to hold the 20 latest entries
+    vitals_history: List[VitalsSchema] 
 
     class Config:
         from_attributes = True
