@@ -9,14 +9,19 @@ from app.models.user import Patient
 from app.schemas.vitals import VitalIngestSchema
 from app.services.analytics import calculate_risks, check_baseline_deviations
 import json
+from fastapi.security import OAuth2PasswordBearer
+from app.models.user import User
+from app.api.deps import get_current_user
 
 router = APIRouter()
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/auth/verify-otp")
 
 @router.post("/ingest")
 async def ingest_vitals(
     payload: VitalIngestSchema, 
     db: AsyncSession = Depends(get_db), 
-    redis = Depends(get_redis)
+    redis = Depends(get_redis),
+    current_user: User = Depends(get_current_user)
 ):
     # 1. Fetch Patient & Ward context (Needed for Broad-cast routing)
     # We find which ward this patient is currently in via their Room assignment
@@ -55,13 +60,20 @@ async def ingest_vitals(
     alerts = check_baseline_deviations(new_vitals)
     if alerts:
         for alert_data in alerts:
-            # Add ward context to alert for the Nurse Dashboard
+            # Create a copy for the database that doesn't include ward_id
+            db_alert_data = alert_data.copy()
+            
+            # Add ward context only for the Real-time JSON (Redis)
             alert_data.update({"ward_id": ward_id, "patient_id": payload.patient_id})
             
-            new_alert = Alert(**alert_data)
+            # Remove 'ward_id' if it exists in the dict before passing to Alert model
+            # This prevents the TypeError you just saw
+            db_alert_data.pop("ward_id", None) 
+            
+            new_alert = Alert(**db_alert_data)
             db.add(new_alert)
             
-            # Publish Alert to Ward Channel (For Nurse) and Patient Channel (For Doctor)
+            # Publish the full info (including ward_id) to Redis
             alert_json = json.dumps(alert_data, default=str)
             await redis.publish(f"ward:{ward_id}:alerts", alert_json)
             await redis.publish(f"patient:{payload.patient_id}:alerts", alert_json)
@@ -75,3 +87,4 @@ async def ingest_vitals(
 
     await db.commit()
     return {"status": "success", "news2": calculated_data.get("news2_score")}
+

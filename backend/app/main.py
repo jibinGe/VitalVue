@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import os
 
-from app.api.v1 import auth, discovery, patients
+from app.api.v1 import auth, discovery, patients, vitals, stream
 
 # 1. Lifespan context for startup/shutdown tasks
 @asynccontextmanager
@@ -41,7 +41,8 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(discovery.router, prefix="/api/v1/discovery", tags=["Discovery"])
 app.include_router(patients.router, prefix="/api/v1/patients", tags=["Patients"])
-
+app.include_router(vitals.router, prefix="/api/v1/vitals", tags=["Vitals"])
+app.include_router(stream.router, prefix="/api/v1/stream", tags=["Stream"])
 
 @app.get("/")
 async def root():

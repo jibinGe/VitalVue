@@ -19,7 +19,7 @@ class UserBase(BaseModel):
 # --- Patient Specific ---
 class PatientBase(UserBase):
     # Screen 1 & 2 Hierarchy Links
-    doctor_id: int = Field(..., description="Selected Doctor ID from Screen 1")
+    doctor_id: Optional[int] = Field(None, description="Selected Doctor ID from Screen 1")
     room_id: int = Field(..., description="Selected Room ID from Screen 2")
     
     # Screen 2: Vital Stats & Info
@@ -32,6 +32,8 @@ class PatientBase(UserBase):
     
     # Screen 3: Device Identity
     device_id: str = Field(..., description="Unique Device ID for real-time tracking")
+
+    nurse_id: Optional[int] = Field(None, description="Selected Nurse ID")
 
 class PatientCreate(PatientBase):
     # Set default role for registration

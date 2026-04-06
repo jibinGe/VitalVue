@@ -8,6 +8,7 @@ class Alert(Base):
 
     id = Column(Integer, primary_key=True)
     patient_id = Column(Integer, ForeignKey("patients.id"), index=True)
+    ward_id = Column(Integer, index=True)
     vital_type = Column(String)  # 'SPO2', 'Heart Rate', 'NEWS2'
     triggered_value = Column(String) 
     status = Column(String, default="active") # active, acknowledged, resolved

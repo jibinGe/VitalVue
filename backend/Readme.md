@@ -7,6 +7,7 @@ docker exec -it vitalvue_backend alembic upgrade head
 
 docker compose exec db psql -U vitalvue_admin -d vitalvue_db -c "\dt"
 
+python files/simulator.py 
 ## Goal                    CommandCheck 
 Current Version         docker compose exec backend alembic current
 View History            docker compose exec backend alembic history

@@ -55,8 +55,12 @@ class Patient(User):
     device_id: Mapped[str] = mapped_column(String(100), unique=True, index=True)
     
     # Hierarchical Links (Derived from Screen 1 & 2)
-    doctor_id: Mapped[int] = mapped_column(ForeignKey("doctors.id"))
+    doctor_id: Mapped[int] = mapped_column(ForeignKey("doctors.id"), nullable=True)
+    nurse_id: Mapped[Optional[int]] = mapped_column(ForeignKey("nurses.id"), nullable=True)
     room_id: Mapped[int] = mapped_column(ForeignKey("rooms.id"))
+
+    assigned_nurse: Mapped[Optional["Nurse"]] = relationship("Nurse", foreign_keys=[nurse_id])
+    assigned_doctor: Mapped[Optional["Doctor"]] = relationship("Doctor", foreign_keys=[doctor_id])
 
     __mapper_args__ = {"polymorphic_identity": "patient"}
     
