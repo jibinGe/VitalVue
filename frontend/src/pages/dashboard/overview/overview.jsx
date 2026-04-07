@@ -61,7 +61,7 @@ export default function Overview() {
 
   const parsedUserId = parseInt(userId, 10);
   const { data: patientHistory, isLoading: loading } = usePatientHistory(parsedUserId, filterTab);
-  const { streamData } = useVitalsStream(parsedUserId);
+  const { streamData, criticalAlert } = useVitalsStream(parsedUserId);
   const currentVitals = patientHistory ? patientHistory[patientHistory.length - 1] : null; 
   const patientData = currentVitals; // Map for legacy compatibility
 
@@ -590,7 +590,31 @@ export default function Overview() {
     "Export Summary PDF",
   ];
 
-  // Check for critical vitals and trigger alarm modal via Zustand store
+  // ── Trigger alarm from SSE critical_alert events ─────────────────────
+  // criticalAlert updates every time the server pushes a critical_alert event.
+  // The object always has a new _ts so the dependency detects every alert.
+  useEffect(() => {
+    if (!criticalAlert) return;
+
+    // Build a vitals snapshot for the modal. Merge stream vitals + alert info.
+    const vitalsSnapshot = {
+      // Current live vitals (may be populated from prior patient_vital_update events)
+      heartRate: streamData?.heart_rate ?? undefined,
+      spo2:      streamData?.spo2       ?? undefined,
+      bloodPressure: (streamData?.bp_systolic && streamData?.bp_diastolic)
+        ? { systolic: streamData.bp_systolic, diastolic: streamData.bp_diastolic }
+        : undefined,
+      temperature: streamData?.temp ?? undefined,
+      // Pass the specific vital that triggered this alert so the modal can
+      // highlight it (CriticalAlarmModal uses the vitals prop for display).
+      _alertVitalType:    criticalAlert.vital_type,
+      _alertTriggeredVal: criticalAlert.triggered_value,
+    };
+
+    setCriticalAlarmData({ vitals: vitalsSnapshot, alert: criticalAlert });
+  }, [criticalAlert]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Fallback: trigger alarm from clinical risk flags in snapshot data ─
   useEffect(() => {
     if (!currentVitals) return;
 
@@ -979,6 +1003,7 @@ export default function Overview() {
         patientName={patientData?.name || patientData?.fullName}
         patientId={userId}
         vitals={criticalAlarmData?.vitals}
+        alert={criticalAlarmData?.alert}
         onDismiss={() => setCriticalAlarmData(null)}
         onViewPatient={() => {
           setCriticalAlarmData(null);

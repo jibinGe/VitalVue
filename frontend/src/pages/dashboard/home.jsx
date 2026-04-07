@@ -20,6 +20,8 @@ import { useWard } from "@/contexts/WardContext";
 import { usePatients } from "@/hooks/usePatients";
 import { useDoctors } from "@/hooks/useDoctors";
 import { useDashboardStore } from "@/store/useDashboardStore";
+import PatientStreamWatcher from "@/components/dashboard/PatientStreamWatcher";
+
 
 export default function Home() {
   const navigate = useNavigate();
@@ -1180,12 +1182,26 @@ export default function Home() {
       />
       {/* for flag end monitoring */}
 
-      {/* 🚨 Critical Alarm Modal — fires when a patient transitions to Critical via WebSocket */}
+      {/* 🔴 SSE Critical Alert Watchers — one per patient on this ward.
+          These are invisible — they just open an SSE connection and fire
+          setCriticalAlarmData via Zustand when a critical_alert event arrives. */}
+      {rawPatients.map((p) =>
+        p.id ? (
+          <PatientStreamWatcher
+            key={p.id}
+            patientId={p.id}
+            patientName={p.full_name || "Unknown Patient"}
+          />
+        ) : null
+      )}
+
+      {/* 🚨 Critical Alarm Modal — fires when a critical_alert arrives via SSE */}
       <CriticalAlarmModal
         isOpen={!!criticalAlarmData}
         patientName={criticalAlarmData?.name}
         patientId={criticalAlarmData?.userId}
         vitals={criticalAlarmData?.vitals}
+        alert={criticalAlarmData?.alert}
         onDismiss={() => setCriticalAlarmData(null)}
         onViewPatient={() => {
           if (criticalAlarmData?.userId) {

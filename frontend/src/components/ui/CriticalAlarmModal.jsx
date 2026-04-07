@@ -20,6 +20,7 @@ export default function CriticalAlarmModal({
   patientName,
   patientId,
   vitals = {},
+  alert = null,   // { vital_type, triggered_value, ... } from the SSE stream
   onDismiss,
   onViewPatient,
 }) {
@@ -33,11 +34,11 @@ export default function CriticalAlarmModal({
     return () => stopAlarm();
   }, [isOpen]);
 
-  const hr = vitals?.heartRate?.value ?? vitals?.heartRate ?? "—";
-  const spo2 = vitals?.spo2?.value ?? vitals?.spo2 ?? "—";
-  const systolic = vitals?.bloodPressure?.systolic ?? "—";
-  const diastolic = vitals?.bloodPressure?.diastolic ?? "—";
-  const temp = vitals?.temperature?.value ?? vitals?.temperature ?? "—";
+  const hr = vitals?.heartRate?.value != null ? Math.round(vitals.heartRate.value) : vitals?.heartRate != null && vitals.heartRate !== "—" ? Math.round(vitals.heartRate) : "—";
+  const spo2 = vitals?.spo2?.value != null ? Math.round(vitals.spo2.value) : vitals?.spo2 != null && vitals.spo2 !== "—" ? Math.round(vitals.spo2) : "—";
+  const systolic = vitals?.bloodPressure?.systolic != null ? Math.round(vitals.bloodPressure.systolic) : "—";
+  const diastolic = vitals?.bloodPressure?.diastolic != null ? Math.round(vitals.bloodPressure.diastolic) : "—";
+  const temp = vitals?.temperature?.value != null ? Math.round(vitals.temperature.value) : vitals?.temperature != null && vitals.temperature !== "—" ? Math.round(vitals.temperature) : "—";
 
   return (
     <AnimatePresence>
@@ -145,6 +146,46 @@ export default function CriticalAlarmModal({
                       "linear-gradient(90deg,transparent,rgba(229,77,77,0.3),transparent)",
                   }}
                 />
+
+                {/* Triggered vital banner — shown when the alert came from the SSE stream */}
+                {(alert?.vital_type || vitals?._alertVitalType) && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="w-full rounded-xl px-4 py-3 mb-4 flex items-center justify-between"
+                    style={{
+                      background: "rgba(229,77,77,0.1)",
+                      border: "1px solid rgba(229,77,77,0.35)",
+                    }}
+                  >
+                    <div className="flex items-center gap-2">
+                      <motion.div
+                        animate={{ opacity: [1, 0.3, 1] }}
+                        transition={{ duration: 0.8, repeat: Infinity }}
+                        style={{
+                          width: 8, height: 8, borderRadius: "50%",
+                          background: "#E54D4D",
+                          flexShrink: 0,
+                        }}
+                      />
+                      <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#E54D4D" }}>
+                        Triggered Alert
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-[#888] mb-0.5">
+                        {alert?.vital_type ?? vitals?._alertVitalType}
+                      </p>
+                      <p className="text-sm font-bold" style={{ color: "#E54D4D" }}>
+                        {alert?.triggered_value != null
+                          ? Math.round(parseFloat(alert.triggered_value))
+                          : vitals?._alertTriggeredVal != null
+                            ? Math.round(parseFloat(vitals._alertTriggeredVal))
+                            : "—"}
+                      </p>
+                    </div>
+                  </motion.div>
+                )}
 
                 {/* Vitals snapshot */}
                 <p className="text-xs text-[#888] uppercase tracking-wider mb-3">
