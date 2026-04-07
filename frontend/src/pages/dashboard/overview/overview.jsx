@@ -1,0 +1,966 @@
+import React, { useEffect, useState, useMemo, useRef } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { patientService } from "@/services/patientService";
+import { authService } from "@/services/authService";
+import MainBody from "@/components/dashboard/main-body";
+import Modal from "@/components/ui/modal-right";
+import Modal2 from "@/components/ui/modal";
+import AddNotesModal from "@/components/ui/AddNotesModal";
+import EventLogModal from "@/components/ui/EventLogModal";
+import BaselineDeviationModal from "@/components/ui/BaselineDeviationModal";
+import ConfirmationModal from "@/components/ui/ConfirmationModal";
+import CriticalAlarmModal from "@/components/ui/CriticalAlarmModal";
+import { usePatient } from "@/hooks/usePatient";
+import { useDashboardStore } from "@/store/useDashboardStore";
+
+import {
+  Bp,
+  Brain,
+  Face,
+  Hart,
+  High,
+  Hrv,
+  Moon,
+  Spo,
+  Temp,
+  SuccessTik,
+} from "@/utilities/icons";
+
+// overview card modal
+import NewsScore from "@/components/dashboard/overview/news-score";
+import APWarning from "@/components/dashboard/overview/ap-warning";
+import StrokeRisk from "@/components/dashboard/overview/stroke-risk";
+import SeizureRisk from "@/components/dashboard/overview/seizure-risk";
+import { Link } from "react-router-dom";
+
+import SpO2Gauge from "@/components/animation/overview/spo2Gauge";
+import BPBars from "@/components/animation/overview/bpBars";
+import HrvScore from "@/components/animation/overview/hrv-score";
+import TempWave from "../../../components/animation/overview/tempWave";
+import SleepPattern from "@/components/animation/overview/sleep-pattern";
+import StressPatternChart from "@/components/dashboard/charts/stress-pattern-chart";
+import DoctorReview from "../../../components/dashboard/overview/doctor-review";
+import HeartRateLive from "../../../components/charts/HeartRateLive";
+import Movement from "../../../components/animation/overview/movement";
+import ArcProgress from "../../../components/arc-progress";
+import HistoryTable from "@/components/dashboard/HistoryTable";
+
+export default function Overview() {
+  const { userId } = useParams();
+  const navigate = useNavigate();
+  const { 
+    setCriticalAlarmData, 
+    setSelectedUserId, 
+    setSelectedUserName 
+  } = useDashboardStore();
+
+  const { data: currentVitals, isLoading: loading } = usePatient(userId);
+  const patientData = currentVitals; // Map for legacy compatibility
+  
+  const prevVitalsRaw = useRef("");
+  const [chartsReady, setChartsReady] = useState(false);
+
+  // UI Modal States
+  const [news_scrore, set_news_score] = useState(false);
+  const [ap_warning, set_ap_warning] = useState(false);
+  const [stroke_risk, set_stroke_risk] = useState(false);
+  const [seizure_risk, set_seizure_risk] = useState(false);
+  const [flag_doctor_review, set_flag_doctor_review] = useState(false);
+  const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
+  const [isEventLogModalOpen, setIsEventLogModalOpen] = useState(false);
+  const [isBaselineDeviationModalOpen, setIsBaselineDeviationModalOpen] = useState(false);
+  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+
+
+  useEffect(() => {
+    if (!loading) {
+      // Let the browser paint the page layout and navigation before executing heavy chart logic
+      const timer = setTimeout(() => setChartsReady(true), 60);
+      return () => clearTimeout(timer);
+    } else {
+      setChartsReady(false);
+    }
+  }, [loading]);
+
+  const handleSaveNotes = async (data) => {
+    try {
+      const response = await patientService.addClinicalNote({
+        patientId: userId,
+        content: data.notes,
+        flagForReview: data.isFlagged ?? false,
+      });
+
+      setIsNotesModalOpen(false);
+
+      if (response.success) {
+        setSuccessMessage('Clinical note has been saved and synced successfully to the patient\'s record.');
+      } else {
+        setSuccessMessage(response.message || 'Failed to save clinical note.');
+      }
+      setIsSuccessModalOpen(true);
+    } catch (error) {
+      console.error('Error saving clinical note:', error);
+      setIsNotesModalOpen(false);
+      setSuccessMessage('An error occurred while saving the clinical note.');
+      setIsSuccessModalOpen(true);
+    }
+  };
+
+  const handleSaveEventLog = async (data) => {
+    try {
+      // Convert datetime-local string to ISO 8601 (e.g. "2026-03-02T06:34" -> ISO string)
+      const isoTimestamp = data.timestamp
+        ? new Date(data.timestamp).toISOString()
+        : new Date().toISOString();
+
+      const response = await patientService.logClinicalEvent({
+        patientId: userId,
+        eventType: data.eventType,
+        timestamp: isoTimestamp,
+        description: data.description,
+      });
+
+      setIsEventLogModalOpen(false);
+
+      if (response.success) {
+        setSuccessMessage(`Event "${data.eventType}" has been logged successfully for the patient.`);
+      } else {
+        setSuccessMessage(response.message || `Failed to log event "${data.eventType}".`);
+      }
+      setIsSuccessModalOpen(true);
+    } catch (error) {
+      console.error("Error logging clinical event:", error);
+      setIsEventLogModalOpen(false);
+      setSuccessMessage("An error occurred while logging the event.");
+      setIsSuccessModalOpen(true);
+    }
+  };
+
+  const handleSaveBaselineDeviation = async (data) => {
+    try {
+      const response = await patientService.manageBaselineDeviation({
+        patientId: userId,
+        baselineMetrics: {
+          vitalParameter: data.vitalParameter,
+          baselineValue: parseFloat(data.baselineValue),
+          currentValue: parseFloat(data.currentValue),
+          deviation: data.deviation !== null ? parseFloat(data.deviation) : null,
+          notes: data.notes || '',
+        },
+      });
+
+      setIsBaselineDeviationModalOpen(false);
+
+      if (response.success) {
+        setSuccessMessage(`Baseline deviation for ${data.vitalParameter} (${data.deviation}%) has been recorded successfully.`);
+      } else {
+        setSuccessMessage(response.message || 'Failed to record baseline deviation.');
+      }
+      setIsSuccessModalOpen(true);
+    } catch (error) {
+      console.error('Error saving baseline deviation:', error);
+      setIsBaselineDeviationModalOpen(false);
+      setSuccessMessage('An error occurred while recording the baseline deviation.');
+      setIsSuccessModalOpen(true);
+    }
+  };
+
+  // Helper function to map API assessments to triageStatus format
+  const mapAssessmentsToTriageStatus = (assessments) => {
+    if (!assessments) return [];
+
+    const statusMap = [];
+
+    // NEWS2 Score
+    if (assessments.news2) {
+      const news2 = assessments.news2;
+      const riskLevel = news2.riskLevel || "Low";
+      statusMap.push({
+        title: "NEWS2 Score",
+        position: news2.score || 0,
+        status: riskLevel === "High" ? "High" : riskLevel === "Medium" ? "Warning" : "Normal",
+        description: `${riskLevel} Clinical Risk`,
+        color: riskLevel === "High" ? "#E54D4D" : riskLevel === "Medium" ? "#FFBB33" : "#2CD155",
+      });
+    }
+
+    // AF Warning
+    if (assessments.af_warning) {
+      const afStatus = assessments.af_warning.status || "Normal";
+      statusMap.push({
+        title: "AF Warning",
+        position: afStatus === "Normal" ? "Normal" : "High",
+        status: afStatus === "Normal" ? "Normal" : "High",
+        description: afStatus === "Normal" ? "Regular Rhythm" : "Irregular Rhythm",
+        color: afStatus === "Normal" ? "#2CD155" : "#E54D4D",
+      });
+    }
+
+    // Stroke Risk
+    if (assessments.stroke_risk) {
+      const strokeRisk = assessments.stroke_risk.riskLevel || "Low";
+      statusMap.push({
+        title: "Stroke Risk",
+        position: strokeRisk,
+        status: strokeRisk === "High" ? "High" : strokeRisk === "Medium" ? "Warning" : "Normal",
+        description: strokeRisk === "High" ? "Elevated risk" : strokeRisk === "Medium" ? "Moderate risk" : "Normal neuro sign",
+        color: strokeRisk === "High" ? "#E54D4D" : strokeRisk === "Medium" ? "#FFBB33" : "#2CD155",
+      });
+    }
+
+    // Seizure Risk
+    if (assessments.seizure_risk) {
+      const seizureRisk = assessments.seizure_risk.riskLevel || "Normal";
+      statusMap.push({
+        title: "Seizure Risk",
+        position: seizureRisk,
+        status: seizureRisk === "High" ? "High" : seizureRisk === "Medium" ? "Warning" : "Normal",
+        description: seizureRisk === "High" ? "Elevated EDA levels" : seizureRisk === "Normal" ? "Normal EDA levels" : "Moderate EDA levels",
+        color: seizureRisk === "High" ? "#E54D4D" : seizureRisk === "Medium" ? "#FFBB33" : "#2CD155",
+      });
+    }
+
+    return statusMap;
+  };
+
+  // Get triage status from API assessments or use defaults
+  const apiAssessments = currentVitals?.assessments || patientData?.assessments;
+  const apiTriageStatus = apiAssessments ? mapAssessmentsToTriageStatus(apiAssessments) : [];
+
+  const triageStatus =
+    apiTriageStatus.length > 0
+      ? apiTriageStatus.map((item, index) => ({
+        icon:
+          item.title === "NEWS2 Score" ? (
+            <Bp className="size-4.5" />
+          ) : item.title === "AF Warning" ? (
+            <High />
+          ) : item.title === "Stroke Risk" ? (
+            <Brain />
+          ) : (
+            <Face />
+          ),
+        status: item.status,
+        title: item.title,
+        position: item.position,
+        des: item.description,
+        color: item.color,
+        progress: (
+          <svg
+            width="116"
+            height="104"
+            viewBox="0 0 116 104"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <circle
+              cx="104"
+              cy="104"
+              r="102"
+              stroke={item.color}
+              strokeOpacity="0.08"
+              strokeWidth="4"
+            />
+            <path
+              d="M21.4803 44.0459C12.0189 57.0684 5.77386 72.1452 3.25579 88.0437C0.737717 103.942 2.01809 120.211 6.99223 135.52C11.9664 150.829 20.493 164.743 31.8751 176.125C43.2572 187.507 57.1714 196.034 72.4803 201.008C87.7891 205.982 104.058 207.262 119.956 204.744C135.855 202.226 150.932 195.981 163.954 186.52C176.977 177.058 187.575 164.649 194.883 150.307C202.19 135.965 206 120.097 206 104"
+              stroke={item.color}
+              strokeWidth="4"
+              strokeLinecap="round"
+            />
+            <rect
+              x="12"
+              y="33"
+              width="20"
+              height="20"
+              rx="10"
+              fill="#2F2F31"
+            />
+            <circle cx="22" cy="43" r="4" fill={item.color} />
+          </svg>
+        ),
+        action:
+          item.title === "NEWS2 Score"
+            ? () => set_news_score(true)
+            : item.title === "AF Warning"
+              ? () => set_ap_warning(true)
+              : item.title === "Stroke Risk"
+                ? () => set_stroke_risk(true)
+                : () => set_seizure_risk(true),
+      }))
+      : [
+        {
+          icon: <Bp className="size-4.5" />,
+          status: "Warning",
+          title: "NEWS2 Score",
+          position: 5,
+          des: "Medium Clinical Risk",
+          color: "#FFBB33",
+          progress: (
+            <svg
+              width="116"
+              height="104"
+              viewBox="0 0 116 104"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <circle
+                cx="104"
+                cy="104"
+                r="102"
+                stroke="#FFBB33"
+                strokeOpacity="0.08"
+                strokeWidth="4"
+              />
+              <path
+                d="M21.4803 44.0459C12.0189 57.0684 5.77386 72.1452 3.25579 88.0437C0.737717 103.942 2.01809 120.211 6.99223 135.52C11.9664 150.829 20.493 164.743 31.8751 176.125C43.2572 187.507 57.1714 196.034 72.4803 201.008C87.7891 205.982 104.058 207.262 119.956 204.744C135.855 202.226 150.932 195.981 163.954 186.52C176.977 177.058 187.575 164.649 194.883 150.307C202.19 135.965 206 120.097 206 104"
+                stroke="#FFBB33"
+                strokeWidth="4"
+                strokeLinecap="round"
+              />
+              <rect
+                x="12"
+                y="33"
+                width="20"
+                height="20"
+                rx="10"
+                fill="#2F2F31"
+              />
+              <circle cx="22" cy="43" r="4" fill="#FFBB33" />
+            </svg>
+          ),
+          action: () => set_news_score(true),
+        },
+        {
+          icon: <High />,
+          status: "High",
+          title: "AF Warning",
+          position: "High",
+          des: "Irregular Rhythm",
+          color: "#E54D4D",
+          progress: (
+            <svg
+              width="116"
+              height="104"
+              viewBox="0 0 116 104"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <circle
+                cx="104"
+                cy="104"
+                r="102"
+                stroke="#E54D4D"
+                strokeOpacity="0.08"
+                strokeWidth="4"
+              />
+              <path
+                d="M21.4803 44.0459C12.0189 57.0684 5.77386 72.1452 3.25579 88.0437C0.737717 103.942 2.01809 120.211 6.99223 135.52C11.9664 150.829 20.493 164.743 31.8751 176.125C43.2572 187.507 57.1714 196.034 72.4803 201.008C87.7891 205.982 104.058 207.262 119.956 204.744C135.855 202.226 150.932 195.981 163.954 186.52C176.977 177.058 187.575 164.649 194.883 150.307C202.19 135.965 206 120.097 206 104"
+                stroke="#E54D4D"
+                strokeWidth="4"
+                strokeLinecap="round"
+              />
+              <rect
+                x="12"
+                y="33"
+                width="20"
+                height="20"
+                rx="10"
+                fill="#2F2F31"
+              />
+              <circle cx="22" cy="43" r="4" fill="#E54D4D" />
+            </svg>
+          ),
+          action: () => set_ap_warning(true),
+        },
+        {
+          icon: <Brain />,
+          status: "Normal",
+          title: "Stroke Risk",
+          position: "Low",
+          des: "Normal neuro sign",
+          color: "#2CD155",
+          progress: (
+            <svg
+              width="116"
+              height="104"
+              viewBox="0 0 116 104"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <circle
+                cx="104"
+                cy="104"
+                r="102"
+                stroke="#2CD155"
+                strokeOpacity="0.08"
+                strokeWidth="4"
+              />
+              <path
+                d="M21.4803 44.0459C12.0189 57.0684 5.77386 72.1452 3.25579 88.0437C0.737717 103.942 2.01809 120.211 6.99223 135.52C11.9664 150.829 20.493 164.743 31.8751 176.125C43.2572 187.507 57.1714 196.034 72.4803 201.008C87.7891 205.982 104.058 207.262 119.956 204.744C135.855 202.226 150.932 195.981 163.954 186.52C176.977 177.058 187.575 164.649 194.883 150.307C202.19 135.965 206 120.097 206 104"
+                stroke="#2CD155"
+                strokeWidth="4"
+                strokeLinecap="round"
+              />
+              <rect
+                x="12"
+                y="33"
+                width="20"
+                height="20"
+                rx="10"
+                fill="#2F2F31"
+              />
+              <circle cx="22" cy="43" r="4" fill="#2CD155" />
+            </svg>
+          ),
+          action: () => set_stroke_risk(true),
+        },
+        {
+          icon: <Face />,
+          status: "Normal",
+          title: "Seizure Risk",
+          position: "Normal",
+          des: "Elevate EDA levels",
+          color: "#2CD155",
+          progress: (
+            <svg
+              width="116"
+              height="104"
+              viewBox="0 0 116 104"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <circle
+                cx="104"
+                cy="104"
+                r="102"
+                stroke="#2CD155"
+                strokeOpacity="0.08"
+                strokeWidth="4"
+              />
+              <path
+                d="M21.4803 44.0459C12.0189 57.0684 5.77386 72.1452 3.25579 88.0437C0.737717 103.942 2.01809 120.211 6.99223 135.52C11.9664 150.829 20.493 164.743 31.8751 176.125C43.2572 187.507 57.1714 196.034 72.4803 201.008C87.7891 205.982 104.058 207.262 119.956 204.744C135.855 202.226 150.932 195.981 163.954 186.52C176.977 177.058 187.575 164.649 194.883 150.307C202.19 135.965 206 120.097 206 104"
+                stroke="#2CD155"
+                strokeWidth="4"
+                strokeLinecap="round"
+              />
+              <rect
+                x="12"
+                y="33"
+                width="20"
+                height="20"
+                rx="10"
+                fill="#2F2F31"
+              />
+              <circle cx="22" cy="43" r="4" fill="#2CD155" />
+            </svg>
+          ),
+          action: () => set_seizure_risk(true),
+        },
+      ];
+
+  // Helper function to format temperature to 1 decimal place
+  const formatTemperature = (temp) => {
+    if (temp === undefined || temp === null) return 37.2;
+    return parseFloat(temp).toFixed(1);
+  };
+
+  // Get vitals from API or use defaults - memoized to update when currentVitals changes
+  const vitals = useMemo(() => {
+    const latestVitals = currentVitals?.vitals_history && currentVitals.vitals_history.length > 0
+      ? currentVitals.vitals_history[currentVitals.vitals_history.length - 1]
+      : null;
+
+    const hrVal = latestVitals?.heart_rate;
+    const spo2Val = latestVitals?.spo2;
+    const sysVal = latestVitals?.systolic;
+    const diaVal = latestVitals?.diastolic;
+    const tempVal = latestVitals?.temperature;
+    const hrvVal = latestVitals?.hrv || currentVitals?.derived_metrics?.hrv;
+
+    return [
+      {
+        icon: <Hart />,
+        iconBg: "bg-green",
+        title: "Heart Rate",
+        value: hrVal ?? 82,
+        extension: "bpm",
+        img: hrVal ? <HeartRateLive className="p-4 md:p-6" width={360} /> : null,
+        path: `/dashboard/heart-rate/${userId || ""}`,
+      },
+      {
+        icon: <Spo />,
+        iconBg: "bg-purple",
+        title: "SpO2",
+        value: `${spo2Val ?? 98}%`,
+        extension: "",
+        img: spo2Val ? <SpO2Gauge value={spo2Val ?? 98} /> : null,
+        path: `/dashboard/spo/${userId || ""}`,
+      },
+      {
+        icon: <Bp />,
+        iconBg: "bg-pink",
+        title: "BP Trend",
+        value: `${sysVal ?? 120}/${diaVal ?? 80}`,
+        extension: "mmHg",
+        img: (sysVal || diaVal) ? <BPBars /> : null,
+        path: `/dashboard/bp-trend/${userId || ""}`,
+      },
+      {
+        icon: <Temp />,
+        iconBg: "bg-blue",
+        title: "Temperature",
+        value: formatTemperature(tempVal ?? 37.2),
+        extension: "°C",
+        img: (tempVal && tempVal !== 0) ? <TempWave /> : null,
+        path: `/dashboard/temperature/${userId || ""}`,
+      },
+      {
+        icon: <Hrv />,
+        iconBg: "bg-yellow",
+        title: "HRV Score",
+        value: hrvVal ?? 48,
+        extension: "ms",
+        img: hrvVal ? <HrvScore /> : null,
+        path: `/dashboard/hrv-score/${userId || ""}`,
+      },
+      {
+        icon: <Brain />,
+        iconBg: "bg-aqua",
+        title: "Movement",
+        value:
+          vitalsData.movement?.activityLevel !== undefined
+            ? vitalsData.movement.activityLevel
+            : overviewVitals.movement?.activityLevel !== undefined
+              ? overviewVitals.movement.activityLevel
+              : "High",
+        extension: "",
+        img: <Movement />,
+        path: `/dashboard/movement/${userId || ""}`,
+      },
+      {
+        icon: <Moon />,
+        iconBg: "bg-burnt",
+        title: "Sleep Pattern",
+        value:
+          vitalsData.sleepPattern?.totalSleep ||
+          overviewVitals.sleepPattern?.totalSleep ||
+          "6h 12m",
+        extension: "",
+        img: <SleepPattern />,
+        path: `/dashboard/sleep-pattern/${userId || ""}`,
+      },
+      {
+        icon: <Brain />,
+        iconBg: "bg-deepBlue",
+        title: "Stress Level",
+        value: vitalsData.stress?.level || overviewVitals.stress?.level || "Moderate",
+        extension: "",
+        img: <StressPatternChart />,
+        path: `/dashboard/stress/${userId || ""}`,
+      },
+    ];
+  }, [currentVitals, patientData, userId]);
+
+  const btn = [
+    "Add Note",
+    "Event Log",
+    "Baseline Deviation",
+    "Export Summary PDF",
+  ];
+
+  const filter = ["Live", "1h", "24h"];
+
+  const [filterTab, setFilterTab] = useState(filter[0]);
+
+  // Check for critical vitals and trigger alarm modal via Zustand store
+  useEffect(() => {
+    if (!currentVitals) return;
+
+    const hasCritical = currentVitals.status?.toLowerCase() === "critical" || 
+                        currentVitals.vitals?.heartRate?.status?.toLowerCase() === "critical" ||
+                        currentVitals.vitals?.spo2?.status?.toLowerCase() === "critical" ||
+                        currentVitals.vitals?.bloodPressure?.status?.toLowerCase() === "critical";
+                        
+    if (hasCritical) {
+      setCriticalAlarmData({ vitals: currentVitals.vitals || {} });
+    }
+  }, [currentVitals, setCriticalAlarmData]);
+
+  useEffect(() => {
+    if (
+      news_scrore ||
+      ap_warning ||
+      stroke_risk ||
+      seizure_risk ||
+      flag_doctor_review
+    ) {
+      document.body.classList.add("overflow-hidden");
+    } else {
+      document.body.classList.remove("overflow-hidden");
+    }
+  }, [news_scrore, ap_warning, stroke_risk, seizure_risk, flag_doctor_review]);
+
+
+  if (loading) {
+    return (
+      <MainBody>
+        <div className="flex items-center justify-center min-h-96">
+          <p className="text-white">Loading patient data...</p>
+        </div>
+      </MainBody>
+    );
+  }
+
+  return (
+    <>
+      <MainBody>
+        {/* Back Button */}
+        <div className="mb-6">
+          <Link
+            to="/dashboard/home"
+            className="inline-flex items-center gap-2 text-white hover:text-primary transition-colors duration-200"
+          >
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M15 18L9 12L15 6"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            <span className="text-base font-medium">Back to Home</span>
+          </Link>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-[repeat(auto-fit,325px)] gap-4 md:gap-5 xl:gap-6">
+          {triageStatus.map((item, index) => (
+            <div
+              key={index}
+              onClick={item.action}
+              className={`border cursor-pointer relative z-1 overflow-hidden rounded-[20px] bg-[#2f2f31] shadow-[0_0_100px_0_rgba(0,0,0,0.08)] flex flex-col gap-5 ${item.status === "Warning"
+                ? "border-yellow"
+                : item.status === "High"
+                  ? "border-red"
+                  : "border-green"
+                }`}
+            >
+              <div className="py-5 px-6.5">
+                <div className="flex items-center justify-between gap-4 mb-10">
+                  <h4 className="text-lg md:text-xl lg:text-lg xl:text-xl font-normal text-white">
+                    {item.title}{" "}
+                  </h4>
+                  <div
+                    className={`size-11 lg:size-10 xl:size-11 ${item.status === "High"
+                      ? "bg-froly"
+                      : item.status === "Warning"
+                        ? "bg-yellow"
+                        : "bg-green"
+                      }`}
+                  >
+                    {item.icon}
+                  </div>
+                </div>
+                <div className="">
+                  <span className="text-xl md:text-2xl lg:text-xl xl:text-[36px] text-white font-medium mr-3">
+                    {item.position}
+                  </span>
+                  <p className="text-base lg:text-sm xl:text-base text-para">{item.des} </p>
+                </div>
+                <div className="absolute bottom-0 right-0 -z-1">
+                  {item.progress}
+                </div>
+                <div className="absolute top-0 left-0 -z-1">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="170"
+                    height="170"
+                    viewBox="0 0 170 170"
+                    fill="none"
+                  >
+                    <g filter="url(#filter0_f_119_5326)">
+                      <ellipse
+                        cx="45.6203"
+                        cy="45.5834"
+                        rx="75"
+                        ry="12.5796"
+                        transform="rotate(45 45.6203 45.5834)"
+                        fill={`${item.color}`}
+                        fillOpacity="0.35"
+                      />
+                      <ellipse
+                        cx="75.0855"
+                        cy="12.5654"
+                        rx="75.0855"
+                        ry="12.5654"
+                        transform="matrix(0.940523 0.339729 -0.3443 0.93886 -3.04492 -18.8887)"
+                        fill={`${item.color}`}
+                        fillOpacity="0.35"
+                      />
+                      <ellipse
+                        cx="75.0855"
+                        cy="12.5654"
+                        rx="75.0855"
+                        ry="12.5654"
+                        transform="matrix(0.339729 0.940523 -0.93886 0.3443 4.7052 -11.6963)"
+                        fill={`${item.color}`}
+                        fillOpacity="0.35"
+                      />
+                    </g>
+                    <defs>
+                      <filter
+                        id="filter0_f_119_5326"
+                        x="-45.6946"
+                        y="-45.6941"
+                        width="215.698"
+                        height="215.698"
+                        filterUnits="userSpaceOnUse"
+                        colorInterpolationFilters="sRGB"
+                      >
+                        <feFlood floodOpacity="0" result="BackgroundImageFix" />
+                        <feBlend
+                          mode="normal"
+                          in="SourceGraphic"
+                          in2="BackgroundImageFix"
+                          result="shape"
+                        />
+                        <feGaussianBlur
+                          stdDeviation="18"
+                          result="effect1_foregroundBlur_119_5326"
+                        />
+                      </filter>
+                    </defs>
+                  </svg>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-4 justify-between my-6">
+          <h5 className="">Vitals Timeline</h5>
+          <div className="flex items-center gap-1 bg-[#313135] p-1 rounded-xl">
+            {filter.map((item, index) => (
+              <button
+                key={index}
+                className={`text-sm min-h-7 px-3 rounded-lg min-w-12.5 ${item === filterTab ? "btn btn-gradient" : ""}`}
+                onClick={() => setFilterTab(item)}
+              >
+                {item}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-[repeat(auto-fit,325px)] gap-4 md:gap-5 xl:gap-6">
+          {vitals.map((item, index) => (
+            <Link
+              to={item.path}
+              className="bg-[#2F2F31] rounded-3xl overflow-hidden min-h-50  flex flex-col justify-between"
+              key={index}
+            >
+              <div className="p-5">
+                <div className="flex items-center gap-4 mb-4">
+                  <div
+                    className={`size-10 md:size-11 lg:size-12 xl:size-13 ${item.iconBg}`}
+                  >
+                    {item.icon}
+                  </div>
+                  <span className="text-base md:text-lg xl:text-xl text-white">
+                    {item.title}{" "}
+                  </span>
+                </div>
+                <div className="text-xl md:text-2xl lg:text-3xl xl:text-[36px] text-white font-medium [text-shadow:1px_1px_5px_rgba(255,0,0,0.16),-1px_-1px_5px_rgba(0,170,255,0.16)]">
+                  {String(item.value).includes("/")
+                    ? String(item.value).split("/")[0]
+                    : item.value}
+
+                  {String(item.value).includes("/") && (
+                    <span className="text-xl align-baseline">
+                      /{String(item.value).split("/")[1]}
+                    </span>
+                  )}
+
+                  <span className="text-base text-para ml-1.5 font-normal">
+                    {item.extension}
+                  </span>
+                </div>
+              </div>
+              <div className="relative z-1">
+                {chartsReady ? item.img : <div className="h-[120px] w-full animate-pulse bg-white/5 opacity-50 rounded-b-3xl"></div>}
+              </div>
+            </Link>
+          ))}
+        </div>
+        <div className="bg-[#2D2D2F] rounded-3xl border border-[#0F0F0F] flex-wrap gap-3 p-5 xl:py-6.5 xl:px-7.5 mt-6 flex items-center justify-between">
+          <div className="flex items-center flex-wrap gap-3 xl:gap-6">
+            {btn.map((item, index) => (
+              <button
+                className="btn xl:px-12 rounded-2xl text-white"
+                key={index}
+                onClick={() => {
+                  if (item === "Add Note") {
+                    setIsNotesModalOpen(true);
+                  } else if (item === "Event Log") {
+                    setIsEventLogModalOpen(true);
+                  } else if (item === "Baseline Deviation") {
+                    setIsBaselineDeviationModalOpen(true);
+                  }
+                }}
+              >
+                {item}{" "}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => set_flag_doctor_review(true)}
+            className="btn xl:px-12 rounded-2xl btn-gradient"
+          >
+            Flag for Doctor Review
+          </button>
+        </div>
+
+        {/* --- History Section --- */}
+        <div className="mt-10">
+          <div className="flex items-center justify-between mb-6">
+            <h4 className="text-xl lg:text-2xl font-medium text-white">Full Vitals History</h4>
+            <div className="text-para text-sm">
+              Showing all recorded vital signs
+            </div>
+          </div>
+          <HistoryTable history={currentVitals?.vitals_history || []} />
+        </div>
+      </MainBody>
+
+      {/* new 2 score modal */}
+      <Modal
+        onClick={() => set_news_score(false)}
+        modalCondition={news_scrore}
+        innerClass="rounded-3xl! max-w-203! bg-[#2F2F31]! border-0! lg:rounded-4xl! xl:rounded-[48px]! mr-0!"
+      >
+        <NewsScore userId={userId} />
+      </Modal>
+      {/* new 2 score modal */}
+
+      {/* ap warning modal */}
+      <Modal
+        modalCondition={ap_warning}
+        onClick={() => set_ap_warning(false)}
+        innerClass="rounded-3xl! max-w-203! bg-[#2F2F31]! border-0! lg:rounded-4xl! xl:rounded-[48px]! mr-0!"
+      >
+        <APWarning userId={userId} />
+      </Modal>
+      {/* ap warning modal */}
+
+      {/* 3rd modal-- */}
+      <Modal
+        modalCondition={stroke_risk}
+        onClick={() => set_stroke_risk(false)}
+        innerClass="rounded-3xl! max-w-203! bg-[#2F2F31]! border-0! lg:rounded-4xl! xl:rounded-[48px]! mr-0!"
+      >
+        <StrokeRisk userId={userId} />
+      </Modal>
+
+      {/* seizure_risk modal */}
+      <Modal
+        onClick={() => set_seizure_risk(false)}
+        modalCondition={seizure_risk}
+        innerClass="rounded-3xl! max-w-203! bg-[#2F2F31]! border-0! lg:rounded-4xl! xl:rounded-[48px]! mr-0!"
+      >
+        <SeizureRisk userId={userId} />
+      </Modal>
+      {/* seizure_risk modal */}
+
+      {/*  flag for doctor review modal start */}
+      <Modal2
+        onClick={() => set_flag_doctor_review(false)}
+        modalCondition={flag_doctor_review}
+        innerClass="max-w-245 [&>div]:!p-0 border border-solid border-white/15"
+      >
+        <DoctorReview
+          onClick={() => set_flag_doctor_review(false)}
+          userId={userId}
+          patientDetails={{
+            name: patientData?.name || currentVitals?.patientName || "Arthur Crane",
+            id: patientData?.patientId || currentVitals?.patientId || userId || "P-1049",
+            ward: patientData?.ward || currentVitals?.ward || "ICU Ward - 03",
+            bed: patientData?.bed || currentVitals?.bed || "12A",
+            news2Score: currentVitals?.assessments?.news2?.score || patientData?.assessments?.news2?.score || 1,
+            lastSync: "2m ago" // You can calculate this from currentVitals?.timestamp if needed
+          }}
+        />
+      </Modal2>
+      {/*  flag for doctor review modal end */}
+      {/*  flag for doctor review modal end */}
+
+      <AddNotesModal
+        isOpen={isNotesModalOpen}
+        onClose={() => setIsNotesModalOpen(false)}
+        onSave={handleSaveNotes}
+        title="Add Clinical Note"
+        patientDetails={{
+          name: patientData?.name || currentVitals?.patientName || "Arthur Crane",
+          id: patientData?.patientId || currentVitals?.patientId || userId || "P-1049",
+          bed: patientData?.bed || currentVitals?.bed || "12A",
+          ward: patientData?.ward || currentVitals?.ward || "ICU Ward - 03"
+        }}
+      />
+
+      <EventLogModal
+        isOpen={isEventLogModalOpen}
+        onClose={() => setIsEventLogModalOpen(false)}
+        onSave={handleSaveEventLog}
+        title="Log Event"
+        patientDetails={{
+          name: patientData?.name || currentVitals?.patientName || "Arthur Crane",
+          id: patientData?.patientId || currentVitals?.patientId || userId || "P-1049",
+          bed: patientData?.bed || currentVitals?.bed || "12A",
+          ward: patientData?.ward || currentVitals?.ward || "ICU Ward - 03"
+        }}
+      />
+
+      <BaselineDeviationModal
+        isOpen={isBaselineDeviationModalOpen}
+        onClose={() => setIsBaselineDeviationModalOpen(false)}
+        onSave={handleSaveBaselineDeviation}
+        title="Baseline Deviation"
+        patientDetails={{
+          name: patientData?.name || currentVitals?.patientName || "Arthur Crane",
+          id: patientData?.patientId || currentVitals?.patientId || userId || "P-1049",
+          bed: patientData?.bed || currentVitals?.bed || "12A",
+          ward: patientData?.ward || currentVitals?.ward || "ICU Ward - 03"
+        }}
+      />
+
+      <ConfirmationModal
+        isOpen={isSuccessModalOpen}
+        onClose={() => setIsSuccessModalOpen(false)}
+        onConfirm={() => setIsSuccessModalOpen(false)}
+        title="Saved & Synced"
+        message={successMessage}
+        confirmText="OK"
+        icon={<SuccessTik className="size-6 text-[#2CD155]" />}
+      />
+
+      {/* 🚨 Critical Alarm Modal */}
+      <CriticalAlarmModal
+        isOpen={!!criticalAlarmData}
+        patientName={patientData?.name || patientData?.fullName}
+        patientId={userId}
+        vitals={criticalAlarmData?.vitals}
+        onDismiss={() => setCriticalAlarmData(null)}
+        onViewPatient={() => {
+          setCriticalAlarmData(null);
+          // Already on the patient page, just scroll to top
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }}
+      />
+    </>
+  );
+}

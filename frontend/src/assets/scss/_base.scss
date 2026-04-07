@@ -1,0 +1,90 @@
+@layer base {
+    body {
+        font-size: 16px;
+        font-weight: 400;
+        line-height: calc(26px/16px);
+        color: $text;
+        font-family: $font-1;
+        background-color: $bg;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+        color: $white;
+        font-weight: 500;
+    }
+
+    h5 {
+        font-size: 28px;
+
+        @include lg {
+            font-size: 24px;
+        }
+
+        @include md {
+            font-size: 20px;
+        }
+
+        @include sm {
+            font-size: 18px;
+        }
+    }
+
+    img {
+        max-width: 100%;
+    }
+
+    a {
+        text-decoration: none;
+        @include transition;
+    }
+
+    input,
+    textarea,
+    button {
+        outline: none;
+        @include transition;
+
+        &:focus {
+            outline: none;
+        }
+    }
+
+    button {
+        cursor: pointer;
+    }
+
+    input::-webkit-outer-spin-button,
+    input::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+
+    input[type=number] {
+        -moz-appearance: textfield;
+        appearance: textfield;
+    }
+}
+
+@layer components {
+
+    [class*="overflow-x"],
+    [class*="overflow-y"] {
+        @include custom-scroll(var(--scroll, 6px));
+    }
+
+    #root {
+        overflow: hidden;
+    }
+
+    :root {
+        --left-sidebar-width: 344px;
+    }
+    svg{
+        outline: none;
+    }
+}

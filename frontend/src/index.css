@@ -1,0 +1,122 @@
+@import "tailwindcss";
+@custom-variant hover (&:hover);
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+    --color-primary: #B2884D;
+    --color-secondary: #CCA166;
+    --color-para: #BABEC4;
+    --color-btn-border: rgba(204, 161, 102, 0.5);
+    --breakpoint-xs: 390px;
+    --breakpoint-sm: 414px;
+    --breakpoint-md: 768px;
+    --breakpoint-lg: 992px;
+    --breakpoint-xl: 1240px;
+    --breakpoint-2xl: 1340px;
+    --breakpoint-3xl: 1400px;
+    --breakpoint-4xl: 1552px;
+    --font-lufga: 'Lufga', sans-serif;
+
+    /* Gradient background images */
+    --background-image-btn-gold: linear-gradient(91deg, #B2884D 0%, #CCA166 48.98%, #B2884D 98.92%);
+    --background-image-btn-transparent: linear-gradient(91deg, rgba(178, 136, 77, 0.08) 0%, rgba(204, 161, 102, 0.08) 48.98%, rgba(178, 136, 77, 0.08) 98.92%);
+
+    /* Box shadows - use --shadow-* naming convention */
+    --shadow-btn-inset: inset -1px -1px 5.8px 0 rgba(139, 139, 139, 0.23);
+}
+
+@layer base {
+    .btn {
+        @apply inline-flex items-center justify-center font-normal gap-2 rounded-xl text-sm lg:text-base leading-normal px-5.5 min-h-12 md:min-h-14 lg:min-h-16 bg-secondary/8 border border-solid border-secondary/35 hover:bg-primary hover:text-white;
+    }
+
+    .btn-gradient {
+        @apply border-none bg-btn-gold shadow-btn-inset text-white;
+        backdrop-filter: blur(2px);
+    }
+
+    .btn.bg-transparent {
+        @apply border border-btn-border bg-btn-transparent hover:bg-primary;
+    }
+}
+
+/* ============================================================
+   GLOBAL ANIMATION KEYFRAMES
+   Defined here once so animation components don't inject
+   duplicate <style> tags per instance into the DOM.
+   ============================================================ */
+
+/* --- HeartRate EKG scan line (overview/heartRateWave.jsx) --- */
+@keyframes slideEkg1 {
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(-261px); }
+}
+.ekg-slide-1 {
+    animation: slideEkg1 2.5s linear infinite;
+}
+
+/* --- HeartRate EKG scan line (animation/heartRateWave.jsx) --- */
+@keyframes slideEkg2 {
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(-116px); }
+}
+.ekg-slide-2 {
+    animation: slideEkg2 1.5s linear infinite;
+}
+
+@keyframes pulseWave {
+    0%   { transform: scale(1); opacity: 1; }
+    100% { transform: scale(2.5); opacity: 0; }
+}
+
+.end-circle {
+    transform-origin: 261px 19.1px;
+    animation: pulseWave 1.5s ease-out infinite;
+}
+.end-circle-small {
+    transform-origin: 116px 19px;
+    animation: pulseWave 1.5s ease-out infinite;
+}
+
+/* --- BP Bars wave (bpBars.jsx) --- */
+@keyframes bpBarWave {
+    0%, 100% { opacity: 0.5; transform: scaleY(0.6); }
+    50%       { opacity: 1;   transform: scaleY(1);   }
+}
+.bp-bars-animated .recharts-bar-rectangle {
+    transform-origin: bottom;
+    animation: bpBarWave 2s ease-in-out infinite;
+}
+
+/* --- HRV bar pulse (hrv-score.jsx) --- */
+@keyframes hrvBarPulse {
+    0%, 100% { transform: scaleY(0.7); opacity: 0.6; }
+    50%       { transform: scaleY(1);   opacity: 1;   }
+}
+.hrv-score-animated .recharts-bar-rectangle {
+    transform-origin: bottom;
+    animation: hrvBarPulse 2.5s ease-in-out infinite;
+}
+.hrv-score-animated .recharts-bar-rectangle:nth-child(odd)  { animation-delay: 0s;    }
+.hrv-score-animated .recharts-bar-rectangle:nth-child(even) { animation-delay: 1.25s; }
+
+/* --- Temperature wave mask slide (tempWave.jsx) --- */
+@keyframes tempMaskSlide {
+    0%   {
+        mask-position: 200% 0;
+        -webkit-mask-position: 200% 0;
+    }
+    100% {
+        mask-position: -100% 0;
+        -webkit-mask-position: -100% 0;
+    }
+}
+.temp-wave-animated .recharts-wrapper {
+    mask-image: linear-gradient(90deg, transparent 0%, black 20%, black 80%, transparent 100%);
+    -webkit-mask-image: linear-gradient(90deg, transparent 0%, black 20%, black 80%, transparent 100%);
+    mask-size: 200% 100%;
+    -webkit-mask-size: 200% 100%;
+    mask-repeat: no-repeat;
+    -webkit-mask-repeat: no-repeat;
+    animation: tempMaskSlide 3s linear infinite;
+}

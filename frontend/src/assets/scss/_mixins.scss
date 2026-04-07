@@ -1,0 +1,259 @@
+@mixin transition {
+    transition: all .3s ease-in-out;
+}
+
+@mixin hidden {
+    opacity: 0;
+    visibility: hidden;
+}
+
+@mixin show {
+    opacity: 1;
+    visibility: visible;
+}
+
+@mixin img($property) {
+    position: relative;
+    z-index: 1;
+    overflow: hidden;
+    & img {
+        width: 100%;
+        height: 100%;
+        object-fit: $property;
+        position: absolute;
+        top: 0;
+        left: 0;
+    }
+}
+
+@mixin position_middle {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+@mixin position_left {
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+@mixin flex {
+    display: flex;
+    align-items: center;
+}
+
+@mixin font-100 {
+    font-size: 100px;
+    line-height: 120%;
+    @include xxl {
+        font-size: 84px;
+    }
+    @include xl {
+        font-size: 66px;
+    }
+    @include lg {
+        font-size: 60px;
+    }
+    @include md {
+        font-size: 44px;
+    }
+    @include sm {
+        font-size: 32px;
+    }
+    @include ssm {
+        font-size: 26px;
+    }
+}
+
+@mixin font-84 {
+    font-size: 84px;
+    line-height: 1.2;
+    @include xl {
+        font-size: 66px;
+    }
+    @include lg {
+        font-size: 56px;
+    }
+    @include md {
+        font-size: 48px;
+    }
+    @include sm {
+        font-size: 42px;
+    }
+}
+
+@mixin font-70 {
+    font-size: 70px;
+    line-height: calc(106px/70px);
+    @include xxl {
+        font-size: 60px;
+    }
+    @include xl {
+        font-size: 60px;
+    }
+    @include lg {
+        font-size: 40px;
+    }
+    @include md {
+        font-size: 36px;
+    }
+    @include sm {
+        font-size: 30px;
+    }
+}
+
+@mixin font-68 {
+    font-size: 68px;
+    line-height: 115%;
+    @include xl {
+        font-size: 50px;
+    }
+    @include lg {
+        font-size: 44px;
+    }
+    @include md {
+        font-size: 40px;
+    }
+    @include sm {
+        font-size: 36px;
+    }
+}
+
+@mixin font-64 {
+    font-size: 64px;
+    line-height: 120%;
+    @include xl {
+        font-size: 52px;
+    }
+    @include lg {
+        font-size: 42px;
+    }
+    @include md {
+        font-size: 35px;
+    }
+    @include sm {
+        font-size: 24px;
+    }
+}
+
+@mixin font-48 {
+    font-size: 48px;
+    line-height: 120%;
+    @include xl {
+        font-size: 40px;
+    }
+    @include lg {
+        font-size: 36px;
+    }
+    @include md {
+        font-size: 32px;
+    }
+    @include sm {
+        font-size: 28px;
+    }
+}
+
+@mixin font-40 {
+    font-size: 40px;
+    line-height: calc(60px/40px);
+    @include xl {
+        font-size: 32px;
+    }
+    @include lg {
+        font-size: 28px;
+    }
+    @include md {
+        font-size: 26px;
+    }
+    @include sm {
+        font-size: 22px;
+    }
+}
+
+@mixin font-36 {
+    font-size: 36px;
+    line-height: calc(55px/36px);
+    @include lg {
+        font-size: 32px;
+    }
+    @include md {
+        font-size: 28px;
+    }
+    @include sm {
+        font-size: 24px;
+    }
+}
+
+@mixin font-22 {
+    font-size: 22px;
+    line-height: 140%;
+    @include md {
+        font-size: 20px;
+    }
+    @include sm {
+        font-size: 18px;
+    }
+}
+
+@mixin font-24 {
+    font-size: 24px;
+    line-height: 1.5;
+    @include lg {
+        font-size: 20px;
+    }
+    @include md {
+        font-size: 20px;
+    }
+    @include sm {
+        font-size: 18px;
+    }
+}
+
+@mixin font-20 {
+    font-size: 20px;
+    line-height: calc(30px/20px);
+    @include lg {
+        font-size: 18px;
+    }
+    @include md {
+        font-size: 18px;
+    }
+    @include sm {
+        font-size: 16px;
+    }
+}
+
+@mixin font-18 {
+    font-size: 18px;
+    line-height: calc(27px/18px);
+    @include mmd {
+        font-size: 16px;
+    }
+}
+
+@mixin text_ellipsis($count) {
+    display: -webkit-box;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    -box-orient: vertical;
+    -webkit-box-orient: vertical;
+    line-clamp: $count;
+    -webkit-line-clamp: $count;
+}
+
+@mixin custom-scroll($inset) {
+    &::-webkit-scrollbar {
+        width: $inset;
+        height: $inset;
+    }
+    &::-webkit-scrollbar-track {
+        border-radius: 100px;
+        background-color: rgba($color: white, $alpha: .15);
+    }
+    &::-webkit-scrollbar-thumb {
+        border-radius: 100px;
+        background-color: rgba($color: white, $alpha: .30);
+    }
+}

@@ -1,0 +1,100 @@
+@import "react-datepicker/dist/react-datepicker.css";
+
+.react {
+    &-datepicker {
+        background-color: #1C1C1C;
+        border: none;
+        width: 100%;
+        max-width: 350px;
+        border-radius: 16px;
+        margin-top: 6px;
+
+        &-popper {
+            width: 100%;
+        }
+
+        &__header {
+            background-color: transparent;
+            border-bottom: 1px solid rgba($color: $white, $alpha: .03);
+            padding: 8px 10px;
+        }
+
+        &__current-month {
+            color: $white;
+            padding: 8px 0 !important;
+        }
+
+        &__navigation {
+            margin-top: 8px;
+            background-color: rgba($color: $white, $alpha: .10);
+            border-radius: 10px;
+            &--previous {
+                left: 8px;
+                & span{
+                    right: 0;
+                }
+            }
+            &--next {
+                right: 8px;
+                & span{
+                    left: 0;
+                }
+            }
+
+            & span {
+                font-size: 16px;
+            }
+        }
+
+        &__day-names,
+        &__week {
+            display: grid;
+            grid-template-columns: repeat(7, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        &__day-name {
+            font-size: 14px;
+            font-weight: 400;
+            color: $text;
+            width: 100%;
+        }
+
+        &__month-container {
+            width: 100%;
+        }
+
+        &__day {
+            width: 100%;
+            color: $text !important;
+            font-weight: 500;
+            font-size: 14px;
+            aspect-ratio: 1/1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+
+            &:hover {
+                background-color: #151516 !important;
+            }
+
+            &--outside-month {
+                color: rgba($color: #B3B3B3, $alpha: .40);
+            }
+
+            &--keyboard-selected,
+            &--selected {
+                background-color: rgba($color: $primary, $alpha: .30);
+                color: $white;
+            }
+        }
+    }
+}
+
+.react-datepicker__navigation-icon::before,
+.react-datepicker__year-read-view--down-arrow,
+.react-datepicker__month-read-view--down-arrow,
+.react-datepicker__month-year-read-view--down-arrow {
+    border-width: 2px 2px 0 0;
+}
