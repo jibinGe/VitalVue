@@ -16,6 +16,11 @@ class Settings(BaseSettings):
     CUSTOM_AWS_SECRET_ACCESS_KEY: str
     CUSTOM_AWS_REGION: str
 
+    # Twilio
+    TWILIO_ACCOUNT_SID: str 
+    TWILIO_AUTH_TOKEN: str
+    TWILIO_WHATSAPP_NUMBER: str
+    
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 settings = Settings()

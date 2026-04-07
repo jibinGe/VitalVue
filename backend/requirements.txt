@@ -21,3 +21,4 @@ pydantic-settings==2.1.0          # Environment variable management
 httpx==0.26.0              # Async HTTP client for external API calls
 python-dotenv==1.0.1       # Load local .env files
 boto3==1.42.80
+twilio==9.10.4
