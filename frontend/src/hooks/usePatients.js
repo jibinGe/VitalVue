@@ -18,15 +18,15 @@ export const usePatients = (wardId = 'all', refreshTrigger = 0) => {
         params.ward = wardId;
       }
       const response = await patientService.getOrganizationVitals(params);
-      
+
       if (!response.success) {
         throw new Error(response.message || 'Failed to fetch patients');
       }
-      
+
       return response.data || [];
     },
     // Disabled polling in favor of Server-Sent Events
-    refetchInterval: false, 
+    refetchInterval: false,
     staleTime: Infinity, // Keep in-memory cache until updated by stream
   });
 
@@ -34,9 +34,12 @@ export const usePatients = (wardId = 'all', refreshTrigger = 0) => {
     const token = localStorage.getItem('accessToken');
     if (!token) return;
 
-    let streamUrl = 'http://localhost:8000/api/v1/stream/assigned/stream';
+    // Use the backend base URL from settings/config or fallback to the current window origin for relatives
+    const backendBaseUrl = 'https://vitalvue-api.genesysailabs.com'; 
+    
+    let streamUrl = `${backendBaseUrl}/api/v1/stream/assigned/stream`;
     if (wardId && wardId !== "all") {
-      streamUrl = `http://localhost:8000/api/v1/stream/ward-stream/${wardId}`;
+      streamUrl = `${backendBaseUrl}/api/v1/stream/ward-stream/${wardId}`;
     }
 
     const eventSource = new EventSource(`${streamUrl}?token=${token}`);
@@ -50,30 +53,30 @@ export const usePatients = (wardId = 'all', refreshTrigger = 0) => {
           return oldData.map(patient => {
             // Find patient by integer ID or specific string formats
             if (
-              patient.id === data.patient_id || 
+              patient.id === data.patient_id ||
               patient.user_id === data.patient_id ||
               patient.id?.toString() === data.patient_id?.toString()
             ) {
-               const updatedPatient = { ...patient };
-               
-               if (data.vitals) {
-                   const newVitalsEntry = {
-                       ...data.vitals,
-                       recorded_at: new Date().toISOString()
-                   };
-                   
-                   updatedPatient.vitals_history = [
-                       ...(updatedPatient.vitals_history || []),
-                       newVitalsEntry
-                   ];
+              const updatedPatient = { ...patient };
 
-                   // Keep array size manageable for memory
-                   if (updatedPatient.vitals_history.length > 30) {
-                       // shift instead of slicing for performance if we are constantly appending
-                       updatedPatient.vitals_history = updatedPatient.vitals_history.slice(-30);
-                   }
-               }
-               return updatedPatient;
+              if (data.vitals) {
+                const newVitalsEntry = {
+                  ...data.vitals,
+                  recorded_at: new Date().toISOString()
+                };
+
+                updatedPatient.vitals_history = [
+                  ...(updatedPatient.vitals_history || []),
+                  newVitalsEntry
+                ];
+
+                // Keep array size manageable for memory
+                if (updatedPatient.vitals_history.length > 30) {
+                  // shift instead of slicing for performance if we are constantly appending
+                  updatedPatient.vitals_history = updatedPatient.vitals_history.slice(-30);
+                }
+              }
+              return updatedPatient;
             }
             return patient;
           });
@@ -89,6 +92,10 @@ export const usePatients = (wardId = 'all', refreshTrigger = 0) => {
     eventSource.addEventListener('ward_alert', handleMessageUpdate);
 
     eventSource.onerror = (err) => {
+      console.error('SSE connection failed for URL:', streamUrl);
+      console.error('Check if your token is valid or if there is a CORS mismatch.');
+      // Most browsers don't provide the status code directly in EventSource error, 
+      // but we can at least log that it failed.
       console.warn('SSE Data Stream Error, it will attempt to reconnect natively.', err);
     };
 
@@ -96,7 +103,7 @@ export const usePatients = (wardId = 'all', refreshTrigger = 0) => {
       eventSource.close();
     };
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wardId, refreshTrigger]); // queryClient is stable, omit token refetch
 
   return query;
