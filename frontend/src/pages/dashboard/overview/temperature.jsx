@@ -32,17 +32,21 @@ export default function Temperature() {
       try {
         // Fetch current vitals
         const vitalsResponse = await patientService.getCurrentVitals(userId);
+        let patientId = null;
         if (vitalsResponse.success) {
           setCurrentVitals(vitalsResponse.data);
+          patientId = vitalsResponse.data.id;
         }
 
         // Fetch specific vital data
-        const response = await patientService.getTemperatureData(userId, {
-          interval: filterTab
-        });
-        if (response.success) {
-          setVitalData(response.data);
-          setStatistics(response.data?.statistics || null);
+        if (patientId) {
+          const response = await patientService.getTemperatureData(patientId, {
+            interval: filterTab
+          });
+          if (response.success) {
+            setVitalData(response.data);
+            setStatistics(response.data?.statistics || null);
+          }
         }
       } catch (error) {
         console.error('Failed to fetch temperature data:', error);

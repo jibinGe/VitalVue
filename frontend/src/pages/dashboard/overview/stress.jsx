@@ -42,17 +42,21 @@ export default function Stress() {
       try {
         // Fetch current vitals
         const vitalsResponse = await patientService.getCurrentVitals(userId);
+        let patientId = null;
         if (vitalsResponse.success) {
           setCurrentVitals(vitalsResponse.data);
+          patientId = vitalsResponse.data.id;
         }
 
         // Fetch specific vital data
-        const response = await patientService.getRespiratoryRateData(userId, {
-          interval: filterTab === '1h' ? '1h' : filterTab === '6h' ? '6h' : filterTab === '24h' ? '24h' : '7d'
-        });
-        if (response.success) {
-          setVitalData(response.data);
-          setStatistics(response.data?.statistics || null);
+        if (patientId) {
+          const response = await patientService.getRespiratoryRateData(patientId, {
+            interval: filterTab === '1h' ? '1h' : filterTab === '6h' ? '6h' : filterTab === '24h' ? '24h' : '7d'
+          });
+          if (response.success) {
+            setVitalData(response.data);
+            setStatistics(response.data?.statistics || null);
+          }
         }
       } catch (error) {
         console.error('Failed to fetch stress data:', error);

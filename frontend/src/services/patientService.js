@@ -45,7 +45,7 @@ export const patientService = {
   /**
    * Get patient details by ID
    */
-  async getPatientDetails(userId) {
+  async getPatientDetails(patientId) {
     return {
       success: true,
       data: null,
@@ -56,7 +56,7 @@ export const patientService = {
   /**
    * Start monitoring a patient
    */
-  async startMonitoring(userId, monitoringData) {
+  async startMonitoring(patientId, monitoringData) {
     return {
       success: true,
       data: null,
@@ -67,7 +67,7 @@ export const patientService = {
   /**
    * End monitoring a patient
    */
-  async endMonitoring(userId, endData = {}) {
+  async endMonitoring(patientId, endData = {}) {
     return {
       success: true,
       data: null,
@@ -78,7 +78,7 @@ export const patientService = {
   /**
    * Restart monitoring a patient
    */
-  async restartMonitoring(userId, monitoringData) {
+  async restartMonitoring(patientId, monitoringData) {
     return {
       success: true,
       data: null,
@@ -95,7 +95,7 @@ export const patientService = {
       const response = await apiClient.get('/api/v1/patients/assigned');
       const patients = response.data || [];
       const patient = patients.find(p => p.user_id === userId || p.id?.toString() === userId);
-      
+
       if (!patient) {
         return {
           success: false,
@@ -180,12 +180,12 @@ export const patientService = {
   /**
    * Get patient history timeline
    */
-  async getPatientHistory(userId, params = {}) {
+  async getPatientHistory(patientId, params = {}) {
     try {
       // Default to 24h if not specified
       let startTime = params.start_time;
       let endTime = params.end_time || new Date().toISOString();
-      let scaleMinutes = params.scale_minutes || 1;
+      let scaleMinutes = params.scale_minutes || 5;
 
       if (!startTime) {
         const d = new Date();
@@ -193,7 +193,7 @@ export const patientService = {
         startTime = d.toISOString();
       }
 
-      const response = await apiClient.get(`/api/v1/patients/history/${userId}`, { 
+      const response = await apiClient.get(`/api/v1/patients/history/${patientId}`, {
         params: {
           start_time: startTime,
           end_time: endTime,
@@ -218,42 +218,42 @@ export const patientService = {
   /**
    * Get heart rate data for a patient
    */
-  async getHeartRateData(userId, params = {}) {
+  async getHeartRateData(patientId, params = {}) {
     return { success: true, data: [], message: "No data found" };
   },
 
   /**
    * Get SpO2 data for a patient
    */
-  async getSpO2Data(userId, params = {}) {
+  async getSpO2Data(patientId, params = {}) {
     return { success: true, data: [], message: "No data found" };
   },
 
   /**
    * Get blood pressure data for a patient
    */
-  async getBloodPressureData(userId, params = {}) {
+  async getBloodPressureData(patientId, params = {}) {
     return { success: true, data: [], message: "No data found" };
   },
 
   /**
    * Get temperature data for a patient
    */
-  async getTemperatureData(userId, params = {}) {
+  async getTemperatureData(patientId, params = {}) {
     return { success: true, data: [], message: "No data found" };
   },
 
   /**
    * Get HRV data for a patient
    */
-  async getHRVData(userId, params = {}) {
+  async getHRVData(patientId, params = {}) {
     return { success: true, data: [], message: "No data found" };
   },
 
   /**
    * Get movement data for a patient
    */
-  async getMovementData(userId, params = {}) {
+  async getMovementData(patientId, params = {}) {
     return { success: true, data: [], message: "No data found" };
   },
 
@@ -430,10 +430,10 @@ export const patientService = {
    * Get all clinical alerts for a patient
    */
   async getAlerts(userId, params = {}) {
-    return { 
-      success: true, 
-      data: [], 
-      message: "No alerts found" 
+    return {
+      success: true,
+      data: [],
+      message: "No alerts found"
     };
   },
 
@@ -441,10 +441,10 @@ export const patientService = {
    * Get NEWS2 Score for a patient
    */
   async getNews2Score(userId) {
-    return { 
-      success: true, 
-      data: null, 
-      message: "No score found" 
+    return {
+      success: true,
+      data: null,
+      message: "No score found"
     };
   },
 
@@ -452,10 +452,10 @@ export const patientService = {
    * Get AF Warning for a patient
    */
   async getAfWarning(userId) {
-    return { 
-      success: true, 
-      data: null, 
-      message: "No warning found" 
+    return {
+      success: true,
+      data: null,
+      message: "No warning found"
     };
   },
 
@@ -463,10 +463,10 @@ export const patientService = {
    * Get Stroke Risk Assessment for a patient
    */
   async getStrokeRisk(userId) {
-    return { 
-      success: true, 
-      data: null, 
-      message: "No risk assessment found" 
+    return {
+      success: true,
+      data: null,
+      message: "No risk assessment found"
     };
   },
 
@@ -474,10 +474,10 @@ export const patientService = {
    * Get Seizure Risk Assessment for a patient
    */
   async getSeizureRisk(userId) {
-    return { 
-      success: true, 
-      data: null, 
-      message: "No risk assessment found" 
+    return {
+      success: true,
+      data: null,
+      message: "No risk assessment found"
     };
   },
 };

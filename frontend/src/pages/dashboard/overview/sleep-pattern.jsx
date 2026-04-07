@@ -34,17 +34,21 @@ export default function SleepPattern() {
       try {
         // Fetch current vitals
         const vitalsResponse = await patientService.getCurrentVitals(userId);
+        let patientId = null;
         if (vitalsResponse.success) {
           setCurrentVitals(vitalsResponse.data);
+          patientId = vitalsResponse.data.id;
         }
 
         // Fetch specific vital data - sleep endpoint uses date parameter
-        const response = await patientService.getSleepPatternData(userId, {
-          date: selectedDate
-        });
-        if (response.success) {
-          setVitalData(response.data);
-          setStatistics(response.data?.sleepSummary || null);
+        if (patientId) {
+          const response = await patientService.getSleepPatternData(patientId, {
+            date: selectedDate
+          });
+          if (response.success) {
+            setVitalData(response.data);
+            setStatistics(response.data?.sleepSummary || null);
+          }
         }
       } catch (error) {
         console.error('Failed to fetch sleepPattern data:', error);

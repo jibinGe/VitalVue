@@ -60,7 +60,7 @@ export default function Overview() {
   const [filterTab, setFilterTab] = useState(filter[0]);
 
   const { data: currentVitals, isLoading: loading } = usePatient(userId);
-  const { data: patientHistory, isLoading: historyLoading } = usePatientHistory(userId, filterTab);
+  const { data: patientHistory, isLoading: historyLoading } = usePatientHistory(currentVitals?.id, filterTab);
   const patientData = currentVitals; // Map for legacy compatibility
 
   const prevVitalsRaw = useRef("");

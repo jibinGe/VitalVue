@@ -1,34 +1,31 @@
 import { useQuery } from '@tanstack/react-query';
 import { patientService } from '@/services/patientService';
 
-export const usePatientHistory = (userId, filterTab = 'Live') => {
+export const usePatientHistory = (patientId, filterTab = 'Live') => {
   return useQuery({
-    queryKey: ['patientHistory', userId, filterTab],
+    queryKey: ['patientHistory', patientId, filterTab],
     queryFn: async () => {
-      if (!userId) return null;
+      if (!patientId) return null;
 
       // Calculate start_time and scale_minutes based on filterTab
-      const end_time = new Date().toISOString();
       const start_date = new Date();
-      let scale_minutes = 1;
+      const scale_minutes = 1; // Always use 5-minute buckets as requested
 
       if (filterTab === 'Live') {
         start_date.setMinutes(start_date.getMinutes() - 15); // Last 15 minutes for Live
-        scale_minutes = 1; // 1-minute buckets
       } else if (filterTab === '1h') {
         start_date.setHours(start_date.getHours() - 1);
-        scale_minutes = 2; // 2-minute buckets
       } else if (filterTab === '24h') {
         start_date.setHours(start_date.getHours() - 24);
-        scale_minutes = 30; // 30-minute buckets
       } else if (filterTab === '7d') {
         start_date.setDate(start_date.getDate() - 7);
-        scale_minutes = 60 * 4; // 4-hour buckets
       }
 
-      const start_time = start_date.toISOString();
+      const formatParamDate = (date) => date.toISOString().replace('T', ' ').replace('Z', '');
+      const start_time = formatParamDate(start_date);
+      const end_time = formatParamDate(new Date());
 
-      const response = await patientService.getPatientHistory(userId, {
+      const response = await patientService.getPatientHistory(patientId, {
         start_time,
         end_time,
         scale_minutes
@@ -73,7 +70,7 @@ export const usePatientHistory = (userId, filterTab = 'Live') => {
 
       return transformedHistory;
     },
-    enabled: !!userId,
+    enabled: !!patientId && !isNaN(Number(patientId)),
     refetchInterval: filterTab === 'Live' ? 5000 : false, // Auto-refresh if 'Live'
     staleTime: filterTab === 'Live' ? 2000 : 1000 * 60,
   });

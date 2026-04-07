@@ -37,13 +37,15 @@ export default function BpTrend() {
       try {
         // Fetch current vitals
         const vitalsResponse = await patientService.getCurrentVitals(userId);
+        let patientId = null;
         if (vitalsResponse.success) {
           setCurrentVitals(vitalsResponse.data);
+          patientId = vitalsResponse.data.id;
         }
 
         // Fetch specific vital data (skip if "Live" is selected)
-        if (filterTab !== 'Live') {
-          const response = await patientService.getBloodPressureData(userId, {
+        if (patientId && filterTab !== 'Live') {
+          const response = await patientService.getBloodPressureData(patientId, {
             interval: filterTab === '1h' ? '1h' : filterTab === '12h' ? '12h' : filterTab === '24h' ? '24h' : '24h'
           });
           if (response.success) {
