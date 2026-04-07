@@ -1,0 +1,1650 @@
+--
+-- PostgreSQL database dump
+--
+
+-- Dumped from database version 15.5
+-- Dumped by pg_dump version 17.0
+
+-- Started on 2026-04-07 17:12:45 IST
+
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
+SET transaction_timeout = 0;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = on;
+SELECT pg_catalog.set_config('search_path', '', false);
+SET check_function_bodies = false;
+SET xmloption = content;
+SET client_min_messages = warning;
+SET row_security = off;
+
+--
+-- TOC entry 863 (class 1247 OID 16395)
+-- Name: userrole; Type: TYPE; Schema: public; Owner: vitalvue_admin
+--
+
+CREATE TYPE public.userrole AS ENUM (
+    'PATIENT',
+    'NURSE',
+    'DOCTOR',
+    'ORG_ADMIN',
+    'MASTER_ADMIN'
+);
+
+
+ALTER TYPE public.userrole OWNER TO vitalvue_admin;
+
+SET default_tablespace = '';
+
+SET default_table_access_method = heap;
+
+--
+-- TOC entry 237 (class 1259 OID 16608)
+-- Name: actions; Type: TABLE; Schema: public; Owner: vitalvue_admin
+--
+
+CREATE TABLE public.actions (
+    id integer NOT NULL,
+    alert_id integer,
+    patient_id integer,
+    staff_id integer,
+    action_type character varying,
+    other_details text,
+    performed_at timestamp without time zone,
+    created_at timestamp without time zone
+);
+
+
+ALTER TABLE public.actions OWNER TO vitalvue_admin;
+
+--
+-- TOC entry 236 (class 1259 OID 16607)
+-- Name: actions_id_seq; Type: SEQUENCE; Schema: public; Owner: vitalvue_admin
+--
+
+CREATE SEQUENCE public.actions_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.actions_id_seq OWNER TO vitalvue_admin;
+
+--
+-- TOC entry 3564 (class 0 OID 0)
+-- Dependencies: 236
+-- Name: actions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER SEQUENCE public.actions_id_seq OWNED BY public.actions.id;
+
+
+--
+-- TOC entry 214 (class 1259 OID 16389)
+-- Name: alembic_version; Type: TABLE; Schema: public; Owner: vitalvue_admin
+--
+
+CREATE TABLE public.alembic_version (
+    version_num character varying(32) NOT NULL
+);
+
+
+ALTER TABLE public.alembic_version OWNER TO vitalvue_admin;
+
+--
+-- TOC entry 231 (class 1259 OID 16547)
+-- Name: alerts; Type: TABLE; Schema: public; Owner: vitalvue_admin
+--
+
+CREATE TABLE public.alerts (
+    id integer NOT NULL,
+    patient_id integer,
+    vital_type character varying,
+    triggered_value character varying,
+    status character varying,
+    severity character varying,
+    is_flagged boolean,
+    flagged_doctor_id integer,
+    created_at timestamp without time zone,
+    ward_id integer
+);
+
+
+ALTER TABLE public.alerts OWNER TO vitalvue_admin;
+
+--
+-- TOC entry 230 (class 1259 OID 16546)
+-- Name: alerts_id_seq; Type: SEQUENCE; Schema: public; Owner: vitalvue_admin
+--
+
+CREATE SEQUENCE public.alerts_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.alerts_id_seq OWNER TO vitalvue_admin;
+
+--
+-- TOC entry 3565 (class 0 OID 0)
+-- Dependencies: 230
+-- Name: alerts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER SEQUENCE public.alerts_id_seq OWNED BY public.alerts.id;
+
+
+--
+-- TOC entry 233 (class 1259 OID 16568)
+-- Name: clinical_notes; Type: TABLE; Schema: public; Owner: vitalvue_admin
+--
+
+CREATE TABLE public.clinical_notes (
+    id integer NOT NULL,
+    patient_id integer,
+    author_id integer,
+    event_type character varying,
+    note_content text,
+    is_flagged_for_review boolean,
+    event_timestamp timestamp without time zone,
+    created_at timestamp without time zone
+);
+
+
+ALTER TABLE public.clinical_notes OWNER TO vitalvue_admin;
+
+--
+-- TOC entry 232 (class 1259 OID 16567)
+-- Name: clinical_notes_id_seq; Type: SEQUENCE; Schema: public; Owner: vitalvue_admin
+--
+
+CREATE SEQUENCE public.clinical_notes_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.clinical_notes_id_seq OWNER TO vitalvue_admin;
+
+--
+-- TOC entry 3566 (class 0 OID 0)
+-- Dependencies: 232
+-- Name: clinical_notes_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER SEQUENCE public.clinical_notes_id_seq OWNED BY public.clinical_notes.id;
+
+
+--
+-- TOC entry 225 (class 1259 OID 16494)
+-- Name: departments; Type: TABLE; Schema: public; Owner: vitalvue_admin
+--
+
+CREATE TABLE public.departments (
+    id integer NOT NULL,
+    name character varying(100) NOT NULL,
+    organization_id integer NOT NULL
+);
+
+
+ALTER TABLE public.departments OWNER TO vitalvue_admin;
+
+--
+-- TOC entry 224 (class 1259 OID 16493)
+-- Name: departments_id_seq; Type: SEQUENCE; Schema: public; Owner: vitalvue_admin
+--
+
+CREATE SEQUENCE public.departments_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.departments_id_seq OWNER TO vitalvue_admin;
+
+--
+-- TOC entry 3567 (class 0 OID 0)
+-- Dependencies: 224
+-- Name: departments_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER SEQUENCE public.departments_id_seq OWNED BY public.departments.id;
+
+
+--
+-- TOC entry 217 (class 1259 OID 16416)
+-- Name: doctors; Type: TABLE; Schema: public; Owner: vitalvue_admin
+--
+
+CREATE TABLE public.doctors (
+    id integer NOT NULL,
+    specialization character varying(100) NOT NULL
+);
+
+
+ALTER TABLE public.doctors OWNER TO vitalvue_admin;
+
+--
+-- TOC entry 218 (class 1259 OID 16428)
+-- Name: master_admins; Type: TABLE; Schema: public; Owner: vitalvue_admin
+--
+
+CREATE TABLE public.master_admins (
+    id integer NOT NULL,
+    super_level integer NOT NULL
+);
+
+
+ALTER TABLE public.master_admins OWNER TO vitalvue_admin;
+
+--
+-- TOC entry 219 (class 1259 OID 16438)
+-- Name: nurses; Type: TABLE; Schema: public; Owner: vitalvue_admin
+--
+
+CREATE TABLE public.nurses (
+    id integer NOT NULL,
+    license_no character varying(50) NOT NULL
+);
+
+
+ALTER TABLE public.nurses OWNER TO vitalvue_admin;
+
+--
+-- TOC entry 220 (class 1259 OID 16450)
+-- Name: org_admins; Type: TABLE; Schema: public; Owner: vitalvue_admin
+--
+
+CREATE TABLE public.org_admins (
+    id integer NOT NULL,
+    organization_name character varying(255) NOT NULL
+);
+
+
+ALTER TABLE public.org_admins OWNER TO vitalvue_admin;
+
+--
+-- TOC entry 223 (class 1259 OID 16471)
+-- Name: organizations; Type: TABLE; Schema: public; Owner: vitalvue_admin
+--
+
+CREATE TABLE public.organizations (
+    id integer NOT NULL,
+    name character varying(255) NOT NULL,
+    country character varying(100) NOT NULL,
+    state character varying(100) NOT NULL,
+    city character varying(100) NOT NULL
+);
+
+
+ALTER TABLE public.organizations OWNER TO vitalvue_admin;
+
+--
+-- TOC entry 222 (class 1259 OID 16470)
+-- Name: organizations_id_seq; Type: SEQUENCE; Schema: public; Owner: vitalvue_admin
+--
+
+CREATE SEQUENCE public.organizations_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.organizations_id_seq OWNER TO vitalvue_admin;
+
+--
+-- TOC entry 3568 (class 0 OID 0)
+-- Dependencies: 222
+-- Name: organizations_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER SEQUENCE public.organizations_id_seq OWNED BY public.organizations.id;
+
+
+--
+-- TOC entry 221 (class 1259 OID 16460)
+-- Name: patients; Type: TABLE; Schema: public; Owner: vitalvue_admin
+--
+
+CREATE TABLE public.patients (
+    id integer NOT NULL,
+    blood_group character varying(10) NOT NULL,
+    age integer NOT NULL,
+    gender character varying(20) NOT NULL,
+    height double precision,
+    weight double precision,
+    alt_phone character varying(20),
+    device_id character varying(100) NOT NULL,
+    doctor_id integer,
+    room_id integer NOT NULL,
+    nurse_id integer
+);
+
+
+ALTER TABLE public.patients OWNER TO vitalvue_admin;
+
+--
+-- TOC entry 229 (class 1259 OID 16520)
+-- Name: rooms; Type: TABLE; Schema: public; Owner: vitalvue_admin
+--
+
+CREATE TABLE public.rooms (
+    id integer NOT NULL,
+    room_number character varying(50) NOT NULL,
+    is_occupied boolean NOT NULL,
+    ward_id integer NOT NULL
+);
+
+
+ALTER TABLE public.rooms OWNER TO vitalvue_admin;
+
+--
+-- TOC entry 228 (class 1259 OID 16519)
+-- Name: rooms_id_seq; Type: SEQUENCE; Schema: public; Owner: vitalvue_admin
+--
+
+CREATE SEQUENCE public.rooms_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.rooms_id_seq OWNER TO vitalvue_admin;
+
+--
+-- TOC entry 3569 (class 0 OID 0)
+-- Dependencies: 228
+-- Name: rooms_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER SEQUENCE public.rooms_id_seq OWNED BY public.rooms.id;
+
+
+--
+-- TOC entry 216 (class 1259 OID 16406)
+-- Name: users; Type: TABLE; Schema: public; Owner: vitalvue_admin
+--
+
+CREATE TABLE public.users (
+    id integer NOT NULL,
+    role public.userrole NOT NULL,
+    is_active boolean NOT NULL,
+    created_at timestamp without time zone NOT NULL,
+    user_type character varying(50) NOT NULL,
+    user_id character varying(50) NOT NULL,
+    organization_id integer,
+    phone_number character varying(20) NOT NULL,
+    full_name character varying(255) NOT NULL
+);
+
+
+ALTER TABLE public.users OWNER TO vitalvue_admin;
+
+--
+-- TOC entry 215 (class 1259 OID 16405)
+-- Name: users_id_seq; Type: SEQUENCE; Schema: public; Owner: vitalvue_admin
+--
+
+CREATE SEQUENCE public.users_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.users_id_seq OWNER TO vitalvue_admin;
+
+--
+-- TOC entry 3570 (class 0 OID 0)
+-- Dependencies: 215
+-- Name: users_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER SEQUENCE public.users_id_seq OWNED BY public.users.id;
+
+
+--
+-- TOC entry 235 (class 1259 OID 16588)
+-- Name: vitals; Type: TABLE; Schema: public; Owner: vitalvue_admin
+--
+
+CREATE TABLE public.vitals (
+    id integer NOT NULL,
+    patient_id integer,
+    device_id character varying,
+    heart_rate integer,
+    spo2 double precision,
+    temp double precision,
+    bp_systolic integer,
+    bp_diastolic integer,
+    news2_score integer,
+    af_warning character varying,
+    stroke_risk character varying,
+    seizure_risk character varying,
+    hrv_score integer,
+    stress_level character varying,
+    movement integer,
+    sleep_pattern character varying,
+    battery_percent integer,
+    is_connected boolean,
+    is_removed boolean,
+    created_at timestamp without time zone
+);
+
+
+ALTER TABLE public.vitals OWNER TO vitalvue_admin;
+
+--
+-- TOC entry 234 (class 1259 OID 16587)
+-- Name: vitals_id_seq; Type: SEQUENCE; Schema: public; Owner: vitalvue_admin
+--
+
+CREATE SEQUENCE public.vitals_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.vitals_id_seq OWNER TO vitalvue_admin;
+
+--
+-- TOC entry 3571 (class 0 OID 0)
+-- Dependencies: 234
+-- Name: vitals_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER SEQUENCE public.vitals_id_seq OWNED BY public.vitals.id;
+
+
+--
+-- TOC entry 227 (class 1259 OID 16507)
+-- Name: wards; Type: TABLE; Schema: public; Owner: vitalvue_admin
+--
+
+CREATE TABLE public.wards (
+    id integer NOT NULL,
+    name character varying(100) NOT NULL,
+    department_id integer NOT NULL
+);
+
+
+ALTER TABLE public.wards OWNER TO vitalvue_admin;
+
+--
+-- TOC entry 226 (class 1259 OID 16506)
+-- Name: wards_id_seq; Type: SEQUENCE; Schema: public; Owner: vitalvue_admin
+--
+
+CREATE SEQUENCE public.wards_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.wards_id_seq OWNER TO vitalvue_admin;
+
+--
+-- TOC entry 3572 (class 0 OID 0)
+-- Dependencies: 226
+-- Name: wards_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER SEQUENCE public.wards_id_seq OWNED BY public.wards.id;
+
+
+--
+-- TOC entry 3317 (class 2604 OID 16611)
+-- Name: actions id; Type: DEFAULT; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER TABLE ONLY public.actions ALTER COLUMN id SET DEFAULT nextval('public.actions_id_seq'::regclass);
+
+
+--
+-- TOC entry 3314 (class 2604 OID 16550)
+-- Name: alerts id; Type: DEFAULT; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER TABLE ONLY public.alerts ALTER COLUMN id SET DEFAULT nextval('public.alerts_id_seq'::regclass);
+
+
+--
+-- TOC entry 3315 (class 2604 OID 16571)
+-- Name: clinical_notes id; Type: DEFAULT; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER TABLE ONLY public.clinical_notes ALTER COLUMN id SET DEFAULT nextval('public.clinical_notes_id_seq'::regclass);
+
+
+--
+-- TOC entry 3311 (class 2604 OID 16497)
+-- Name: departments id; Type: DEFAULT; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER TABLE ONLY public.departments ALTER COLUMN id SET DEFAULT nextval('public.departments_id_seq'::regclass);
+
+
+--
+-- TOC entry 3310 (class 2604 OID 16474)
+-- Name: organizations id; Type: DEFAULT; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER TABLE ONLY public.organizations ALTER COLUMN id SET DEFAULT nextval('public.organizations_id_seq'::regclass);
+
+
+--
+-- TOC entry 3313 (class 2604 OID 16523)
+-- Name: rooms id; Type: DEFAULT; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER TABLE ONLY public.rooms ALTER COLUMN id SET DEFAULT nextval('public.rooms_id_seq'::regclass);
+
+
+--
+-- TOC entry 3309 (class 2604 OID 16409)
+-- Name: users id; Type: DEFAULT; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER TABLE ONLY public.users ALTER COLUMN id SET DEFAULT nextval('public.users_id_seq'::regclass);
+
+
+--
+-- TOC entry 3316 (class 2604 OID 16591)
+-- Name: vitals id; Type: DEFAULT; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER TABLE ONLY public.vitals ALTER COLUMN id SET DEFAULT nextval('public.vitals_id_seq'::regclass);
+
+
+--
+-- TOC entry 3312 (class 2604 OID 16510)
+-- Name: wards id; Type: DEFAULT; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER TABLE ONLY public.wards ALTER COLUMN id SET DEFAULT nextval('public.wards_id_seq'::regclass);
+
+
+--
+-- TOC entry 3558 (class 0 OID 16608)
+-- Dependencies: 237
+-- Data for Name: actions; Type: TABLE DATA; Schema: public; Owner: vitalvue_admin
+--
+
+COPY public.actions (id, alert_id, patient_id, staff_id, action_type, other_details, performed_at, created_at) FROM stdin;
+\.
+
+
+--
+-- TOC entry 3535 (class 0 OID 16389)
+-- Dependencies: 214
+-- Data for Name: alembic_version; Type: TABLE DATA; Schema: public; Owner: vitalvue_admin
+--
+
+COPY public.alembic_version (version_num) FROM stdin;
+53265ace6eee
+\.
+
+
+--
+-- TOC entry 3552 (class 0 OID 16547)
+-- Dependencies: 231
+-- Data for Name: alerts; Type: TABLE DATA; Schema: public; Owner: vitalvue_admin
+--
+
+COPY public.alerts (id, patient_id, vital_type, triggered_value, status, severity, is_flagged, flagged_doctor_id, created_at, ward_id) FROM stdin;
+1	9	SpO2	88.43811501037706%	active	critical	f	\N	2026-04-01 07:11:26.545118	\N
+2	9	SpO2	89.60875476607515%	active	critical	f	\N	2026-04-01 07:11:36.643947	\N
+3	9	SpO2	88.92633614784029%	active	critical	f	\N	2026-04-01 07:11:44.735796	\N
+4	9	SpO2	88.55675792249328%	active	critical	f	\N	2026-04-01 07:11:52.825791	\N
+5	9	SpO2	89.92905799952014%	active	critical	f	\N	2026-04-01 07:11:54.85056	\N
+6	9	SpO2	88.09435476669572%	active	critical	f	\N	2026-04-01 07:11:56.87395	\N
+7	9	SpO2	88.26499778127518%	active	critical	f	\N	2026-04-01 07:19:28.255471	\N
+8	9	SpO2	88.23733944270974%	active	critical	f	\N	2026-04-01 07:59:46.38525	\N
+9	9	SpO2	88.21983337344525%	active	critical	f	\N	2026-04-01 08:01:29.290704	\N
+10	9	SpO2	88.680868060856%	active	critical	f	\N	2026-04-01 08:01:31.317699	\N
+11	9	SpO2	89.79611102730985%	active	critical	f	\N	2026-04-01 08:01:43.42825	\N
+12	9	SpO2	88.97670431209204%	active	critical	f	\N	2026-04-01 08:01:47.457247	\N
+13	9	SpO2	89.91853578842303%	active	critical	f	\N	2026-04-01 08:01:49.468345	\N
+14	9	SpO2	88.69855524471677%	active	critical	f	\N	2026-04-01 08:02:05.631225	\N
+15	9	SpO2	89.91339751554972%	active	critical	f	\N	2026-04-01 08:13:20.709231	\N
+16	9	SpO2	89.44484353835898%	active	critical	f	\N	2026-04-01 08:13:24.758543	\N
+17	9	SpO2	89.3701626485365%	active	critical	f	\N	2026-04-01 08:13:42.946943	\N
+18	9	SpO2	89.5525958177148%	active	critical	f	\N	2026-04-01 15:39:25.007193	\N
+19	9	SpO2	88.825967395931%	active	critical	f	\N	2026-04-01 15:39:33.093184	\N
+20	9	SpO2	89.16035220485608%	active	critical	f	\N	2026-04-01 15:39:35.111252	\N
+21	9	SpO2	89.29861522613994%	active	critical	f	\N	2026-04-01 15:39:37.127186	\N
+22	9	SpO2	89.6445486498509%	active	critical	f	\N	2026-04-01 15:41:14.574607	\N
+23	9	SpO2	89.91071592513588%	active	critical	f	\N	2026-04-01 15:41:40.845156	\N
+24	9	SpO2	89.3383420430102%	active	critical	f	\N	2026-04-01 15:41:59.041636	\N
+25	9	SpO2	89.86152757627684%	active	critical	f	\N	2026-04-01 15:42:09.125502	\N
+26	9	SpO2	89.60645031055778%	active	critical	f	\N	2026-04-01 15:42:13.158843	\N
+27	9	SpO2	88.64559936070232%	active	critical	f	\N	2026-04-01 15:42:15.174331	\N
+28	9	SpO2	89.16379524997525%	active	critical	f	\N	2026-04-01 15:42:25.277326	\N
+29	9	SpO2	89.88251330340273%	active	critical	f	\N	2026-04-01 15:42:39.435738	\N
+30	9	SpO2	88.15730758714055%	active	critical	f	\N	2026-04-01 15:42:43.478144	\N
+31	9	SpO2	88.10821932791471%	active	critical	f	\N	2026-04-01 15:42:47.520148	\N
+32	9	SpO2	88.39690818551121%	active	critical	f	\N	2026-04-06 18:23:04.320791	\N
+33	9	SpO2	88.47853194236384%	active	critical	f	\N	2026-04-06 18:23:06.97354	\N
+34	9	SpO2	89.14239593793845%	active	critical	f	\N	2026-04-06 18:23:13.039823	\N
+35	9	SpO2	89.68701242365651%	active	critical	f	\N	2026-04-06 18:26:26.037204	\N
+36	9	SpO2	89.09655769754963%	active	critical	f	\N	2026-04-06 18:26:30.961642	\N
+37	9	SpO2	89.06668145005705%	active	critical	f	\N	2026-04-06 18:28:59.015297	\N
+38	9	SpO2	88.46568460231371%	active	critical	f	\N	2026-04-06 18:29:03.068485	\N
+39	9	SpO2	89.68067360784592%	active	critical	f	\N	2026-04-06 18:29:05.08329	\N
+40	9	SpO2	88.99911543592623%	active	critical	f	\N	2026-04-06 18:30:15.952343	\N
+41	9	SpO2	89.17112486537887%	active	critical	f	\N	2026-04-06 18:30:17.972532	\N
+42	9	SpO2	89.40578985660736%	active	critical	f	\N	2026-04-06 18:34:04.594072	\N
+43	9	SpO2	89.8294769136239%	active	critical	f	\N	2026-04-06 18:34:18.728	\N
+44	9	SpO2	88.4558561933377%	active	critical	f	\N	2026-04-06 18:34:22.774225	\N
+45	9	SpO2	88.58700440501583%	active	critical	f	\N	2026-04-06 18:34:36.944872	\N
+46	9	SpO2	88.735622222547%	active	critical	f	\N	2026-04-06 18:35:30.647097	\N
+47	9	SpO2	88.22256770902463%	active	critical	f	\N	2026-04-06 18:36:21.561271	\N
+48	9	SpO2	88.13068997756473%	active	critical	f	\N	2026-04-06 18:36:24.250977	\N
+49	9	SpO2	88.03349639046858%	active	critical	f	\N	2026-04-07 09:42:45.862485	\N
+50	9	SpO2	88.13656333816952%	active	critical	f	\N	2026-04-07 09:42:55.955011	\N
+51	9	SpO2	88.42677420358278%	active	critical	f	\N	2026-04-07 09:43:08.094714	\N
+\.
+
+
+--
+-- TOC entry 3554 (class 0 OID 16568)
+-- Dependencies: 233
+-- Data for Name: clinical_notes; Type: TABLE DATA; Schema: public; Owner: vitalvue_admin
+--
+
+COPY public.clinical_notes (id, patient_id, author_id, event_type, note_content, is_flagged_for_review, event_timestamp, created_at) FROM stdin;
+\.
+
+
+--
+-- TOC entry 3546 (class 0 OID 16494)
+-- Dependencies: 225
+-- Data for Name: departments; Type: TABLE DATA; Schema: public; Owner: vitalvue_admin
+--
+
+COPY public.departments (id, name, organization_id) FROM stdin;
+1	ICU	1
+2	Emergency Room	1
+3	Cardiology	1
+\.
+
+
+--
+-- TOC entry 3538 (class 0 OID 16416)
+-- Dependencies: 217
+-- Data for Name: doctors; Type: TABLE DATA; Schema: public; Owner: vitalvue_admin
+--
+
+COPY public.doctors (id, specialization) FROM stdin;
+1	Liver
+\.
+
+
+--
+-- TOC entry 3539 (class 0 OID 16428)
+-- Dependencies: 218
+-- Data for Name: master_admins; Type: TABLE DATA; Schema: public; Owner: vitalvue_admin
+--
+
+COPY public.master_admins (id, super_level) FROM stdin;
+\.
+
+
+--
+-- TOC entry 3540 (class 0 OID 16438)
+-- Dependencies: 219
+-- Data for Name: nurses; Type: TABLE DATA; Schema: public; Owner: vitalvue_admin
+--
+
+COPY public.nurses (id, license_no) FROM stdin;
+10	Ajay Poly
+\.
+
+
+--
+-- TOC entry 3541 (class 0 OID 16450)
+-- Dependencies: 220
+-- Data for Name: org_admins; Type: TABLE DATA; Schema: public; Owner: vitalvue_admin
+--
+
+COPY public.org_admins (id, organization_name) FROM stdin;
+\.
+
+
+--
+-- TOC entry 3544 (class 0 OID 16471)
+-- Dependencies: 223
+-- Data for Name: organizations; Type: TABLE DATA; Schema: public; Owner: vitalvue_admin
+--
+
+COPY public.organizations (id, name, country, state, city) FROM stdin;
+1	Apollo	India	Kerala	Kochi
+\.
+
+
+--
+-- TOC entry 3542 (class 0 OID 16460)
+-- Dependencies: 221
+-- Data for Name: patients; Type: TABLE DATA; Schema: public; Owner: vitalvue_admin
+--
+
+COPY public.patients (id, blood_group, age, gender, height, weight, alt_phone, device_id, doctor_id, room_id, nurse_id) FROM stdin;
+9	b-	27	Male	166	75.5	+919747181728	DEV-001	1	1	10
+\.
+
+
+--
+-- TOC entry 3550 (class 0 OID 16520)
+-- Dependencies: 229
+-- Data for Name: rooms; Type: TABLE DATA; Schema: public; Owner: vitalvue_admin
+--
+
+COPY public.rooms (id, room_number, is_occupied, ward_id) FROM stdin;
+2	101	f	1
+3	102	f	1
+1	100	t	1
+\.
+
+
+--
+-- TOC entry 3537 (class 0 OID 16406)
+-- Dependencies: 216
+-- Data for Name: users; Type: TABLE DATA; Schema: public; Owner: vitalvue_admin
+--
+
+COPY public.users (id, role, is_active, created_at, user_type, user_id, organization_id, phone_number, full_name) FROM stdin;
+9	PATIENT	t	2026-04-01 05:34:26.308502	patient	PAT-001	1	+918301857621	Jibin George
+10	NURSE	t	2026-04-01 05:34:26.308502	nurse	NUR-001	1	+917907268722	Ajay Poly
+1	DOCTOR	t	2026-03-20 08:34:38.178871	doctor	DOC-001	1	+917902687121	Dr. George Thomas
+\.
+
+
+--
+-- TOC entry 3556 (class 0 OID 16588)
+-- Dependencies: 235
+-- Data for Name: vitals; Type: TABLE DATA; Schema: public; Owner: vitalvue_admin
+--
+
+COPY public.vitals (id, patient_id, device_id, heart_rate, spo2, temp, bp_systolic, bp_diastolic, news2_score, af_warning, stroke_risk, seizure_risk, hrv_score, stress_level, movement, sleep_pattern, battery_percent, is_connected, is_removed, created_at) FROM stdin;
+1	9	BAND-001	123	92.67055201335639	38.28462792956838	110	85	0	Detected	Low	Low	46	Moderate	5	6h 30m	85	t	f	2026-04-01 07:07:41.963858
+2	9	BAND-001	88	97.5488517148375	36.61496564916475	150	98	0	Normal	Low	Low	49	High	3	6h 30m	85	t	f	2026-04-01 07:07:43.984486
+3	9	BAND-001	95	91.31334222869272	37.87076304698516	128	83	0	Normal	Low	Low	33	High	3	6h 30m	85	t	f	2026-04-01 07:07:48.035203
+4	9	BAND-001	87	96.4331334131206	38.94468968904738	132	110	0	Normal	Low	Low	33	High	5	6h 30m	85	t	f	2026-04-01 07:11:20.487148
+5	9	BAND-001	141	98.16632666841868	36.85459376875653	124	74	3	Detected	Low	Low	49	High	4	6h 30m	85	t	f	2026-04-01 07:11:22.506292
+6	9	BAND-001	119	93.11382315308413	36.81041045873993	128	86	0	Normal	Low	Low	49	High	2	6h 30m	85	t	f	2026-04-01 07:11:24.521948
+7	9	BAND-001	124	88.43811501037706	36.53405939579427	136	82	3	Detected	Low	Low	57	Low	5	6h 30m	85	t	f	2026-04-01 07:11:26.548975
+8	9	BAND-001	126	98.21205347317442	38.924049007696546	168	92	0	Detected	High	Low	50	Low	8	6h 30m	85	t	f	2026-04-01 07:11:28.566214
+9	9	BAND-001	120	92.80220997593602	37.809742329522464	110	89	0	Detected	Low	Low	44	High	5	6h 30m	85	t	f	2026-04-01 07:11:30.583106
+10	9	BAND-001	100	97.96470080565763	37.10728834673994	120	83	0	Normal	Low	Low	54	Low	1	6h 30m	85	t	f	2026-04-01 07:11:32.603633
+11	9	BAND-001	126	94.12388063028737	37.92727826049359	171	104	0	Detected	High	Low	39	Low	3	6h 30m	85	t	f	2026-04-01 07:11:34.624259
+12	9	BAND-001	87	89.60875476607515	38.0164334607674	132	109	3	Normal	Low	Low	40	Low	3	6h 30m	85	t	f	2026-04-01 07:11:36.644999
+13	9	BAND-001	103	92.640293626213	37.461932929517204	166	70	0	Normal	Low	Low	46	High	7	6h 30m	85	t	f	2026-04-01 07:11:38.662443
+14	9	BAND-001	140	91.88351932464047	36.6855327833778	170	109	3	Detected	High	Low	31	Moderate	6	6h 30m	85	t	f	2026-04-01 07:11:40.686947
+15	9	BAND-001	138	95.29214998055868	38.13002334863299	164	92	3	Detected	High	Low	52	Moderate	2	6h 30m	85	t	f	2026-04-01 07:11:42.711386
+16	9	BAND-001	82	88.92633614784029	37.905478060298606	128	85	3	Normal	Low	Low	34	Low	2	6h 30m	85	t	f	2026-04-01 07:11:44.739878
+17	9	BAND-001	114	95.04826806282188	37.62377184896456	139	84	0	Normal	Low	Low	36	Low	7	6h 30m	85	t	f	2026-04-01 07:11:46.763026
+18	9	BAND-001	108	97.49304426420522	38.74874681784132	121	94	0	Normal	Low	Low	33	Low	4	6h 30m	85	t	f	2026-04-01 07:11:48.786113
+19	9	BAND-001	136	91.24039758526247	38.89792144259719	143	108	3	Detected	Low	Low	30	Low	7	6h 30m	85	t	f	2026-04-01 07:11:50.803404
+20	9	BAND-001	79	88.55675792249328	38.148023755207795	171	107	3	Normal	Low	Low	56	High	5	6h 30m	85	t	f	2026-04-01 07:11:52.826906
+21	9	BAND-001	79	89.92905799952014	37.92565361028723	151	96	3	Normal	Low	Low	30	Moderate	9	6h 30m	85	t	f	2026-04-01 07:11:54.851598
+22	9	BAND-001	86	88.09435476669572	37.12932915808327	117	104	3	Normal	Low	Low	59	Moderate	8	6h 30m	85	t	f	2026-04-01 07:11:56.875197
+23	9	BAND-001	97	93.75069125213673	38.78418353448292	131	102	0	Normal	Low	Low	30	Moderate	1	6h 30m	85	t	f	2026-04-01 07:11:58.899705
+24	9	BAND-001	124	97.60345812584858	38.35567511843026	166	94	0	Detected	High	Low	59	Moderate	4	6h 30m	85	t	f	2026-04-01 07:12:00.921349
+25	9	BAND-001	133	90.34517245957431	38.58501254329803	136	106	6	Detected	Low	Low	39	Low	5	6h 30m	85	t	f	2026-04-01 07:12:02.943898
+26	9	BAND-001	90	95.73702118394843	38.98498388007036	158	103	0	Normal	Low	Low	40	Moderate	4	6h 30m	85	t	f	2026-04-01 07:19:20.167751
+27	9	BAND-001	134	98.06271921532827	37.09361088334391	118	100	3	Detected	Low	Low	38	Low	5	6h 30m	85	t	f	2026-04-01 07:19:22.193331
+28	9	BAND-001	122	92.15684436785139	37.27158263919059	157	102	0	Detected	Low	Low	47	High	7	6h 30m	85	t	f	2026-04-01 07:19:24.212347
+29	9	BAND-001	113	98.53607661951067	38.59029133821605	126	110	0	Normal	Low	Low	37	Moderate	7	6h 30m	85	t	f	2026-04-01 07:19:26.230389
+30	9	BAND-001	119	88.26499778127518	37.806613822552805	138	70	3	Normal	Low	Low	32	Moderate	7	6h 30m	85	t	f	2026-04-01 07:19:28.259077
+31	9	BAND-001	138	92.78300784792891	36.562404199785796	130	78	3	Detected	Low	Low	51	High	1	6h 30m	85	t	f	2026-04-01 07:19:30.275039
+32	9	BAND-001	109	92.99024855756976	38.12981595840224	173	93	0	Normal	Low	Low	57	Moderate	6	6h 30m	85	t	f	2026-04-01 07:59:40.315704
+33	9	BAND-001	115	98.88299657166334	38.33474633375499	173	73	0	Normal	High	Low	43	Moderate	1	6h 30m	85	t	f	2026-04-01 07:59:42.337398
+34	9	BAND-001	107	96.3356007590074	37.00162699903314	163	79	0	Normal	Low	Low	54	Low	8	6h 30m	85	t	f	2026-04-01 07:59:44.359536
+35	9	BAND-001	130	88.23733944270974	38.05322061146645	114	101	3	Detected	Low	Low	48	Low	7	6h 30m	85	t	f	2026-04-01 07:59:46.388192
+36	9	BAND-001	106	91.78076548977617	36.955810686156575	122	92	0	Normal	Low	Low	37	Low	2	6h 30m	85	t	f	2026-04-01 08:01:21.219899
+37	9	BAND-001	95	98.68247945331476	37.685091941516994	170	105	0	Normal	Low	Low	33	High	4	6h 30m	85	t	f	2026-04-01 08:01:23.239286
+38	9	BAND-001	132	96.9057872841258	38.48568253120182	132	100	3	Detected	Low	Low	49	Low	8	6h 30m	85	t	f	2026-04-01 08:01:25.251875
+39	9	BAND-001	135	96.85438816752591	37.35502541735173	159	80	3	Detected	Low	Low	44	Low	9	6h 30m	85	t	f	2026-04-01 08:01:27.265009
+40	9	BAND-001	103	88.21983337344525	36.55609213512097	164	91	3	Normal	Low	Low	49	Moderate	4	6h 30m	85	t	f	2026-04-01 08:01:29.294114
+41	9	BAND-001	90	88.680868060856	38.83642048551438	134	95	3	Normal	Low	Low	45	Low	10	6h 30m	85	t	f	2026-04-01 08:01:31.319004
+42	9	BAND-001	123	93.05661716305754	37.7080067268986	121	79	0	Detected	Low	Low	53	Low	3	6h 30m	85	t	f	2026-04-01 08:01:33.342527
+43	9	BAND-001	109	97.95568303220945	37.36763168110097	158	92	0	Normal	Low	Low	41	Moderate	1	6h 30m	85	t	f	2026-04-01 08:01:35.35735
+44	9	BAND-001	72	91.22861718873995	38.959460025204095	153	90	0	Normal	Low	Low	56	High	9	6h 30m	85	t	f	2026-04-01 08:01:37.376
+45	9	BAND-001	110	96.19001248117306	36.99943908405165	151	88	0	Normal	Low	Low	60	Low	6	6h 30m	85	t	f	2026-04-01 08:01:39.389892
+46	9	BAND-001	121	90.56747650773129	36.63040887088412	147	90	3	Detected	Low	Low	33	Moderate	2	6h 30m	85	t	f	2026-04-01 08:01:41.400905
+47	9	BAND-001	90	89.79611102730985	38.44527873152972	173	84	3	Normal	Low	Low	38	High	6	6h 30m	85	t	f	2026-04-01 08:01:43.429368
+48	9	BAND-001	106	93.31515764947123	37.878867100609234	139	88	0	Normal	Low	Low	31	High	5	6h 30m	85	t	f	2026-04-01 08:01:45.444748
+49	9	BAND-001	70	88.97670431209204	36.83290939306372	138	92	3	Normal	Low	Low	54	Moderate	6	6h 30m	85	t	f	2026-04-01 08:01:47.457935
+50	9	BAND-001	138	89.91853578842303	37.11063083990547	166	71	6	Detected	High	Low	45	Low	4	6h 30m	85	t	f	2026-04-01 08:01:49.468902
+51	9	BAND-001	92	91.55802095232353	38.33391581358988	167	104	0	Normal	Low	Low	45	High	1	6h 30m	85	t	f	2026-04-01 08:01:51.483574
+52	9	BAND-001	129	92.31392521365285	36.62444967435702	152	73	0	Detected	Low	Low	33	Moderate	5	6h 30m	85	t	f	2026-04-01 08:01:53.499369
+53	9	BAND-001	97	91.4312915916991	38.15585588448234	151	84	0	Normal	Low	Low	30	High	7	6h 30m	85	t	f	2026-04-01 08:01:55.52259
+54	9	BAND-001	81	94.85878386570002	36.52855525095091	174	75	0	Normal	Low	Low	56	High	6	6h 30m	85	t	f	2026-04-01 08:01:57.544862
+55	9	BAND-001	105	97.52664589056567	38.267965411866946	155	83	0	Normal	Low	Low	37	High	8	6h 30m	85	t	f	2026-04-01 08:01:59.564936
+56	9	BAND-001	136	95.78553043771757	37.32074758606704	145	93	3	Detected	Low	Low	58	High	5	6h 30m	85	t	f	2026-04-01 08:02:01.581157
+57	9	BAND-001	120	92.50982931916585	38.12315038294618	168	100	0	Detected	High	Low	34	Moderate	8	6h 30m	85	t	f	2026-04-01 08:02:03.603035
+58	9	BAND-001	111	88.69855524471677	36.5526960865942	151	87	3	Normal	Low	Low	55	High	2	6h 30m	85	t	f	2026-04-01 08:02:05.632899
+59	9	BAND-001	108	90.55316146048726	36.573696548844865	150	79	3	Normal	Low	Low	35	Low	8	6h 30m	85	t	f	2026-04-01 08:13:14.637851
+60	9	BAND-001	108	90.759319260371	38.76379333176598	143	103	3	Normal	Low	Low	38	Low	9	6h 30m	85	t	f	2026-04-01 08:13:16.660996
+61	9	BAND-001	122	92.82492625442235	36.68499646525139	174	77	0	Detected	High	Low	56	High	10	6h 30m	85	t	f	2026-04-01 08:13:18.685139
+62	9	BAND-001	133	89.91339751554972	37.24379558375394	153	74	6	Detected	Low	Low	47	High	3	6h 30m	85	t	f	2026-04-01 08:13:20.711897
+63	9	BAND-001	85	96.7589533568035	38.823560064324276	127	81	0	Normal	Low	Low	48	High	6	6h 30m	85	t	f	2026-04-01 08:13:22.735225
+64	9	BAND-001	109	89.44484353835898	37.7712089027823	150	110	3	Normal	Low	Low	56	Moderate	9	6h 30m	85	t	f	2026-04-01 08:13:24.759461
+65	9	BAND-001	87	92.1617781752748	37.34688407510356	120	82	0	Normal	Low	Low	31	Low	7	6h 30m	85	t	f	2026-04-01 08:13:26.782696
+66	9	BAND-001	80	91.21662438586819	37.5921036470369	141	103	0	Normal	Low	Low	53	Moderate	5	6h 30m	85	t	f	2026-04-01 08:13:28.805841
+67	9	BAND-001	79	91.44628800415043	37.80794761298925	162	82	0	Normal	Low	Low	35	High	1	6h 30m	85	t	f	2026-04-01 08:13:30.826344
+68	9	BAND-001	112	94.36837506877202	36.71296241940348	127	93	0	Normal	Low	Low	43	Low	2	6h 30m	85	t	f	2026-04-01 08:13:32.848822
+69	9	BAND-001	143	94.33152150430543	36.53801704437996	164	88	3	Detected	High	Low	31	Low	10	6h 30m	85	t	f	2026-04-01 08:13:34.865672
+70	9	BAND-001	73	96.49511497174025	38.13736845288613	110	97	0	Normal	Low	Low	53	High	4	6h 30m	85	t	f	2026-04-01 08:13:36.885662
+71	9	BAND-001	111	90.73636333097184	37.175254160777705	164	83	3	Normal	High	Low	51	Low	8	6h 30m	85	t	f	2026-04-01 08:13:38.904474
+72	9	BAND-001	78	92.05661046198608	38.98775201936637	132	71	0	Normal	Low	Low	32	High	8	6h 30m	85	t	f	2026-04-01 08:13:40.926175
+73	9	BAND-001	110	89.3701626485365	37.525186037571316	130	95	3	Normal	Low	Low	52	Moderate	8	6h 30m	85	t	f	2026-04-01 08:13:42.948026
+74	9	BAND-001	128	96.64993506916468	37.285869548989375	130	81	0	Detected	Low	Low	30	Moderate	4	6h 30m	85	t	f	2026-04-01 08:13:44.971177
+75	9	BAND-001	88	96.4528270434016	38.6900917676881	139	102	0	Normal	Low	Low	42	Low	10	6h 30m	85	t	f	2026-04-01 08:13:46.991064
+76	9	BAND-001	95	90.53778749516943	38.81482991692776	136	86	3	Normal	Low	Low	30	High	2	6h 30m	85	t	f	2026-04-01 08:13:49.009599
+77	9	BAND-001	105	90.71970492488744	38.49851406185811	151	107	3	Normal	Low	Low	45	Moderate	4	6h 30m	85	t	f	2026-04-01 08:13:51.023903
+78	9	BAND-001	98	92.62410341808106	37.57846669735142	161	70	0	Normal	Low	Low	32	Moderate	7	6h 30m	85	t	f	2026-04-01 08:18:45.423368
+79	9	BAND-001	144	95.69474513963027	37.18592184291385	162	89	3	Detected	High	Low	49	High	10	6h 30m	85	t	f	2026-04-01 15:39:16.914195
+80	9	BAND-001	70	97.7769652245984	37.83977603788384	134	76	0	Normal	Low	Low	40	Low	5	6h 30m	85	t	f	2026-04-01 15:39:18.93834
+81	9	BAND-001	133	90.53201619927127	38.47382821524468	169	104	6	Detected	High	Low	31	High	2	6h 30m	85	t	f	2026-04-01 15:39:20.963952
+82	9	BAND-001	99	92.82657867995688	36.74822232824712	175	98	0	Normal	Low	Low	49	Moderate	7	6h 30m	85	t	f	2026-04-01 15:39:22.988309
+83	9	BAND-001	137	89.5525958177148	37.23230253521848	121	92	6	Detected	Low	Low	53	High	2	6h 30m	85	t	f	2026-04-01 15:39:25.010399
+84	9	BAND-001	145	97.43749958102103	38.385870268926006	125	85	3	Detected	Low	Low	49	High	2	6h 30m	85	t	f	2026-04-01 15:39:27.035541
+85	9	BAND-001	117	93.81514123980095	38.12726689971765	138	83	0	Normal	Low	Low	51	Low	10	6h 30m	85	t	f	2026-04-01 15:39:29.054151
+86	9	BAND-001	72	95.61606614331836	38.1401010785069	148	101	0	Normal	Low	Low	39	High	3	6h 30m	85	t	f	2026-04-01 15:39:31.07323
+87	9	BAND-001	131	88.825967395931	36.77512240544608	162	97	6	Detected	High	Low	57	Moderate	1	6h 30m	85	t	f	2026-04-01 15:39:33.094446
+88	9	BAND-001	104	89.16035220485608	36.84677059480369	175	110	3	Normal	Low	Low	45	Low	9	6h 30m	85	t	f	2026-04-01 15:39:35.112048
+89	9	BAND-001	92	89.29861522613994	36.98913244507717	170	71	3	Normal	Low	Low	42	High	4	6h 30m	85	t	f	2026-04-01 15:39:37.128218
+90	9	BAND-001	103	93.1859488498836	38.463690226972055	117	75	0	Normal	Low	Low	51	Low	9	6h 30m	85	t	f	2026-04-01 15:39:39.143211
+91	9	BAND-001	89	97.01640351012442	37.83064586354938	151	78	0	Normal	Low	Low	50	Low	1	6h 30m	85	t	f	2026-04-01 15:39:41.155813
+92	9	BAND-001	100	91.87955624114387	36.90785014672707	144	85	0	Normal	Low	Low	51	Low	8	6h 30m	85	t	f	2026-04-01 15:39:43.172958
+93	9	BAND-001	121	94.80487759740927	37.38072740242224	134	109	0	Detected	Low	Low	41	Moderate	8	6h 30m	85	t	f	2026-04-01 15:41:12.555932
+94	9	BAND-001	116	89.6445486498509	37.05529825758666	149	75	3	Normal	Low	Low	41	High	2	6h 30m	85	t	f	2026-04-01 15:41:14.575648
+95	9	BAND-001	84	93.17367119673506	38.63969028436121	151	78	0	Normal	Low	Low	46	High	4	6h 30m	85	t	f	2026-04-01 15:41:16.594905
+96	9	BAND-001	99	93.16398176363654	38.807155356836695	127	97	0	Normal	Low	Low	31	Moderate	9	6h 30m	85	t	f	2026-04-01 15:41:18.62406
+97	9	BAND-001	101	91.37005645588192	36.682295855100385	121	85	0	Normal	Low	Low	53	High	9	6h 30m	85	t	f	2026-04-01 15:41:20.647797
+98	9	BAND-001	80	97.52338026641361	37.58887786752827	156	109	0	Normal	Low	Low	53	High	8	6h 30m	85	t	f	2026-04-01 15:41:22.661983
+99	9	BAND-001	109	91.3797834845622	36.88147055046169	142	86	0	Normal	Low	Low	43	High	3	6h 30m	85	t	f	2026-04-01 15:41:24.688751
+100	9	BAND-001	117	91.56165030792609	37.39923114625916	120	92	0	Normal	Low	Low	31	Low	5	6h 30m	85	t	f	2026-04-01 15:41:26.714152
+101	9	BAND-001	115	90.61999897295233	38.33642190469796	156	83	3	Normal	Low	Low	41	Moderate	4	6h 30m	85	t	f	2026-04-01 15:41:28.732274
+102	9	BAND-001	103	92.82377265424215	38.46003988764235	161	78	0	Normal	Low	Low	45	Moderate	9	6h 30m	85	t	f	2026-04-01 15:41:30.745971
+103	9	BAND-001	72	97.76465441486843	37.945865029636444	141	92	0	Normal	Low	Low	50	High	3	6h 30m	85	t	f	2026-04-01 15:41:32.758759
+104	9	BAND-001	145	96.21652739185109	37.308173215653106	171	78	3	Detected	High	Low	35	High	5	6h 30m	85	t	f	2026-04-01 15:41:34.777996
+105	9	BAND-001	96	95.54635066448458	37.31199980182154	159	106	0	Normal	Low	Low	35	Moderate	9	6h 30m	85	t	f	2026-04-01 15:41:36.805203
+106	9	BAND-001	86	98.31238651066965	38.003969984414965	155	76	0	Normal	Low	Low	38	High	5	6h 30m	85	t	f	2026-04-01 15:41:38.825886
+107	9	BAND-001	135	89.91071592513588	38.580510236177496	142	93	6	Detected	Low	Low	58	High	7	6h 30m	85	t	f	2026-04-01 15:41:40.847488
+108	9	BAND-001	113	92.86963599914822	36.98710444309706	175	88	0	Normal	High	Low	30	Moderate	5	6h 30m	85	t	f	2026-04-01 15:41:42.86177
+109	9	BAND-001	94	94.1853240993369	37.62043070599613	124	79	0	Normal	Low	Low	40	Low	4	6h 30m	85	t	f	2026-04-01 15:41:44.877672
+110	9	BAND-001	110	93.87637800489684	36.91491823416637	160	81	0	Normal	Low	Low	60	High	1	6h 30m	85	t	f	2026-04-01 15:41:46.895751
+111	9	BAND-001	126	94.76361398190159	38.37669561764156	123	110	0	Detected	Low	Low	35	Moderate	4	6h 30m	85	t	f	2026-04-01 15:41:48.919426
+112	9	BAND-001	81	92.94115867827526	38.636159876670945	121	70	0	Normal	Low	Low	54	Moderate	5	6h 30m	85	t	f	2026-04-01 15:41:50.950362
+113	9	BAND-001	89	95.35893851467607	37.313206947462156	169	85	0	Normal	Low	Low	50	High	2	6h 30m	85	t	f	2026-04-01 15:41:52.969129
+114	9	BAND-001	85	97.5912861540541	36.82844648689375	110	70	0	Normal	Low	Low	34	Moderate	4	6h 30m	85	t	f	2026-04-01 15:41:54.992546
+115	9	BAND-001	122	93.75752062971787	37.18481355582739	151	104	0	Detected	Low	Low	50	Moderate	9	6h 30m	85	t	f	2026-04-01 15:41:57.018766
+116	9	BAND-001	132	89.3383420430102	38.5031630233602	147	106	6	Detected	Low	Low	53	Low	8	6h 30m	85	t	f	2026-04-01 15:41:59.042409
+117	9	BAND-001	122	91.07525920366167	38.47612781082784	153	108	0	Detected	Low	Low	57	Low	6	6h 30m	85	t	f	2026-04-01 15:42:01.055484
+118	9	BAND-001	89	92.7906987149031	38.123780913192164	111	97	0	Normal	Low	Low	31	Moderate	10	6h 30m	85	t	f	2026-04-01 15:42:03.070548
+119	9	BAND-001	101	95.48961055255258	36.53925558983728	173	94	0	Normal	Low	Low	45	Low	6	6h 30m	85	t	f	2026-04-01 15:42:05.091552
+120	9	BAND-001	143	96.24127083632003	36.69283964920707	151	82	3	Detected	Low	Low	33	High	3	6h 30m	85	t	f	2026-04-01 15:42:07.108205
+121	9	BAND-001	136	89.86152757627684	37.08403454613166	175	91	6	Detected	High	Low	30	Low	9	6h 30m	85	t	f	2026-04-01 15:42:09.12647
+122	9	BAND-001	91	91.48477990586105	38.532178780975975	149	85	0	Normal	Low	Low	51	High	9	6h 30m	85	t	f	2026-04-01 15:42:11.142037
+123	9	BAND-001	93	89.60645031055778	38.14452754544301	172	81	3	Normal	Low	Low	38	Moderate	1	6h 30m	85	t	f	2026-04-01 15:42:13.159845
+124	9	BAND-001	90	88.64559936070232	38.754009815305736	140	92	3	Normal	Low	Low	54	Moderate	3	6h 30m	85	t	f	2026-04-01 15:42:15.175344
+125	9	BAND-001	71	91.96895634107395	36.523129597163766	127	99	0	Normal	Low	Low	46	Moderate	5	6h 30m	85	t	f	2026-04-01 15:42:17.195285
+126	9	BAND-001	98	95.50823360399092	36.511420510529234	173	97	0	Normal	Low	Low	59	High	3	6h 30m	85	t	f	2026-04-01 15:42:19.217979
+127	9	BAND-001	87	97.1264448426274	38.85298207568848	163	87	0	Normal	Low	Low	52	Low	1	6h 30m	85	t	f	2026-04-01 15:42:21.240622
+128	9	BAND-001	127	96.71033948636769	36.877843227108684	152	91	0	Detected	Low	Low	34	Low	9	6h 30m	85	t	f	2026-04-01 15:42:23.255179
+129	9	BAND-001	82	89.16379524997525	37.621748937606824	128	103	3	Normal	Low	Low	40	High	9	6h 30m	85	t	f	2026-04-01 15:42:25.278372
+130	9	BAND-001	136	98.15877121235314	37.976627156528224	143	110	3	Detected	Low	Low	55	Moderate	9	6h 30m	85	t	f	2026-04-01 15:42:27.301718
+131	9	BAND-001	129	98.09586021764157	36.820896697677725	147	89	0	Detected	Low	Low	45	Low	7	6h 30m	85	t	f	2026-04-01 15:42:29.321752
+132	9	BAND-001	133	96.6354188305074	38.777158324486635	152	85	3	Detected	Low	Low	37	High	4	6h 30m	85	t	f	2026-04-01 15:42:31.348856
+133	9	BAND-001	89	95.24766224309035	37.85220173548102	141	83	0	Normal	Low	Low	54	Moderate	2	6h 30m	85	t	f	2026-04-01 15:42:33.368584
+134	9	BAND-001	70	95.24119839348566	38.37838459605197	172	97	0	Normal	Low	Low	53	Moderate	5	6h 30m	85	t	f	2026-04-01 15:42:35.390328
+135	9	BAND-001	88	90.35097172063452	36.79360246620753	111	71	3	Normal	Low	Low	47	High	8	6h 30m	85	t	f	2026-04-01 15:42:37.413071
+136	9	BAND-001	145	89.88251330340273	38.81788625973596	145	96	6	Detected	Low	Low	53	Low	9	6h 30m	85	t	f	2026-04-01 15:42:39.436824
+137	9	BAND-001	79	94.73427710375637	38.22294105025495	160	72	0	Normal	Low	Low	54	High	6	6h 30m	85	t	f	2026-04-01 15:42:41.453671
+138	9	BAND-001	134	88.15730758714055	37.56144623550095	141	75	6	Detected	Low	Low	38	High	3	6h 30m	85	t	f	2026-04-01 15:42:43.478788
+139	9	BAND-001	119	98.77556944759755	37.497126795277175	142	85	0	Normal	Low	Low	48	High	1	6h 30m	85	t	f	2026-04-01 15:42:45.496112
+140	9	BAND-001	101	88.10821932791471	36.50054730201525	164	92	3	Normal	Low	Low	47	High	4	6h 30m	85	t	f	2026-04-01 15:42:47.521072
+141	9	BAND-001	132	92.1980207674692	38.00852882669632	172	77	3	Detected	High	Low	44	High	10	6h 30m	85	t	f	2026-04-01 15:42:49.542017
+142	9	BAND-001	137	91.02076060076294	38.800582378576095	149	110	3	Detected	Low	Low	50	Low	2	6h 30m	85	t	f	2026-04-01 15:42:51.561673
+143	9	BAND-001	143	92.94256222563806	37.44800721604278	114	101	3	Detected	Low	Low	50	Moderate	10	6h 30m	85	t	f	2026-04-06 18:22:42.088248
+144	9	BAND-001	98	94.96852117052227	37.09309855260606	132	83	0	Normal	Low	Low	44	Moderate	2	6h 30m	85	t	f	2026-04-06 18:22:44.108238
+145	9	BAND-001	113	97.92900632323304	37.196036096674064	171	72	0	Normal	High	Low	51	Low	3	6h 30m	85	t	f	2026-04-06 18:22:46.125373
+146	9	BAND-001	131	90.58497767532177	38.327017864323466	140	108	6	Detected	Low	Low	45	High	8	6h 30m	85	t	f	2026-04-06 18:22:48.142366
+147	9	BAND-001	82	93.34587527522221	37.281093878885414	159	97	0	Normal	Low	Low	31	Moderate	6	6h 30m	85	t	f	2026-04-06 18:22:50.16049
+148	9	BAND-001	141	93.86159765955848	38.41674294835133	147	100	3	Detected	Low	Low	48	Low	9	6h 30m	85	t	f	2026-04-06 18:22:52.175592
+149	9	BAND-001	106	98.99938139350085	36.91591172732371	157	102	0	Normal	Low	Low	33	High	2	6h 30m	85	t	f	2026-04-06 18:22:54.192626
+150	9	BAND-001	118	94.32802736888796	37.617938321013895	159	104	0	Normal	Low	Low	51	High	9	6h 30m	85	t	f	2026-04-06 18:22:56.218463
+151	9	BAND-001	108	91.09502950016959	38.84271671282202	117	76	0	Normal	Low	Low	30	High	5	6h 30m	85	t	f	2026-04-06 18:22:58.243751
+152	9	BAND-001	79	94.7534102824142	36.59148994526813	126	84	0	Normal	Low	Low	46	Low	5	6h 30m	85	t	f	2026-04-06 18:23:00.260102
+153	9	BAND-001	81	98.04331267360355	37.773335580567576	110	96	0	Normal	Low	Low	58	Moderate	8	6h 30m	85	t	f	2026-04-06 18:23:02.281589
+154	9	BAND-001	85	88.39690818551121	37.34152212691193	157	96	3	Normal	Low	Low	54	High	3	6h 30m	85	t	f	2026-04-06 18:23:04.306949
+155	9	BAND-001	137	88.47853194236384	38.194262847553475	174	100	6	Detected	High	Low	38	Low	8	6h 30m	85	t	f	2026-04-06 18:23:06.347265
+156	9	BAND-001	74	96.12167332005275	37.869855147034436	150	96	0	Normal	Low	Low	54	Moderate	3	6h 30m	85	t	f	2026-04-06 18:23:08.998989
+157	9	BAND-001	115	98.48211310252333	36.759387505008746	110	104	0	Normal	Low	Low	59	High	4	6h 30m	85	t	f	2026-04-06 18:23:11.01396
+158	9	BAND-001	88	89.14239593793845	36.70326524862549	132	87	3	Normal	Low	Low	50	Moderate	9	6h 30m	85	t	f	2026-04-06 18:23:13.034449
+159	9	BAND-001	132	94.50296132059839	38.975043003675026	113	79	3	Detected	Low	Low	58	Moderate	10	6h 30m	85	t	f	2026-04-06 18:26:05.783272
+160	9	BAND-001	107	93.22215656755881	37.01300229592511	154	100	0	Normal	Low	Low	59	Moderate	9	6h 30m	85	t	f	2026-04-06 18:26:07.815931
+161	9	BAND-001	82	98.29285893541649	38.765798636838134	122	90	0	Normal	Low	Low	32	High	2	6h 30m	85	t	f	2026-04-06 18:26:09.845171
+162	9	BAND-001	106	93.82512709384321	37.141647075652166	120	86	0	Normal	Low	Low	57	Moderate	8	6h 30m	85	t	f	2026-04-06 18:26:11.87007
+163	9	BAND-001	113	93.45424957311195	36.96989065163502	150	110	0	Normal	Low	Low	38	Moderate	5	6h 30m	85	t	f	2026-04-06 18:26:13.891736
+164	9	BAND-001	130	97.59721640909702	38.44519539513552	163	93	0	Detected	High	Low	35	High	7	6h 30m	85	t	f	2026-04-06 18:26:15.911727
+165	9	BAND-001	116	98.91696989297685	38.647013156611486	154	102	0	Normal	Low	Low	30	High	8	6h 30m	85	t	f	2026-04-06 18:26:17.923109
+166	9	BAND-001	134	97.06118764507659	38.35978776239373	129	109	3	Detected	Low	Low	31	High	7	6h 30m	85	t	f	2026-04-06 18:26:19.944591
+167	9	BAND-001	103	91.41115685081145	38.831925800094815	130	76	0	Normal	Low	Low	38	High	10	6h 30m	85	t	f	2026-04-06 18:26:21.964461
+168	9	BAND-001	118	93.08348184841172	37.97487123879307	124	75	0	Normal	Low	Low	36	Low	7	6h 30m	85	t	f	2026-04-06 18:26:23.997502
+169	9	BAND-001	78	89.68701242365651	38.16375632676857	130	84	3	Normal	Low	Low	42	Moderate	8	6h 30m	85	t	f	2026-04-06 18:26:26.019437
+170	9	BAND-001	110	96.60087050658278	38.72237037612442	147	83	0	Normal	Low	Low	39	Moderate	7	6h 30m	85	t	f	2026-04-06 18:26:28.061764
+171	9	BAND-001	141	89.09655769754963	37.37005778986093	153	106	6	Detected	Low	Low	47	Moderate	6	6h 30m	85	t	f	2026-04-06 18:26:30.078173
+172	9	BAND-001	131	90.91714714556728	37.95495530720878	113	96	6	Detected	Low	Low	58	Low	6	6h 30m	85	t	f	2026-04-06 18:26:32.987519
+173	9	BAND-001	145	89.06668145005705	37.941405826905594	149	108	6	Detected	Low	Low	49	Moderate	8	6h 30m	85	t	f	2026-04-06 18:28:58.449245
+174	9	BAND-001	131	96.73838190508158	37.296732159156875	120	107	3	Detected	Low	Low	39	Low	3	6h 30m	85	t	f	2026-04-06 18:29:01.03812
+175	9	BAND-001	114	88.46568460231371	37.52655397032673	116	99	3	Normal	Low	Low	41	Moderate	2	6h 30m	85	t	f	2026-04-06 18:29:03.061465
+176	9	BAND-001	111	89.68067360784592	37.59253807569369	139	98	3	Normal	Low	Low	57	Moderate	9	6h 30m	85	t	f	2026-04-06 18:29:05.081426
+177	9	BAND-001	95	93.4063752615966	37.81373392677111	121	78	0	Normal	Low	Low	39	High	3	6h 30m	85	t	f	2026-04-06 18:29:07.108833
+178	9	BAND-001	70	94.79071113815178	38.79551584952549	121	84	0	Normal	Low	Low	34	High	9	6h 30m	85	t	f	2026-04-06 18:29:09.129114
+179	9	BAND-001	136	90.20770830403322	38.44272675182208	127	81	6	Detected	Low	Low	56	High	3	6h 30m	85	t	f	2026-04-06 18:29:43.555074
+180	9	BAND-001	125	90.28023278306938	37.73364760149372	134	95	3	Detected	Low	Low	37	High	4	6h 30m	85	t	f	2026-04-06 18:29:45.578804
+181	9	BAND-001	112	98.77831198203546	37.74449303793911	121	77	0	Normal	Low	Low	30	Moderate	9	6h 30m	85	t	f	2026-04-06 18:29:47.609446
+182	9	BAND-001	113	90.55772825694238	38.4783700670476	124	91	3	Normal	Low	Low	31	Moderate	5	6h 30m	85	t	f	2026-04-06 18:29:49.634408
+183	9	BAND-001	84	97.74849447703704	36.927657019330105	113	95	0	Normal	Low	Low	33	Moderate	1	6h 30m	85	t	f	2026-04-06 18:29:51.652448
+184	9	BAND-001	88	93.49993541137654	36.525055172767516	124	93	0	Normal	Low	Low	36	High	6	6h 30m	85	t	f	2026-04-06 18:29:53.675098
+185	9	BAND-001	135	93.53892241983974	37.14793841529556	126	96	3	Detected	Low	Low	43	High	9	6h 30m	85	t	f	2026-04-06 18:29:55.697722
+186	9	BAND-001	77	92.54512685643266	38.55336179913278	141	110	0	Normal	Low	Low	59	Low	8	6h 30m	85	t	f	2026-04-06 18:29:57.728403
+187	9	BAND-001	90	90.12239386623816	37.84111758714168	121	105	3	Normal	Low	Low	53	High	5	6h 30m	85	t	f	2026-04-06 18:29:59.755772
+188	9	BAND-001	90	96.85780359690497	36.88989108509381	137	73	0	Normal	Low	Low	51	Low	9	6h 30m	85	t	f	2026-04-06 18:30:01.781004
+189	9	BAND-001	83	98.73701305202601	38.4050019343451	129	90	0	Normal	Low	Low	53	High	4	6h 30m	85	t	f	2026-04-06 18:30:03.799815
+190	9	BAND-001	102	90.00885084376779	37.0622772912015	172	79	3	Normal	Low	Low	49	High	4	6h 30m	85	t	f	2026-04-06 18:30:05.820928
+191	9	BAND-001	128	91.82611734538342	36.92477459611846	162	108	0	Detected	High	Low	41	Moderate	5	6h 30m	85	t	f	2026-04-06 18:30:07.845131
+192	9	BAND-001	144	97.82485922806337	37.284021490694265	126	94	3	Detected	Low	Low	51	Low	6	6h 30m	85	t	f	2026-04-06 18:30:09.869937
+193	9	BAND-001	74	94.1187274338103	38.957064968841266	114	88	0	Normal	Low	Low	39	High	5	6h 30m	85	t	f	2026-04-06 18:30:11.892656
+194	9	BAND-001	79	91.40794195179292	38.25907443114474	117	88	0	Normal	Low	Low	51	High	5	6h 30m	85	t	f	2026-04-06 18:30:13.915374
+195	9	BAND-001	119	88.99911543592623	37.52971777304667	118	107	3	Normal	Low	Low	30	High	1	6h 30m	85	t	f	2026-04-06 18:30:15.934965
+196	9	BAND-001	101	89.17112486537887	37.92575240000377	111	98	3	Normal	Low	Low	52	Low	3	6h 30m	85	t	f	2026-04-06 18:30:17.967698
+197	9	BAND-001	90	91.26975106836002	37.32243528539149	157	97	0	Normal	Low	Low	40	High	5	6h 30m	85	t	f	2026-04-06 18:30:19.992459
+198	9	BAND-001	104	93.81295081415976	37.74768072632606	123	99	0	Normal	Low	Low	52	Moderate	1	6h 30m	85	t	f	2026-04-06 18:31:59.350161
+199	9	BAND-001	75	93.12716417224672	38.46026377563439	163	72	0	Normal	Low	Low	32	Moderate	5	6h 30m	85	t	f	2026-04-06 18:32:01.361587
+200	9	BAND-001	71	94.20924184888209	38.92462221471487	174	104	0	Normal	Low	Low	57	High	2	6h 30m	85	t	f	2026-04-06 18:32:03.385214
+201	9	BAND-001	127	98.07324443714401	37.44245529924723	139	108	0	Detected	Low	Low	48	Moderate	7	6h 30m	85	t	f	2026-04-06 18:32:05.403229
+203	9	BAND-001	133	93.4375020174467	37.083160456500075	172	89	3	Detected	High	Low	56	Moderate	4	6h 30m	85	t	f	2026-04-06 18:32:09.46177
+204	9	BAND-001	93	98.56979469533246	37.39021377996085	134	99	0	Normal	Low	Low	53	High	3	6h 30m	85	t	f	2026-04-06 18:32:11.495041
+205	9	BAND-001	85	89.40578985660736	36.85399616536176	139	74	3	Normal	Low	Low	40	Moderate	4	6h 30m	85	t	f	2026-04-06 18:34:04.588369
+206	9	BAND-001	130	95.44850916195247	36.80552544086332	115	99	0	Detected	Low	Low	57	Low	8	6h 30m	85	t	f	2026-04-06 18:34:06.609442
+207	9	BAND-001	145	93.5860456570134	37.641157897806494	146	75	3	Detected	Low	Low	52	Low	1	6h 30m	85	t	f	2026-04-06 18:34:08.6237
+208	9	BAND-001	72	96.29203435040786	38.46789418765983	156	78	0	Normal	Low	Low	47	High	3	6h 30m	85	t	f	2026-04-06 18:34:10.643289
+209	9	BAND-001	144	96.43636163614114	36.60649855640808	165	89	3	Detected	High	Low	56	Moderate	7	6h 30m	85	t	f	2026-04-06 18:34:12.666247
+210	9	BAND-001	118	98.88865181942391	37.42387679272529	119	93	0	Normal	Low	Low	48	Moderate	4	6h 30m	85	t	f	2026-04-06 18:34:14.688379
+211	9	BAND-001	84	90.28340792568544	36.55953705737063	115	99	3	Normal	Low	Low	48	Moderate	1	6h 30m	85	t	f	2026-04-06 18:34:16.703895
+212	9	BAND-001	82	89.8294769136239	37.68593670140281	125	74	3	Normal	Low	Low	58	Moderate	9	6h 30m	85	t	f	2026-04-06 18:34:18.723704
+213	9	BAND-001	135	93.33900085064006	37.03363902495565	171	97	3	Detected	High	Low	53	Moderate	6	6h 30m	85	t	f	2026-04-06 18:34:20.753123
+214	9	BAND-001	104	88.4558561933377	38.95008337074127	146	93	3	Normal	Low	Low	53	Low	5	6h 30m	85	t	f	2026-04-06 18:34:22.770605
+215	9	BAND-001	118	96.84816141977579	37.35774832252985	156	92	0	Normal	Low	Low	58	Moderate	8	6h 30m	85	t	f	2026-04-06 18:34:24.801217
+216	9	BAND-001	128	90.8741105091562	37.17370211535425	151	104	3	Detected	Low	Low	50	Moderate	1	6h 30m	85	t	f	2026-04-06 18:34:26.826404
+217	9	BAND-001	98	97.66938984321143	38.79106436774422	153	88	0	Normal	Low	Low	41	High	3	6h 30m	85	t	f	2026-04-06 18:34:28.850818
+218	9	BAND-001	120	94.24154663061951	37.861079635207744	117	107	0	Detected	Low	Low	54	Low	1	6h 30m	85	t	f	2026-04-06 18:34:30.874725
+219	9	BAND-001	133	93.08971588055672	38.157527078412855	115	74	3	Detected	Low	Low	59	High	5	6h 30m	85	t	f	2026-04-06 18:34:32.896446
+220	9	BAND-001	131	93.59751650250962	36.59525664762784	173	76	3	Detected	High	Low	30	High	8	6h 30m	85	t	f	2026-04-06 18:34:34.917819
+221	9	BAND-001	137	88.58700440501583	37.1421151688725	117	86	6	Detected	Low	Low	55	High	10	6h 30m	85	t	f	2026-04-06 18:34:36.940742
+222	9	BAND-001	88	90.58452435307791	37.776658655605836	121	85	3	Normal	Low	Low	53	High	8	6h 30m	85	t	f	2026-04-06 18:35:26.595428
+223	9	BAND-001	100	96.36076825793877	37.48362766494199	123	91	0	Normal	Low	Low	38	Low	5	6h 30m	85	t	f	2026-04-06 18:35:28.618177
+224	9	BAND-001	96	88.735622222547	38.58757017584056	156	96	3	Normal	Low	Low	56	Low	7	6h 30m	85	t	f	2026-04-06 18:35:30.642304
+225	9	BAND-001	105	94.86584526201722	38.11200991896778	123	82	0	Normal	Low	Low	43	Low	8	6h 30m	85	t	f	2026-04-06 18:35:32.66363
+226	9	BAND-001	111	91.8309652451508	37.36386038601476	144	74	0	Normal	Low	Low	44	Low	10	6h 30m	85	t	f	2026-04-06 18:35:34.68595
+227	9	BAND-001	84	98.79988057746579	38.493290191625476	135	71	0	Normal	Low	Low	60	Low	5	6h 30m	85	t	f	2026-04-06 18:35:36.699045
+228	9	BAND-001	131	95.9533667656357	38.206013424365956	120	78	3	Detected	Low	Low	50	Moderate	4	6h 30m	85	t	f	2026-04-06 18:35:38.718933
+229	9	BAND-001	99	97.39496465269926	37.13546772074604	150	99	0	Normal	Low	Low	43	Moderate	2	6h 30m	85	t	f	2026-04-06 18:35:40.741787
+230	9	BAND-001	102	97.35881778466167	38.25747576979062	124	99	0	Normal	Low	Low	39	Moderate	5	6h 30m	85	t	f	2026-04-06 18:35:42.76008
+231	9	BAND-001	124	88.22256770902463	37.3663931923875	144	78	3	Detected	Low	Low	33	Moderate	10	6h 30m	85	t	f	2026-04-06 18:36:21.555918
+232	9	BAND-001	105	88.13068997756473	37.34962060041021	130	107	3	Normal	Low	Low	54	High	9	6h 30m	85	t	f	2026-04-06 18:36:24.245318
+233	9	BAND-001	90	93.31392324409522	38.577395854922436	119	110	0	Normal	Low	Low	41	Moderate	7	6h 30m	85	t	f	2026-04-06 18:36:26.646594
+234	9	BAND-001	87	95.79328375072299	36.967076353865146	156	89	0	Normal	Low	Low	44	Moderate	4	6h 30m	85	t	f	2026-04-06 18:36:28.672235
+235	9	BAND-001	90	97.03174143864301	38.69779419866969	122	104	0	Normal	Low	Low	53	Moderate	3	6h 30m	85	t	f	2026-04-07 09:42:35.750164
+236	9	BAND-001	83	93.01591694532414	38.51975433713233	144	75	0	Normal	Low	Low	33	High	4	6h 30m	85	t	f	2026-04-07 09:42:37.777011
+237	9	BAND-001	95	95.97606375451387	38.002754745797645	165	78	0	Normal	Low	Low	46	High	10	6h 30m	85	t	f	2026-04-07 09:42:39.800176
+238	9	BAND-001	87	95.11915175540149	37.11058724561	116	86	0	Normal	Low	Low	53	Moderate	7	6h 30m	85	t	f	2026-04-07 09:42:41.814748
+239	9	BAND-001	74	98.0113881022893	38.34924960305629	163	104	0	Normal	Low	Low	59	Moderate	6	6h 30m	85	t	f	2026-04-07 09:42:43.830167
+240	9	BAND-001	89	88.03349639046858	38.634998466043164	140	81	3	Normal	Low	Low	58	Moderate	7	6h 30m	85	t	f	2026-04-07 09:42:45.84938
+241	9	BAND-001	94	97.15229989657901	36.70995987273192	136	108	0	Normal	Low	Low	41	Moderate	2	6h 30m	85	t	f	2026-04-07 09:42:47.877661
+242	9	BAND-001	142	98.78496677103031	37.142304830168854	148	102	3	Detected	Low	Low	54	High	5	6h 30m	85	t	f	2026-04-07 09:42:49.894853
+243	9	BAND-001	71	97.83787020364214	37.695001691358975	112	105	0	Normal	Low	Low	43	Moderate	7	6h 30m	85	t	f	2026-04-07 09:42:51.915692
+244	9	BAND-001	114	92.90695438001885	37.36553923744738	150	92	0	Normal	Low	Low	47	High	7	6h 30m	85	t	f	2026-04-07 09:42:53.934899
+245	9	BAND-001	116	88.13656333816952	38.99564240944538	174	105	3	Normal	High	Low	40	Low	2	6h 30m	85	t	f	2026-04-07 09:42:55.949825
+246	9	BAND-001	140	93.16336217610605	37.36009326609845	123	97	3	Detected	Low	Low	33	High	5	6h 30m	85	t	f	2026-04-07 09:42:57.974417
+247	9	BAND-001	131	94.69302222825885	37.47028187366825	115	82	3	Detected	Low	Low	60	High	3	6h 30m	85	t	f	2026-04-07 09:42:59.997684
+248	9	BAND-001	133	95.61620179512904	37.2446823728613	174	104	3	Detected	High	Low	39	Moderate	1	6h 30m	85	t	f	2026-04-07 09:43:02.02367
+249	9	BAND-001	138	93.41728291422875	38.21982270399841	126	83	3	Detected	Low	Low	34	High	3	6h 30m	85	t	f	2026-04-07 09:43:04.04064
+250	9	BAND-001	78	90.15947066254444	37.44511432245189	119	103	3	Normal	Low	Low	43	Low	4	6h 30m	85	t	f	2026-04-07 09:43:06.06226
+251	9	BAND-001	79	88.42677420358278	36.749870525087466	166	96	3	Normal	Low	Low	38	Low	5	6h 30m	85	t	f	2026-04-07 09:43:08.090165
+\.
+
+
+--
+-- TOC entry 3548 (class 0 OID 16507)
+-- Dependencies: 227
+-- Data for Name: wards; Type: TABLE DATA; Schema: public; Owner: vitalvue_admin
+--
+
+COPY public.wards (id, name, department_id) FROM stdin;
+1	Ward 1	1
+2	Ward 2	1
+3	ER Ward 1	2
+4	ICU Ward 1	3
+\.
+
+
+--
+-- TOC entry 3573 (class 0 OID 0)
+-- Dependencies: 236
+-- Name: actions_id_seq; Type: SEQUENCE SET; Schema: public; Owner: vitalvue_admin
+--
+
+SELECT pg_catalog.setval('public.actions_id_seq', 1, false);
+
+
+--
+-- TOC entry 3574 (class 0 OID 0)
+-- Dependencies: 230
+-- Name: alerts_id_seq; Type: SEQUENCE SET; Schema: public; Owner: vitalvue_admin
+--
+
+SELECT pg_catalog.setval('public.alerts_id_seq', 51, true);
+
+
+--
+-- TOC entry 3575 (class 0 OID 0)
+-- Dependencies: 232
+-- Name: clinical_notes_id_seq; Type: SEQUENCE SET; Schema: public; Owner: vitalvue_admin
+--
+
+SELECT pg_catalog.setval('public.clinical_notes_id_seq', 1, false);
+
+
+--
+-- TOC entry 3576 (class 0 OID 0)
+-- Dependencies: 224
+-- Name: departments_id_seq; Type: SEQUENCE SET; Schema: public; Owner: vitalvue_admin
+--
+
+SELECT pg_catalog.setval('public.departments_id_seq', 3, true);
+
+
+--
+-- TOC entry 3577 (class 0 OID 0)
+-- Dependencies: 222
+-- Name: organizations_id_seq; Type: SEQUENCE SET; Schema: public; Owner: vitalvue_admin
+--
+
+SELECT pg_catalog.setval('public.organizations_id_seq', 1, true);
+
+
+--
+-- TOC entry 3578 (class 0 OID 0)
+-- Dependencies: 228
+-- Name: rooms_id_seq; Type: SEQUENCE SET; Schema: public; Owner: vitalvue_admin
+--
+
+SELECT pg_catalog.setval('public.rooms_id_seq', 3, true);
+
+
+--
+-- TOC entry 3579 (class 0 OID 0)
+-- Dependencies: 215
+-- Name: users_id_seq; Type: SEQUENCE SET; Schema: public; Owner: vitalvue_admin
+--
+
+SELECT pg_catalog.setval('public.users_id_seq', 10, true);
+
+
+--
+-- TOC entry 3580 (class 0 OID 0)
+-- Dependencies: 234
+-- Name: vitals_id_seq; Type: SEQUENCE SET; Schema: public; Owner: vitalvue_admin
+--
+
+SELECT pg_catalog.setval('public.vitals_id_seq', 251, true);
+
+
+--
+-- TOC entry 3581 (class 0 OID 0)
+-- Dependencies: 226
+-- Name: wards_id_seq; Type: SEQUENCE SET; Schema: public; Owner: vitalvue_admin
+--
+
+SELECT pg_catalog.setval('public.wards_id_seq', 4, true);
+
+
+--
+-- TOC entry 3371 (class 2606 OID 16615)
+-- Name: actions actions_pkey; Type: CONSTRAINT; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER TABLE ONLY public.actions
+    ADD CONSTRAINT actions_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3319 (class 2606 OID 16393)
+-- Name: alembic_version alembic_version_pkc; Type: CONSTRAINT; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER TABLE ONLY public.alembic_version
+    ADD CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num);
+
+
+--
+-- TOC entry 3355 (class 2606 OID 16554)
+-- Name: alerts alerts_pkey; Type: CONSTRAINT; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER TABLE ONLY public.alerts
+    ADD CONSTRAINT alerts_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3360 (class 2606 OID 16575)
+-- Name: clinical_notes clinical_notes_pkey; Type: CONSTRAINT; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER TABLE ONLY public.clinical_notes
+    ADD CONSTRAINT clinical_notes_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3346 (class 2606 OID 16499)
+-- Name: departments departments_pkey; Type: CONSTRAINT; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER TABLE ONLY public.departments
+    ADD CONSTRAINT departments_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3327 (class 2606 OID 16420)
+-- Name: doctors doctors_pkey; Type: CONSTRAINT; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER TABLE ONLY public.doctors
+    ADD CONSTRAINT doctors_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3329 (class 2606 OID 16432)
+-- Name: master_admins master_admins_pkey; Type: CONSTRAINT; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER TABLE ONLY public.master_admins
+    ADD CONSTRAINT master_admins_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3331 (class 2606 OID 16484)
+-- Name: nurses nurses_license_no_key; Type: CONSTRAINT; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER TABLE ONLY public.nurses
+    ADD CONSTRAINT nurses_license_no_key UNIQUE (license_no);
+
+
+--
+-- TOC entry 3333 (class 2606 OID 16442)
+-- Name: nurses nurses_pkey; Type: CONSTRAINT; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER TABLE ONLY public.nurses
+    ADD CONSTRAINT nurses_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3335 (class 2606 OID 16454)
+-- Name: org_admins org_admins_pkey; Type: CONSTRAINT; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER TABLE ONLY public.org_admins
+    ADD CONSTRAINT org_admins_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3344 (class 2606 OID 16478)
+-- Name: organizations organizations_pkey; Type: CONSTRAINT; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER TABLE ONLY public.organizations
+    ADD CONSTRAINT organizations_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3338 (class 2606 OID 16464)
+-- Name: patients patients_pkey; Type: CONSTRAINT; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER TABLE ONLY public.patients
+    ADD CONSTRAINT patients_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3353 (class 2606 OID 16525)
+-- Name: rooms rooms_pkey; Type: CONSTRAINT; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER TABLE ONLY public.rooms
+    ADD CONSTRAINT rooms_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3323 (class 2606 OID 16487)
+-- Name: users users_phone_number_key; Type: CONSTRAINT; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_phone_number_key UNIQUE (phone_number);
+
+
+--
+-- TOC entry 3325 (class 2606 OID 16413)
+-- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3369 (class 2606 OID 16595)
+-- Name: vitals vitals_pkey; Type: CONSTRAINT; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER TABLE ONLY public.vitals
+    ADD CONSTRAINT vitals_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3350 (class 2606 OID 16512)
+-- Name: wards wards_pkey; Type: CONSTRAINT; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER TABLE ONLY public.wards
+    ADD CONSTRAINT wards_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3372 (class 1259 OID 16631)
+-- Name: ix_actions_patient_id; Type: INDEX; Schema: public; Owner: vitalvue_admin
+--
+
+CREATE INDEX ix_actions_patient_id ON public.actions USING btree (patient_id);
+
+
+--
+-- TOC entry 3356 (class 1259 OID 16565)
+-- Name: ix_alerts_created_at; Type: INDEX; Schema: public; Owner: vitalvue_admin
+--
+
+CREATE INDEX ix_alerts_created_at ON public.alerts USING btree (created_at);
+
+
+--
+-- TOC entry 3357 (class 1259 OID 16566)
+-- Name: ix_alerts_patient_id; Type: INDEX; Schema: public; Owner: vitalvue_admin
+--
+
+CREATE INDEX ix_alerts_patient_id ON public.alerts USING btree (patient_id);
+
+
+--
+-- TOC entry 3358 (class 1259 OID 16633)
+-- Name: ix_alerts_ward_id; Type: INDEX; Schema: public; Owner: vitalvue_admin
+--
+
+CREATE INDEX ix_alerts_ward_id ON public.alerts USING btree (ward_id);
+
+
+--
+-- TOC entry 3361 (class 1259 OID 16586)
+-- Name: ix_clinical_notes_patient_id; Type: INDEX; Schema: public; Owner: vitalvue_admin
+--
+
+CREATE INDEX ix_clinical_notes_patient_id ON public.clinical_notes USING btree (patient_id);
+
+
+--
+-- TOC entry 3347 (class 1259 OID 16505)
+-- Name: ix_departments_id; Type: INDEX; Schema: public; Owner: vitalvue_admin
+--
+
+CREATE INDEX ix_departments_id ON public.departments USING btree (id);
+
+
+--
+-- TOC entry 3339 (class 1259 OID 16532)
+-- Name: ix_organizations_city; Type: INDEX; Schema: public; Owner: vitalvue_admin
+--
+
+CREATE INDEX ix_organizations_city ON public.organizations USING btree (city);
+
+
+--
+-- TOC entry 3340 (class 1259 OID 16533)
+-- Name: ix_organizations_country; Type: INDEX; Schema: public; Owner: vitalvue_admin
+--
+
+CREATE INDEX ix_organizations_country ON public.organizations USING btree (country);
+
+
+--
+-- TOC entry 3341 (class 1259 OID 16481)
+-- Name: ix_organizations_id; Type: INDEX; Schema: public; Owner: vitalvue_admin
+--
+
+CREATE INDEX ix_organizations_id ON public.organizations USING btree (id);
+
+
+--
+-- TOC entry 3342 (class 1259 OID 16534)
+-- Name: ix_organizations_state; Type: INDEX; Schema: public; Owner: vitalvue_admin
+--
+
+CREATE INDEX ix_organizations_state ON public.organizations USING btree (state);
+
+
+--
+-- TOC entry 3336 (class 1259 OID 16535)
+-- Name: ix_patients_device_id; Type: INDEX; Schema: public; Owner: vitalvue_admin
+--
+
+CREATE UNIQUE INDEX ix_patients_device_id ON public.patients USING btree (device_id);
+
+
+--
+-- TOC entry 3351 (class 1259 OID 16531)
+-- Name: ix_rooms_id; Type: INDEX; Schema: public; Owner: vitalvue_admin
+--
+
+CREATE INDEX ix_rooms_id ON public.rooms USING btree (id);
+
+
+--
+-- TOC entry 3320 (class 1259 OID 16415)
+-- Name: ix_users_id; Type: INDEX; Schema: public; Owner: vitalvue_admin
+--
+
+CREATE INDEX ix_users_id ON public.users USING btree (id);
+
+
+--
+-- TOC entry 3321 (class 1259 OID 16485)
+-- Name: ix_users_user_id; Type: INDEX; Schema: public; Owner: vitalvue_admin
+--
+
+CREATE UNIQUE INDEX ix_users_user_id ON public.users USING btree (user_id);
+
+
+--
+-- TOC entry 3362 (class 1259 OID 16601)
+-- Name: ix_vitals_created_at; Type: INDEX; Schema: public; Owner: vitalvue_admin
+--
+
+CREATE INDEX ix_vitals_created_at ON public.vitals USING btree (created_at);
+
+
+--
+-- TOC entry 3363 (class 1259 OID 16602)
+-- Name: ix_vitals_device_id; Type: INDEX; Schema: public; Owner: vitalvue_admin
+--
+
+CREATE INDEX ix_vitals_device_id ON public.vitals USING btree (device_id);
+
+
+--
+-- TOC entry 3364 (class 1259 OID 16603)
+-- Name: ix_vitals_heart_rate; Type: INDEX; Schema: public; Owner: vitalvue_admin
+--
+
+CREATE INDEX ix_vitals_heart_rate ON public.vitals USING btree (heart_rate);
+
+
+--
+-- TOC entry 3365 (class 1259 OID 16604)
+-- Name: ix_vitals_news2_score; Type: INDEX; Schema: public; Owner: vitalvue_admin
+--
+
+CREATE INDEX ix_vitals_news2_score ON public.vitals USING btree (news2_score);
+
+
+--
+-- TOC entry 3366 (class 1259 OID 16605)
+-- Name: ix_vitals_patient_id; Type: INDEX; Schema: public; Owner: vitalvue_admin
+--
+
+CREATE INDEX ix_vitals_patient_id ON public.vitals USING btree (patient_id);
+
+
+--
+-- TOC entry 3367 (class 1259 OID 16606)
+-- Name: ix_vitals_spo2; Type: INDEX; Schema: public; Owner: vitalvue_admin
+--
+
+CREATE INDEX ix_vitals_spo2 ON public.vitals USING btree (spo2);
+
+
+--
+-- TOC entry 3348 (class 1259 OID 16518)
+-- Name: ix_wards_id; Type: INDEX; Schema: public; Owner: vitalvue_admin
+--
+
+CREATE INDEX ix_wards_id ON public.wards USING btree (id);
+
+
+--
+-- TOC entry 3390 (class 2606 OID 16616)
+-- Name: actions actions_alert_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER TABLE ONLY public.actions
+    ADD CONSTRAINT actions_alert_id_fkey FOREIGN KEY (alert_id) REFERENCES public.alerts(id);
+
+
+--
+-- TOC entry 3391 (class 2606 OID 16621)
+-- Name: actions actions_patient_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER TABLE ONLY public.actions
+    ADD CONSTRAINT actions_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.patients(id);
+
+
+--
+-- TOC entry 3392 (class 2606 OID 16626)
+-- Name: actions actions_staff_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER TABLE ONLY public.actions
+    ADD CONSTRAINT actions_staff_id_fkey FOREIGN KEY (staff_id) REFERENCES public.users(id);
+
+
+--
+-- TOC entry 3385 (class 2606 OID 16555)
+-- Name: alerts alerts_flagged_doctor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER TABLE ONLY public.alerts
+    ADD CONSTRAINT alerts_flagged_doctor_id_fkey FOREIGN KEY (flagged_doctor_id) REFERENCES public.doctors(id);
+
+
+--
+-- TOC entry 3386 (class 2606 OID 16560)
+-- Name: alerts alerts_patient_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER TABLE ONLY public.alerts
+    ADD CONSTRAINT alerts_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.patients(id);
+
+
+--
+-- TOC entry 3387 (class 2606 OID 16576)
+-- Name: clinical_notes clinical_notes_author_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER TABLE ONLY public.clinical_notes
+    ADD CONSTRAINT clinical_notes_author_id_fkey FOREIGN KEY (author_id) REFERENCES public.users(id);
+
+
+--
+-- TOC entry 3388 (class 2606 OID 16581)
+-- Name: clinical_notes clinical_notes_patient_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER TABLE ONLY public.clinical_notes
+    ADD CONSTRAINT clinical_notes_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.patients(id);
+
+
+--
+-- TOC entry 3382 (class 2606 OID 16500)
+-- Name: departments departments_organization_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER TABLE ONLY public.departments
+    ADD CONSTRAINT departments_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id);
+
+
+--
+-- TOC entry 3374 (class 2606 OID 16423)
+-- Name: doctors doctors_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER TABLE ONLY public.doctors
+    ADD CONSTRAINT doctors_id_fkey FOREIGN KEY (id) REFERENCES public.users(id);
+
+
+--
+-- TOC entry 3375 (class 2606 OID 16433)
+-- Name: master_admins master_admins_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER TABLE ONLY public.master_admins
+    ADD CONSTRAINT master_admins_id_fkey FOREIGN KEY (id) REFERENCES public.users(id);
+
+
+--
+-- TOC entry 3376 (class 2606 OID 16445)
+-- Name: nurses nurses_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER TABLE ONLY public.nurses
+    ADD CONSTRAINT nurses_id_fkey FOREIGN KEY (id) REFERENCES public.users(id);
+
+
+--
+-- TOC entry 3377 (class 2606 OID 16455)
+-- Name: org_admins org_admins_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER TABLE ONLY public.org_admins
+    ADD CONSTRAINT org_admins_id_fkey FOREIGN KEY (id) REFERENCES public.users(id);
+
+
+--
+-- TOC entry 3378 (class 2606 OID 16541)
+-- Name: patients patients_doctor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER TABLE ONLY public.patients
+    ADD CONSTRAINT patients_doctor_id_fkey FOREIGN KEY (doctor_id) REFERENCES public.doctors(id);
+
+
+--
+-- TOC entry 3379 (class 2606 OID 16465)
+-- Name: patients patients_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER TABLE ONLY public.patients
+    ADD CONSTRAINT patients_id_fkey FOREIGN KEY (id) REFERENCES public.users(id);
+
+
+--
+-- TOC entry 3380 (class 2606 OID 16634)
+-- Name: patients patients_nurse_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER TABLE ONLY public.patients
+    ADD CONSTRAINT patients_nurse_id_fkey FOREIGN KEY (nurse_id) REFERENCES public.nurses(id);
+
+
+--
+-- TOC entry 3381 (class 2606 OID 16536)
+-- Name: patients patients_room_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER TABLE ONLY public.patients
+    ADD CONSTRAINT patients_room_id_fkey FOREIGN KEY (room_id) REFERENCES public.rooms(id);
+
+
+--
+-- TOC entry 3384 (class 2606 OID 16526)
+-- Name: rooms rooms_ward_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER TABLE ONLY public.rooms
+    ADD CONSTRAINT rooms_ward_id_fkey FOREIGN KEY (ward_id) REFERENCES public.wards(id);
+
+
+--
+-- TOC entry 3373 (class 2606 OID 16488)
+-- Name: users users_organization_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id);
+
+
+--
+-- TOC entry 3389 (class 2606 OID 16596)
+-- Name: vitals vitals_patient_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER TABLE ONLY public.vitals
+    ADD CONSTRAINT vitals_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.patients(id);
+
+
+--
+-- TOC entry 3383 (class 2606 OID 16513)
+-- Name: wards wards_department_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: vitalvue_admin
+--
+
+ALTER TABLE ONLY public.wards
+    ADD CONSTRAINT wards_department_id_fkey FOREIGN KEY (department_id) REFERENCES public.departments(id);
+
+
+-- Completed on 2026-04-07 17:12:45 IST
+
+--
+-- PostgreSQL database dump complete
+--
+

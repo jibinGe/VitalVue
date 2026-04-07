@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from app.database import get_db
+from app.database import get_db, get_redis
 from app.schemas.user import PatientCreate
 from app.crud.user import patient as crud_patient
 from app.models.organization import Room
 from app.models.user import Patient, User, Nurse, Doctor, UserRole
 from app.models.vitals import Vitals
+from app.models.clinical import Alert
 from typing import List
 from app.schemas.patient import PatientDetailResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,6 +15,7 @@ from app.api.deps import get_current_user, allow_admins
 from sqlalchemy import func, and_, text
 from datetime import datetime
 from sqlalchemy import func, and_, text, select, inspect, Integer, Float, String, Boolean
+import json
 
 router = APIRouter()
 
@@ -268,4 +270,59 @@ async def get_dynamic_metric_history(
             for row in rows
         ]
     }
+
+@router.post("/patients/{patient_id}/flag")
+async def flag_doctor(
+    patient_id: int,
+    reason: str = Query(...),
+    db: AsyncSession = Depends(get_db),
+    redis = Depends(get_redis),
+    current_user: User = Depends(get_current_user)
+):
+    # 1. Verify the patient exists and get assigned doctor
+    result = await db.execute(
+        select(Patient).options(joinedload(Patient.assigned_doctor))
+        .where(Patient.id == patient_id)
+    )
+    patient = result.scalars().first()
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+
+    # 2. Create a "Flagged" Alert record
+    new_alert = Alert(
+        patient_id=patient_id,
+        alert_type="MANUAL_FLAG",
+        severity="CRITICAL",
+        message=f"Nurse {current_user.full_name} flagged: {reason}",
+        is_resolved=False
+    )
+    db.add(new_alert)
+    
+    # 3. Real-time Broadcast to Doctor's Dashboard
+    flag_payload = {
+        "event": "DOCTOR_FLAG",
+        "patient_name": patient.full_name,
+        "reason": reason,
+        "nurse_name": current_user.full_name,
+        "timestamp": str(datetime.utcnow())
+    }
+    
+    # Notify the specific ward and the specific doctor
+    await redis.publish(f"patient:{patient_id}:alerts", json.dumps(flag_payload))
+    if patient.doctor_id:
+        await redis.publish(f"doctor:{patient.doctor_id}:alerts", json.dumps(flag_payload))
+
+    # 4. Trigger the Twilio WhatsApp Alert to the Doctor
+    # if patient.assigned_doctor and patient.assigned_doctor.phone_number:
+    #     # We reuse your existing Twilio service but customize the message
+    #     background_tasks.add_task(
+    #         send_doctor_flag_whatsapp,
+    #         patient.assigned_doctor.phone_number,
+    #         patient.full_name,
+    #         reason,
+    #         current_user.full_name
+    #     )
+
+    await db.commit()
+    return {"status": "Doctor Flagged Successfully"}
 
