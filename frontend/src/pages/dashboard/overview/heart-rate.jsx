@@ -34,12 +34,12 @@ export default function HeartRate() {
 
             setLoading(true);
             try {
-                // Fetch current vitals
-                const vitalsResponse = await patientService.getCurrentVitals(userId);
+                // Fetch patient metadata to resolve ID
+                const patientResponse = await patientService.getPatientById(userId);
                 let patientId = null;
-                if (vitalsResponse.success) {
-                    setCurrentVitals(vitalsResponse.data);
-                    patientId = vitalsResponse.data.id;
+                if (patientResponse.success) {
+                    setCurrentVitals(patientResponse.data);
+                    patientId = patientResponse.data.id;
                 }
 
                 // Fetch specific vital data
@@ -67,7 +67,7 @@ export default function HeartRate() {
             icon: <Growth />,
             iconBg: "bg-purple",
             title: "Minimum Heart Rate",
-            value: statistics?.min !== undefined && statistics?.min !== null ? statistics.min : (currentVitals?.vitals?.heartRate?.value ?? 0),
+            value: statistics?.min !== undefined && statistics?.min !== null ? statistics.min : 0,
             extension: "bpm",
             summary: "Minimum HR",
 
@@ -76,7 +76,7 @@ export default function HeartRate() {
             icon: <Growth className='-scale-y-100' />,
             iconBg: "bg-froly",
             title: "Maximum Heart Rate",
-            value: statistics?.max !== undefined && statistics?.max !== null ? statistics.max : (currentVitals?.vitals?.heartRate?.value ?? 0),
+            value: statistics?.max !== undefined && statistics?.max !== null ? statistics.max : 0,
             extension: "bpm",
             summary: "Maximum HR",
         },
@@ -84,7 +84,7 @@ export default function HeartRate() {
             icon: <Growth className='-scale-y-100' />,
             iconBg: "bg-green",
             title: "Average Heart Rate",
-            value: statistics?.average !== undefined && statistics?.average !== null ? Math.round(statistics.average) : (currentVitals?.vitals?.heartRate?.value ? Math.round(currentVitals.vitals.heartRate.value) : 0),
+            value: statistics?.average !== undefined && statistics?.average !== null ? Math.round(statistics.average) : 0,
             extension: "bpm",
             summary: "Average HR",
         },

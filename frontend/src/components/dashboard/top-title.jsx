@@ -13,12 +13,12 @@ export default function TopTitle({ className = "mb-4 md:mb-6", title, children, 
             if (!id) return;
 
             try {
-                const response = await patientService.getCurrentVitals(id);
+                const response = await patientService.getPatientById(id);
                 if (response.success && response.data) {
                     setPatientInfo({
-                        userId: response.data.patientId, // Keep reading patientId from API
-                        patientName: response.data.patientName || 'Unknown Patient',
-                        room: response.data.location?.room?.name || response.data.location?.ward?.name || 'N/A'
+                        userId: response.data.patient_id || response.data.id, 
+                        patientName: response.data.full_name || 'Unknown Patient',
+                        room: response.data.room_no || 'N/A'
                     });
                 }
             } catch (error) {

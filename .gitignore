@@ -2,3 +2,4 @@
 .env
 /files
 backend/app/__pycache__
+backend/simulator.py

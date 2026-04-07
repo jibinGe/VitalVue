@@ -35,12 +35,12 @@ export default function BpTrend() {
 
       setLoading(true);
       try {
-        // Fetch current vitals
-        const vitalsResponse = await patientService.getCurrentVitals(userId);
+        // Fetch patient metadata to resolve ID
+        const patientResponse = await patientService.getPatientById(userId);
         let patientId = null;
-        if (vitalsResponse.success) {
-          setCurrentVitals(vitalsResponse.data);
-          patientId = vitalsResponse.data.id;
+        if (patientResponse.success) {
+          setCurrentVitals(patientResponse.data);
+          patientId = patientResponse.data.id;
         }
 
         // Fetch specific vital data (skip if "Live" is selected)
@@ -65,82 +65,33 @@ export default function BpTrend() {
 
   // Calculate statistics from API data
   const calculateBPStats = () => {
-    if (!vitalData?.bloodPressureData || vitalData.bloodPressureData.length === 0) {
-      return {
-        avg: { sys: 124, dia: 78 },
-        min: { sys: 98, dia: 62 },
-        max: { sys: 156, dia: 94 },
-        current: { sys: 122, dia: 76 }
-      };
+    // Primary logic: use statistics from API
+    if (statistics) {
+       return {
+         avg: {
+           sys: Math.round(statistics.systolic?.average || statistics.average || 120),
+           dia: Math.round(statistics.diastolic?.average || 80)
+         },
+         min: {
+           sys: Math.round(statistics.systolic?.min || statistics.min || 100),
+           dia: Math.round(statistics.diastolic?.min || 60)
+         },
+         max: {
+           sys: Math.round(statistics.systolic?.max || statistics.max || 140),
+           dia: Math.round(statistics.diastolic?.max || 90)
+         },
+         current: {
+           sys: Math.round(statistics.systolic?.current || 120),
+           dia: Math.round(statistics.diastolic?.current || 80)
+         }
+       };
     }
-
-    const validData = vitalData.bloodPressureData.filter(item => {
-      // Handle different value structures
-      if (item.value === null) return false;
-      if (typeof item.value === 'object') {
-        return item.value.systolic != null && item.value.diastolic != null;
-      }
-      return false;
-    });
-
-    // Use statistics from API if available
-    if (statistics && (statistics.min !== undefined || statistics.max !== undefined || statistics.average !== undefined)) {
-      // If statistics are provided, use them (even if 0)
-      // Note: BP statistics might be structured differently, adjust based on actual API response
-      const currentBP = currentVitals?.vitals?.bloodPressure;
-      return {
-        avg: {
-          sys: statistics.average?.systolic !== undefined ? statistics.average.systolic : (statistics.average || (currentBP?.systolic ?? 0)),
-          dia: statistics.average?.diastolic !== undefined ? statistics.average.diastolic : (currentBP?.diastolic ?? 0)
-        },
-        min: {
-          sys: statistics.min?.systolic !== undefined ? statistics.min.systolic : (statistics.min || (currentBP?.systolic ?? 0)),
-          dia: statistics.min?.diastolic !== undefined ? statistics.min.diastolic : (currentBP?.diastolic ?? 0)
-        },
-        max: {
-          sys: statistics.max?.systolic !== undefined ? statistics.max.systolic : (statistics.max || (currentBP?.systolic ?? 0)),
-          dia: statistics.max?.diastolic !== undefined ? statistics.max.diastolic : (currentBP?.diastolic ?? 0)
-        },
-        current: {
-          sys: currentBP?.systolic ?? 0,
-          dia: currentBP?.diastolic ?? 0
-        }
-      };
-    }
-
-    if (validData.length === 0) {
-      const currentBP = currentVitals?.vitals?.bloodPressure;
-      return {
-        avg: { sys: currentBP?.systolic ?? 0, dia: currentBP?.diastolic ?? 0 },
-        min: { sys: currentBP?.systolic ?? 0, dia: currentBP?.diastolic ?? 0 },
-        max: { sys: currentBP?.systolic ?? 0, dia: currentBP?.diastolic ?? 0 },
-        current: { sys: currentBP?.systolic ?? 0, dia: currentBP?.diastolic ?? 0 }
-      };
-    }
-
-    const sysValues = validData.map(item => typeof item.value === 'object' ? item.value.systolic : null).filter(v => v != null);
-    const diaValues = validData.map(item => typeof item.value === 'object' ? item.value.diastolic : null).filter(v => v != null);
-
-    const latest = validData[validData.length - 1];
-    const currentBP = typeof latest.value === 'object' ? latest.value : { systolic: currentVitals?.vitals?.bloodPressure?.systolic ?? 0, diastolic: currentVitals?.vitals?.bloodPressure?.diastolic ?? 0 };
 
     return {
-      avg: {
-        sys: sysValues.length > 0 ? Math.round(sysValues.reduce((a, b) => a + b, 0) / sysValues.length) : 0,
-        dia: diaValues.length > 0 ? Math.round(diaValues.reduce((a, b) => a + b, 0) / diaValues.length) : 0
-      },
-      min: {
-        sys: sysValues.length > 0 ? Math.min(...sysValues) : 0,
-        dia: diaValues.length > 0 ? Math.min(...diaValues) : 0
-      },
-      max: {
-        sys: sysValues.length > 0 ? Math.max(...sysValues) : 0,
-        dia: diaValues.length > 0 ? Math.max(...diaValues) : 0
-      },
-      current: {
-        sys: currentBP.systolic ?? (currentVitals?.vitals?.bloodPressure?.systolic ?? 0),
-        dia: currentBP.diastolic ?? (currentVitals?.vitals?.bloodPressure?.diastolic ?? 0)
-      }
+      avg: { sys: 0, dia: 0 },
+      min: { sys: 0, dia: 0 },
+      max: { sys: 0, dia: 0 },
+      current: { sys: 0, dia: 0 }
     };
   };
 

@@ -1,13 +1,17 @@
-import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { patientService } from '@/services/patientService';
 
 /**
- * Hook to fetch and poll patient data for the organization/ward.
- * Replaces manual setInterval polling with automated state management.
+ * Hook to fetch patient data and stream live vitals via Server-Sent Events.
+ * Fully replaces the manual polling logic.
  */
 export const usePatients = (wardId = 'all', refreshTrigger = 0) => {
-  return useQuery({
-    queryKey: ['patients', wardId, refreshTrigger],
+  const queryClient = useQueryClient();
+  const queryKey = ['patients', wardId, refreshTrigger];
+
+  const query = useQuery({
+    queryKey,
     queryFn: async () => {
       const params = {};
       if (wardId && wardId !== "all") {
@@ -21,9 +25,79 @@ export const usePatients = (wardId = 'all', refreshTrigger = 0) => {
       
       return response.data || [];
     },
-    // Poll every 5 seconds for real-time monitoring
-    refetchInterval: 5000, 
-    refetchIntervalInBackground: true,
-    staleTime: 2000, // Consider data stale after 2 seconds
+    // Disabled polling in favor of Server-Sent Events
+    refetchInterval: false, 
+    staleTime: Infinity, // Keep in-memory cache until updated by stream
   });
+
+  useEffect(() => {
+    const token = localStorage.getItem('accessToken');
+    if (!token) return;
+
+    let streamUrl = 'http://localhost:8000/api/v1/stream/assigned/stream';
+    if (wardId && wardId !== "all") {
+      streamUrl = `http://localhost:8000/api/v1/stream/ward-stream/${wardId}`;
+    }
+
+    const eventSource = new EventSource(`${streamUrl}?token=${token}`);
+
+    const handleMessageUpdate = (e) => {
+      try {
+        const data = JSON.parse(e.data);
+
+        queryClient.setQueryData(queryKey, (oldData) => {
+          if (!oldData) return oldData;
+          return oldData.map(patient => {
+            // Find patient by integer ID or specific string formats
+            if (
+              patient.id === data.patient_id || 
+              patient.user_id === data.patient_id ||
+              patient.id?.toString() === data.patient_id?.toString()
+            ) {
+               const updatedPatient = { ...patient };
+               
+               if (data.vitals) {
+                   const newVitalsEntry = {
+                       ...data.vitals,
+                       recorded_at: new Date().toISOString()
+                   };
+                   
+                   updatedPatient.vitals_history = [
+                       ...(updatedPatient.vitals_history || []),
+                       newVitalsEntry
+                   ];
+
+                   // Keep array size manageable for memory
+                   if (updatedPatient.vitals_history.length > 30) {
+                       // shift instead of slicing for performance if we are constantly appending
+                       updatedPatient.vitals_history = updatedPatient.vitals_history.slice(-30);
+                   }
+               }
+               return updatedPatient;
+            }
+            return patient;
+          });
+        });
+      } catch (err) {
+        console.error("Error parsing SSE update", err);
+      }
+    };
+
+    eventSource.addEventListener('patient_vital_update', handleMessageUpdate);
+    eventSource.addEventListener('ward_vital_update', handleMessageUpdate);
+    eventSource.addEventListener('critical_alert', handleMessageUpdate);
+    eventSource.addEventListener('ward_alert', handleMessageUpdate);
+
+    eventSource.onerror = (err) => {
+      console.warn('SSE Data Stream Error, it will attempt to reconnect natively.', err);
+    };
+
+    return () => {
+      eventSource.close();
+    };
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wardId, refreshTrigger]); // queryClient is stable, omit token refetch
+
+  return query;
 };

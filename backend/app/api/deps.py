@@ -17,10 +17,14 @@ async def get_current_user(
     db: AsyncSession = Depends(get_db),
     token_from_header: Optional[str] = Depends(oauth2_scheme)
 ):
-    # 1. Try to get token from Cookie (Primary for your Frontend/SSE)
-    token = request.cookies.get("access_token")
+    # 1. Try to get token from Query Parameters (For SSE)
+    token = request.query_params.get("token")
+
+    # 2. Try to get token from Cookie (Primary for your Frontend/SSE if using cookies)
+    if not token:
+        token = request.cookies.get("access_token")
     
-    # 2. Fallback to Header (Primary for Swagger UI and Band Simulator)
+    # 3. Fallback to Header (Primary for Swagger UI and Band Simulator)
     if not token:
         token = token_from_header
 

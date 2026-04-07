@@ -40,12 +40,12 @@ export default function Stress() {
 
       setLoading(true);
       try {
-        // Fetch current vitals
-        const vitalsResponse = await patientService.getCurrentVitals(userId);
+        // Fetch patient metadata to resolve ID
+        const patientResponse = await patientService.getPatientById(userId);
         let patientId = null;
-        if (vitalsResponse.success) {
-          setCurrentVitals(vitalsResponse.data);
-          patientId = vitalsResponse.data.id;
+        if (patientResponse.success) {
+          setCurrentVitals(patientResponse.data);
+          patientId = patientResponse.data.id;
         }
 
         // Fetch specific vital data
@@ -119,7 +119,7 @@ export default function Stress() {
     },
   ]
   // Check if data is empty
-  const hasNoData = !vitalData?.respiratoryRateData || vitalData.respiratoryRateData.length === 0 ||
+  const hasNoData = !vitalData?.respiratoryData || vitalData.respiratoryData.length === 0 ||
     (statistics?.min === 0 && statistics?.max === 0 && statistics?.average === 0 && statistics?.count === 0);
 
   if (loading) {
@@ -204,8 +204,8 @@ export default function Stress() {
               <div className="mx-auto md:mx-0">
                 {(() => {
                   // Calculate average quality from respiratory rate data
-                  const avgQuality = vitalData?.respiratoryRateData?.length > 0
-                    ? Math.round(vitalData.respiratoryRateData.reduce((sum, item) => sum + (item.quality || 100), 0) / vitalData.respiratoryRateData.length)
+                  const avgQuality = vitalData?.respiratoryData?.length > 0
+                    ? Math.round(vitalData.respiratoryData.reduce((sum, item) => sum + (item.quality || 100), 0) / vitalData.respiratoryData.length)
                     : 100;
                   const qualityStatus = avgQuality >= 80 ? 'Good' : avgQuality >= 60 ? 'Fair' : 'Poor';
                   const qualityColor = avgQuality >= 80 ? 'bg-[#4CAF50]' : avgQuality >= 60 ? 'bg-[#F59E0B]' : 'bg-[#EF4444]';

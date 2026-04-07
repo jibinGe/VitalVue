@@ -34,12 +34,12 @@ export default function Spo() {
 
       setLoading(true);
       try {
-        // Fetch current vitals
-        const vitalsResponse = await patientService.getCurrentVitals(userId);
+        // Fetch patient metadata to resolve ID
+        const patientResponse = await patientService.getPatientById(userId);
         let patientId = null;
-        if (vitalsResponse.success) {
-          setCurrentVitals(vitalsResponse.data);
-          patientId = vitalsResponse.data.id;
+        if (patientResponse.success) {
+          setCurrentVitals(patientResponse.data);
+          patientId = patientResponse.data.id;
         }
 
         // Fetch specific vital data
@@ -74,8 +74,8 @@ export default function Spo() {
       icon: <Growth />,
       iconBg: "bg-froly",
       title: "Lowest SpO₂ Recorded",
-      value: `${statistics?.min !== undefined && statistics?.min !== null ? statistics.min : (currentVitals?.vitals?.spo2?.value ?? 0)}%`,
-      progress: statistics?.min !== undefined && statistics?.min !== null ? statistics.min : (currentVitals?.vitals?.spo2?.value ?? 0),
+      value: `${statistics?.min !== undefined && statistics?.min !== null ? statistics.min : 0}%`,
+      progress: statistics?.min !== undefined && statistics?.min !== null ? statistics.min : 0,
       summary: "Lowest reading",
 
     },
@@ -85,18 +85,18 @@ export default function Spo() {
       title: "Average SpO₂",
       value: `${Math.round(statistics?.average !== undefined && statistics?.average !== null
         ? statistics.average
-        : (currentVitals?.vitals?.spo2?.value ?? 0))}%`,
+        : 0)}%`,
       progress: Math.round(statistics?.average !== undefined && statistics?.average !== null
         ? statistics.average
-        : (currentVitals?.vitals?.spo2?.value ?? 0)),
+        : 0),
       summary: `${filterTab} period`,
     },
     {
       icon: <Growth className='-scale-y-100' />,
       iconBg: "bg-green",
       title: "Maximum SpO₂",
-      value: `${statistics?.max !== undefined && statistics?.max !== null ? statistics.max : (currentVitals?.vitals?.spo2?.value ?? 0)}%`,
-      progress: statistics?.max !== undefined && statistics?.max !== null ? statistics.max : (currentVitals?.vitals?.spo2?.value ?? 0),
+      value: `${statistics?.max !== undefined && statistics?.max !== null ? statistics.max : 0}%`,
+      progress: statistics?.max !== undefined && statistics?.max !== null ? statistics.max : 0,
       summary: "Peak reading",
     },
     {
@@ -227,7 +227,7 @@ export default function Spo() {
             <div className="flex items-center gap-4">
               <div>
                 <span className='text-2xl xl:text-3xl 2xl:text-[40px] text-white font-medium block mb-1'>
-                  {currentVitals?.vitals?.spo2?.value || vitalData?.spo2Data?.[vitalData.spo2Data.length - 1]?.value || 96.3}%
+                  {statistics?.current || vitalData?.spo2Data?.[vitalData.spo2Data.length - 1]?.value || 0}%
                 </span>
                 <div class="rounded-full relative z-1 bg-white/8 text-xs min-h-8 w-max min-w-20 md:min-w-27 overflow-hidden flex items-center justify-center gap-2 font-normal text-white px-3 border border-solid border-[#2CD155]/35">
                   <span class="h-8.5 w-36 rounded-[100%] bg-[#2CD155]/50 blur-2xl absolute -right-10 -top-3 -z-10"></span>

@@ -117,7 +117,7 @@ const PatientCard = memo(({
                             {item.vitals.map((vital, vIndex) => (
                                 <Link
                                     key={vIndex}
-                                    to={`/dashboard/overview/${item.userId}`}
+                                    to={`/dashboard/overview/${item.id}`}
                                     onClick={(e) => e.stopPropagation()}
                                     className="bg-[#2F2F31] rounded-[20px] overflow-hidden p-2.5 flex flex-col justify-between relative z-1 min-h-[140px]"
                                 >

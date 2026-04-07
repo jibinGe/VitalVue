@@ -30,12 +30,12 @@ export default function Temperature() {
 
       setLoading(true);
       try {
-        // Fetch current vitals
-        const vitalsResponse = await patientService.getCurrentVitals(userId);
+        // Fetch patient metadata to resolve ID
+        const patientResponse = await patientService.getPatientById(userId);
         let patientId = null;
-        if (vitalsResponse.success) {
-          setCurrentVitals(vitalsResponse.data);
-          patientId = vitalsResponse.data.id;
+        if (patientResponse.success) {
+          setCurrentVitals(patientResponse.data);
+          patientId = patientResponse.data.id;
         }
 
         // Fetch specific vital data
@@ -58,7 +58,7 @@ export default function Temperature() {
     fetchData();
   }, [userId, filterTab]);
   // Calculate baseline deviation
-  const currentTemp = currentVitals?.vitals?.temperature?.value || statistics?.average || 36.5;
+  const currentTemp = statistics?.current || statistics?.average || 36.5;
   const baseline = 36.5; // Normal body temperature baseline
   const baselineDeviation = currentTemp - baseline;
   const baselineDeviationStr = baselineDeviation >= 0

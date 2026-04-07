@@ -10,8 +10,8 @@ import EventLogModal from "@/components/ui/EventLogModal";
 import BaselineDeviationModal from "@/components/ui/BaselineDeviationModal";
 import ConfirmationModal from "@/components/ui/ConfirmationModal";
 import CriticalAlarmModal from "@/components/ui/CriticalAlarmModal";
-import { usePatient } from "@/hooks/usePatient";
 import { usePatientHistory } from "@/hooks/usePatientHistory";
+import { useVitalsStream } from "@/hooks/useVitalsStream";
 import { useDashboardStore } from "@/store/useDashboardStore";
 
 import {
@@ -59,8 +59,10 @@ export default function Overview() {
   const filter = ["Live", "1h", "24h"];
   const [filterTab, setFilterTab] = useState(filter[0]);
 
-  const { data: currentVitals, isLoading: loading } = usePatient(userId);
-  const { data: patientHistory, isLoading: historyLoading } = usePatientHistory(currentVitals?.id, filterTab);
+  const parsedUserId = parseInt(userId, 10);
+  const { data: patientHistory, isLoading: loading } = usePatientHistory(parsedUserId, filterTab);
+  const { streamData } = useVitalsStream(parsedUserId);
+  const currentVitals = patientHistory ? patientHistory[patientHistory.length - 1] : null; 
   const patientData = currentVitals; // Map for legacy compatibility
 
   const prevVitalsRaw = useRef("");
@@ -179,12 +181,12 @@ export default function Overview() {
     const statusMap = [];
 
     // NEWS2 Score
-    if (assessments.news2) {
-      const news2 = assessments.news2;
-      const riskLevel = news2.riskLevel || "Low";
+    if (assessments.news2_score !== undefined || assessments.news2 !== undefined) {
+      const score = assessments.news2_score ?? assessments.news2?.score ?? 0;
+      const riskLevel = score >= 7 ? "High" : score >= 5 ? "Medium" : "Low";
       statusMap.push({
         title: "NEWS2 Score",
-        position: news2.score || 0,
+        position: score,
         status: riskLevel === "High" ? "High" : riskLevel === "Medium" ? "Warning" : "Normal",
         description: `${riskLevel} Clinical Risk`,
         color: riskLevel === "High" ? "#E54D4D" : riskLevel === "Medium" ? "#FFBB33" : "#2CD155",
@@ -192,46 +194,44 @@ export default function Overview() {
     }
 
     // AF Warning
-    if (assessments.af_warning) {
-      const afStatus = assessments.af_warning.status || "Normal";
-      statusMap.push({
-        title: "AF Warning",
-        position: afStatus === "Normal" ? "Normal" : "High",
-        status: afStatus === "Normal" ? "Normal" : "High",
-        description: afStatus === "Normal" ? "Regular Rhythm" : "Irregular Rhythm",
-        color: afStatus === "Normal" ? "#2CD155" : "#E54D4D",
-      });
+    const afWarningStr = assessments.af_warning; // could be boolean, int, or object
+    let afStatus = "Normal";
+    if (afWarningStr && afWarningStr !== "Normal" && afWarningStr !== 0 && afWarningStr !== false) {
+      afStatus = "High";
     }
+    statusMap.push({
+      title: "AF Warning",
+      position: afStatus === "Normal" ? "Normal" : "High",
+      status: afStatus === "Normal" ? "Normal" : "High",
+      description: afStatus === "Normal" ? "Regular Rhythm" : "Irregular Rhythm",
+      color: afStatus === "Normal" ? "#2CD155" : "#E54D4D",
+    });
 
     // Stroke Risk
-    if (assessments.stroke_risk) {
-      const strokeRisk = assessments.stroke_risk.riskLevel || "Low";
-      statusMap.push({
-        title: "Stroke Risk",
-        position: strokeRisk,
-        status: strokeRisk === "High" ? "High" : strokeRisk === "Medium" ? "Warning" : "Normal",
-        description: strokeRisk === "High" ? "Elevated risk" : strokeRisk === "Medium" ? "Moderate risk" : "Normal neuro sign",
-        color: strokeRisk === "High" ? "#E54D4D" : strokeRisk === "Medium" ? "#FFBB33" : "#2CD155",
-      });
-    }
+    const strokeRisk = assessments.stroke_risk?.riskLevel || assessments.stroke_risk || "Low";
+    statusMap.push({
+      title: "Stroke Risk",
+      position: strokeRisk,
+      status: strokeRisk === "High" ? "High" : strokeRisk === "Medium" ? "Warning" : "Normal",
+      description: strokeRisk === "High" ? "Elevated risk" : strokeRisk === "Medium" ? "Moderate risk" : "Normal neuro sign",
+      color: strokeRisk === "High" ? "#E54D4D" : strokeRisk === "Medium" ? "#FFBB33" : "#2CD155",
+    });
 
     // Seizure Risk
-    if (assessments.seizure_risk) {
-      const seizureRisk = assessments.seizure_risk.riskLevel || "Normal";
-      statusMap.push({
-        title: "Seizure Risk",
-        position: seizureRisk,
-        status: seizureRisk === "High" ? "High" : seizureRisk === "Medium" ? "Warning" : "Normal",
-        description: seizureRisk === "High" ? "Elevated EDA levels" : seizureRisk === "Normal" ? "Normal EDA levels" : "Moderate EDA levels",
-        color: seizureRisk === "High" ? "#E54D4D" : seizureRisk === "Medium" ? "#FFBB33" : "#2CD155",
-      });
-    }
+    const seizureRisk = assessments.seizure_risk?.riskLevel || assessments.seizure_risk || "Normal";
+    statusMap.push({
+      title: "Seizure Risk",
+      position: seizureRisk,
+      status: seizureRisk === "High" ? "High" : seizureRisk === "Medium" ? "Warning" : "Normal",
+      description: seizureRisk === "High" ? "Elevated EDA levels" : seizureRisk === "Normal" ? "Normal EDA levels" : "Moderate EDA levels",
+      color: seizureRisk === "High" ? "#E54D4D" : seizureRisk === "Medium" ? "#FFBB33" : "#2CD155",
+    });
 
     return statusMap;
   };
 
   // Get triage status from API assessments or use defaults
-  const apiAssessments = currentVitals?.assessments || patientData?.assessments;
+  const apiAssessments = currentVitals?.clinical_risks || currentVitals?.assessments || patientData?.assessments;
   const apiTriageStatus = apiAssessments ? mapAssessmentsToTriageStatus(apiAssessments) : [];
 
   const triageStatus =
@@ -478,12 +478,34 @@ export default function Overview() {
       ? currentVitals.vitals_history[currentVitals.vitals_history.length - 1]
       : (historyData.length > 0 ? historyData[historyData.length - 1] : null);
 
-    const hrVal = latestVitals?.heart_rate;
-    const spo2Val = latestVitals?.spo2;
-    const sysVal = latestVitals?.systolic || latestVitals?.bp_systolic;
-    const diaVal = latestVitals?.diastolic || latestVitals?.bp_diastolic;
-    const tempVal = latestVitals?.temperature || latestVitals?.temp;
-    const hrvVal = latestVitals?.hrv || latestVitals?.hrv_score || currentVitals?.derived_metrics?.hrv;
+    let hrVal = latestVitals?.primary_vitals?.heart_rate ?? latestVitals?.heart_rate;
+    let spo2Val = latestVitals?.primary_vitals?.spo2 ?? latestVitals?.spo2;
+    let sysVal = latestVitals?.primary_vitals?.blood_pressure ? latestVitals.primary_vitals.blood_pressure.split('/')[0] : (latestVitals?.systolic || latestVitals?.bp_systolic);
+    let diaVal = latestVitals?.primary_vitals?.blood_pressure ? latestVitals.primary_vitals.blood_pressure.split('/')[1] : (latestVitals?.diastolic || latestVitals?.bp_diastolic);
+    let tempVal = latestVitals?.primary_vitals?.temp ?? (latestVitals?.temperature || latestVitals?.temp);
+    let hrvVal = latestVitals?.advanced_metrics?.hrv_score ?? (latestVitals?.hrv || latestVitals?.hrv_score || currentVitals?.derived_metrics?.hrv);
+    let movementVal = latestVitals?.advanced_metrics?.movement_index ?? latestVitals?.movement;
+    let sleepVal = latestVitals?.sleep_pattern;
+    let stressVal = latestVitals?.advanced_metrics?.stress_level ?? latestVitals?.stress_level;
+
+    if (streamData) {
+      if (streamData.heart_rate !== undefined) hrVal = streamData.heart_rate;
+      if (streamData.spo2 !== undefined) spo2Val = streamData.spo2;
+      if (streamData.bp_systolic !== undefined && streamData.bp_diastolic !== undefined) {
+        sysVal = streamData.bp_systolic;
+        diaVal = streamData.bp_diastolic;
+      }
+      if (streamData.temp !== undefined) tempVal = streamData.temp;
+      if (streamData.hrv_score !== undefined) hrvVal = streamData.hrv_score;
+      if (streamData.movement_index !== undefined) movementVal = streamData.movement_index;
+      if (streamData.stress_level !== undefined) stressVal = streamData.stress_level;
+    }
+
+    // Round values to remove decimals as requested
+    if (hrVal !== undefined && hrVal !== null) hrVal = Math.round(hrVal);
+    if (spo2Val !== undefined && spo2Val !== null) spo2Val = Math.round(spo2Val);
+    if (hrvVal !== undefined && hrvVal !== null) hrvVal = Math.round(hrvVal);
+    if (movementVal !== undefined && movementVal !== null) movementVal = Math.round(movementVal);
 
     return [
       {
@@ -499,7 +521,7 @@ export default function Overview() {
         icon: <Spo />,
         iconBg: "bg-purple",
         title: "SpO2",
-        value: spo2Val ? `${parseFloat(spo2Val).toFixed(1)}%` : '--',
+        value: spo2Val ? `${spo2Val}%` : '--',
         extension: "",
         img: <SpO2Gauge value={spo2Val ?? 98} />,
         path: `/dashboard/spo/${userId || ""}`,
@@ -535,7 +557,7 @@ export default function Overview() {
         icon: <Brain />,
         iconBg: "bg-aqua",
         title: "Movement",
-        value: latestVitals?.movement ?? '--',
+        value: movementVal ?? '--',
         extension: "",
         img: <Movement historyData={historyData} />,
         path: `/dashboard/movement/${userId || ""}`,
@@ -572,13 +594,19 @@ export default function Overview() {
   useEffect(() => {
     if (!currentVitals) return;
 
-    const hasCritical = currentVitals.status?.toLowerCase() === "critical" ||
-      currentVitals.vitals?.heartRate?.status?.toLowerCase() === "critical" ||
-      currentVitals.vitals?.spo2?.status?.toLowerCase() === "critical" ||
-      currentVitals.vitals?.bloodPressure?.status?.toLowerCase() === "critical";
+    let hasCritical = false;
+    if (currentVitals && currentVitals.clinical_risks) {
+      if (currentVitals.clinical_risks.news2_score >= 7 || 
+          currentVitals.clinical_risks.af_warning || 
+          currentVitals.clinical_risks.stroke_risk === "High" || 
+          currentVitals.clinical_risks.seizure_risk === "High"
+      ) {
+         hasCritical = true;
+      }
+    }
 
     if (hasCritical) {
-      setCriticalAlarmData({ vitals: currentVitals.vitals || {} });
+      setCriticalAlarmData({ vitals: currentVitals.primary_vitals || {} });
     }
   }, [currentVitals, setCriticalAlarmData]);
 
@@ -772,20 +800,22 @@ export default function Overview() {
                   </span>
                 </div>
                 <div className="text-xl md:text-2xl lg:text-3xl xl:text-[36px] text-white font-medium [text-shadow:1px_1px_5px_rgba(255,0,0,0.16),-1px_-1px_5px_rgba(0,170,255,0.16)]">
-                  {String(item.value).includes("/")
-                    ? String(item.value).split("/")[0]
-                    : item.value}
-
-                  {String(item.value).includes("/") && (
-                    <span className="text-xl align-baseline">
-                      /{String(item.value).split("/")[1]}
-                    </span>
+                  {String(item.value).includes("/") ? (
+                    <>
+                      <span>{String(item.value).split("/")[0]}</span>
+                      <span className="text-lg md:text-xl lg:text-2xl xl:text-[22px] font-normal text-white/80 align-baseline ml-0.5">
+                        /{String(item.value).split("/")[1]}
+                      </span>
+                    </>
+                  ) : (
+                    item.value
                   )}
 
-                  <span className="text-base text-para ml-1.5 font-normal">
+                  <span className="text-sm md:text-base text-para ml-1.5 font-normal">
                     {item.extension}
                   </span>
                 </div>
+
               </div>
               <div className="relative z-1">
                 {chartsReady ? item.img : <div className="h-[120px] w-full animate-pulse bg-white/5 opacity-50 rounded-b-3xl"></div>}

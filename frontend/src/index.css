@@ -146,25 +146,37 @@
     animation-delay: 1.25s;
 }
 
-/* --- Temperature wave mask slide (tempWave.jsx) --- */
-@keyframes tempMaskSlide {
+/* --- Temperature wave smooth flow (tempWave.jsx) --- */
+@keyframes tempFlow {
     0% {
-        mask-position: 200% 0;
-        -webkit-mask-position: 200% 0;
+        transform: translateX(0);
     }
-
     100% {
-        mask-position: -100% 0;
-        -webkit-mask-position: -100% 0;
+        transform: translateX(-20px);
     }
 }
 
-.temp-wave-animated .recharts-wrapper {
-    mask-image: linear-gradient(90deg, transparent 0%, black 20%, black 80%, transparent 100%);
-    -webkit-mask-image: linear-gradient(90deg, transparent 0%, black 20%, black 80%, transparent 100%);
-    mask-size: 200% 100%;
-    -webkit-mask-size: 200% 100%;
-    mask-repeat: no-repeat;
-    -webkit-mask-repeat: no-repeat;
-    animation: tempMaskSlide 3s linear infinite;
+.temp-wave-animated .recharts-surface {
+    /* animation: tempFlow 4s linear infinite; */
+}
+
+/* --- Pulse for the end-point dot --- */
+@keyframes dotPulse {
+    0% {
+        transform: scale(0.8);
+        opacity: 0.8;
+    }
+    50% {
+        transform: scale(1.8);
+        opacity: 0;
+    }
+    100% {
+        transform: scale(1.8);
+        opacity: 0;
+    }
+}
+
+.dot-pulse {
+    transform-origin: center;
+    animation: dotPulse 2s ease-out infinite;
 }

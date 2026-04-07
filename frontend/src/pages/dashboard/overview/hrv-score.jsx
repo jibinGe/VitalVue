@@ -36,12 +36,12 @@ export default function HrvScore() {
 
       setLoading(true);
       try {
-        // Fetch current vitals
-        const vitalsResponse = await patientService.getCurrentVitals(userId);
+        // Fetch patient metadata to resolve ID
+        const patientResponse = await patientService.getPatientById(userId);
         let patientId = null;
-        if (vitalsResponse.success) {
-          setCurrentVitals(vitalsResponse.data);
-          patientId = vitalsResponse.data.id;
+        if (patientResponse.success) {
+          setCurrentVitals(patientResponse.data);
+          patientId = patientResponse.data.id;
         }
 
         // Fetch specific vital data

@@ -9,7 +9,7 @@ export const usePatient = (userId) => {
     queryKey: ['patient', userId],
     queryFn: async () => {
       if (!userId) return null;
-      const response = await patientService.getCurrentVitals(userId);
+      const response = await patientService.getPatientById(userId);
       
       if (!response.success) {
         throw new Error(response.message || 'Failed to fetch patient data');
