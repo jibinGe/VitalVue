@@ -47,25 +47,43 @@ const HistoryTable = ({ history = [] }) => {
                   <span>Temp (°C)</span>
                 </div>
               </th>
+              <th className="p-4 text-sm font-medium text-white/70 uppercase tracking-wider text-center">
+                HRV
+              </th>
+              <th className="p-4 text-sm font-medium text-white/70 uppercase tracking-wider text-center">
+                Stress
+              </th>
+              <th className="p-4 text-sm font-medium text-white/70 uppercase tracking-wider text-center">
+                Battery
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5">
             {sortedHistory.map((record, index) => (
               <tr key={index} className="hover:bg-white/5 transition-colors">
                 <td className="p-4 text-white font-medium whitespace-nowrap">
-                  {formatToLocalTime(record.recorded_at)}
+                  {formatToLocalTime(record.recorded_at || record.timestamp || new Date().toISOString())}
                 </td>
                 <td className="p-4 text-center text-white text-lg">
                   {record.heart_rate || '--'}
                 </td>
                 <td className="p-4 text-center text-white text-lg">
-                  {record.spo2 || '--'}%
+                  {record.spo2 ? parseFloat(record.spo2).toFixed(1) : '--'}%
                 </td>
                 <td className="p-4 text-center text-white text-lg">
-                  {record.systolic || '--'}/{record.diastolic || '--'}
+                  {record.systolic || record.bp_systolic || '--'}/{record.diastolic || record.bp_diastolic || '--'}
                 </td>
                 <td className="p-4 text-center text-white text-lg">
-                  {record.temperature ? parseFloat(record.temperature).toFixed(1) : '--'}
+                  {record.temperature ? parseFloat(record.temperature).toFixed(1) : (record.temp ? parseFloat(record.temp).toFixed(1) : '--')}
+                </td>
+                <td className="p-4 text-center text-white text-lg">
+                  {record.hrv_score || record.hrv || '--'}
+                </td>
+                <td className="p-4 text-center text-white text-lg">
+                  {record.stress_level || '--'}
+                </td>
+                <td className="p-4 text-center text-white text-lg">
+                  {record.battery_percent !== undefined ? `${record.battery_percent}%` : '--'}
                 </td>
               </tr>
             ))}

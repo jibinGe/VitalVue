@@ -1,16 +1,9 @@
 import { Bar, BarChart, ResponsiveContainer } from "recharts"
 
-export default function Movement() {
-    const chartData = [
-        { data: 80 },
-        { data: 100 },
-        { data: 200 },
-        { data: 300 },
-        { data: 280 },
-        { data: 250 },
-        { data: 200 },
-        { data: 80 },
-    ]
+export default function Movement({ historyData = [] }) {
+    const chartData = historyData && historyData.length > 0
+        ? historyData.map(h => ({ data: h.movement || 0 }))
+        : [{ data: 0 }, { data: 0 }];
 
     return (
         <div className="w-full h-18 movement-animated">

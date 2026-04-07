@@ -1,24 +1,16 @@
 import React from 'react';
 import { BarChart, Bar, ResponsiveContainer } from 'recharts';
 
-const data = [
-    { value: 20 },
-    { value: 40 },
-    { value: 25 },
-    { value: 30 },
-    { value: 70 },
-    { value: 60 },
-    { value: 80 },
-    { value: 90 },
-    { value: 70 },
-    { value: 60 },
-    { value: 10 },
-    { value: 30 },
-    { value: 50 },
-    { value: 90 },
-];
-
-const StressPatternChart = ({ className = "w-full h-12" }) => {
+const StressPatternChart = ({ className = "w-full h-12", historyData = [] }) => {
+    const data = historyData && historyData.length > 0
+        ? historyData.map(h => {
+             let v = 50;
+             if (h.stress_level === "Low") v = 30;
+             if (h.stress_level === "Moderate") v = 60;
+             if (h.stress_level === "High") v = 90;
+             return { value: v };
+        })
+        : [{ value: 0 }, { value: 0 }];
     return (
         <div className={className}>
             <ResponsiveContainer width="100%" height="100%">

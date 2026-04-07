@@ -48,31 +48,51 @@
 
 /* --- HeartRate EKG scan line (overview/heartRateWave.jsx) --- */
 @keyframes slideEkg1 {
-    0%   { transform: translateX(0); }
-    100% { transform: translateX(-261px); }
+    0% {
+        transform: translateX(0);
+    }
+
+    100% {
+        transform: translateX(-261px);
+    }
 }
+
 .ekg-slide-1 {
     animation: slideEkg1 2.5s linear infinite;
 }
 
 /* --- HeartRate EKG scan line (animation/heartRateWave.jsx) --- */
 @keyframes slideEkg2 {
-    0%   { transform: translateX(0); }
-    100% { transform: translateX(-116px); }
+    0% {
+        transform: translateX(0);
+    }
+
+    100% {
+        transform: translateX(-116px);
+    }
 }
+
 .ekg-slide-2 {
     animation: slideEkg2 1.5s linear infinite;
 }
 
 @keyframes pulseWave {
-    0%   { transform: scale(1); opacity: 1; }
-    100% { transform: scale(2.5); opacity: 0; }
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    100% {
+        transform: scale(2.5);
+        opacity: 0;
+    }
 }
 
 .end-circle {
     transform-origin: 261px 19.1px;
     animation: pulseWave 1.5s ease-out infinite;
 }
+
 .end-circle-small {
     transform-origin: 116px 19px;
     animation: pulseWave 1.5s ease-out infinite;
@@ -80,9 +100,19 @@
 
 /* --- BP Bars wave (bpBars.jsx) --- */
 @keyframes bpBarWave {
-    0%, 100% { opacity: 0.5; transform: scaleY(0.6); }
-    50%       { opacity: 1;   transform: scaleY(1);   }
+
+    0%,
+    100% {
+        opacity: 0.5;
+        transform: scaleY(0.6);
+    }
+
+    50% {
+        opacity: 1;
+        transform: scaleY(1);
+    }
 }
+
 .bp-bars-animated .recharts-bar-rectangle {
     transform-origin: bottom;
     animation: bpBarWave 2s ease-in-out infinite;
@@ -90,27 +120,45 @@
 
 /* --- HRV bar pulse (hrv-score.jsx) --- */
 @keyframes hrvBarPulse {
-    0%, 100% { transform: scaleY(0.7); opacity: 0.6; }
-    50%       { transform: scaleY(1);   opacity: 1;   }
+
+    0%,
+    100% {
+        transform: scaleY(0.7);
+        opacity: 0.6;
+    }
+
+    50% {
+        transform: scaleY(1);
+        opacity: 1;
+    }
 }
+
 .hrv-score-animated .recharts-bar-rectangle {
     transform-origin: bottom;
     animation: hrvBarPulse 2.5s ease-in-out infinite;
 }
-.hrv-score-animated .recharts-bar-rectangle:nth-child(odd)  { animation-delay: 0s;    }
-.hrv-score-animated .recharts-bar-rectangle:nth-child(even) { animation-delay: 1.25s; }
+
+.hrv-score-animated .recharts-bar-rectangle:nth-child(odd) {
+    animation-delay: 0s;
+}
+
+.hrv-score-animated .recharts-bar-rectangle:nth-child(even) {
+    animation-delay: 1.25s;
+}
 
 /* --- Temperature wave mask slide (tempWave.jsx) --- */
 @keyframes tempMaskSlide {
-    0%   {
+    0% {
         mask-position: 200% 0;
         -webkit-mask-position: 200% 0;
     }
+
     100% {
         mask-position: -100% 0;
         -webkit-mask-position: -100% 0;
     }
 }
+
 .temp-wave-animated .recharts-wrapper {
     mask-image: linear-gradient(90deg, transparent 0%, black 20%, black 80%, transparent 100%);
     -webkit-mask-image: linear-gradient(90deg, transparent 0%, black 20%, black 80%, transparent 100%);

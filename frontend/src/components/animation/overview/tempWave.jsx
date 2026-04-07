@@ -1,17 +1,12 @@
 import React from "react";
 import { Area, AreaChart, ResponsiveContainer } from "recharts";
 
-const chartData = [
-  { desktop: 50 },
-  { desktop: 330 },
-  { desktop: 237 },
-  { desktop: 73 },
-  { desktop: 209 },
-  { desktop: 214 },
-];
-
 // Animation for .temp-wave-animated is defined globally in index.css
-const TempWave = React.memo(function TempWave({ className = "h-14" }) {
+const TempWave = React.memo(function TempWave({ className = "h-14", historyData = [] }) {
+  const chartData = historyData && historyData.length > 0
+      ? historyData.map(h => ({ desktop: typeof h.temp === 'number' ? h.temp : (typeof h.temperature === 'number' ? h.temperature : 37) }))
+      : [{ desktop: 0 }, { desktop: 0 }];
+
   return (
     <div className={`w-full ${className} temp-wave-animated`}>
       <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>

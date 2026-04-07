@@ -6,29 +6,36 @@ const HeartRateLive = React.memo(function HeartRateLive({
   className = "", 
   width = 190, 
   height = 32, 
-  stroke = "#caa75a" 
+  stroke = "#caa75a",
+  historyData = [] 
 }) {
-    const [data, setData] = useState(() => Array(40).fill(0));
-    const [bpm, setBpm] = useState(0);
+    // Extract heart rate values, map to number
+    let dataList = historyData && historyData.length > 0
+        ? historyData.map(h => typeof h.heart_rate === 'number' ? h.heart_rate : 0)
+        : Array(40).fill(0);
+        
+    // Reverse because history comes latest first? Wait, we want timeline from left to right (old to new)
+    // The history might be sorted differently. Let's just assume we want it sequentially.
+    // Ensure we don't have an empty array causing Math.max to fail.
+    if (dataList.length === 0) dataList = [0, 0];
 
-    // Simulation removed to clean up mock data
-    useEffect(() => {
-        // No-op
-    }, []);
+    // If data is too small, just duplicate last point so it draws a line
+    if (dataList.length === 1) dataList = [dataList[0], dataList[0]];
 
-
-    const max = Math.max(...data);
-    const min = Math.min(...data);
-    const points = data
+    const max = Math.max(...dataList, 1);
+    const min = Math.min(...dataList, 0);
+    const range = max === min ? 1 : max - min;
+    
+    const points = dataList
         .map((d, i) => {
-            const x = (i / (data.length - 1)) * width;
-            const y = max === min ? height / 2 : height - ((d - min) / (max - min)) * height;
+            const x = (i / (dataList.length - 1)) * width;
+            const y = height - ((d - min) / range) * height;
             return `${x},${y}`;
         })
         .join(" ");
 
     const lastPoint = points.split(" ").slice(-1)[0];
-    const [lastX, lastY] = lastPoint.split(",");
+    const [lastX, lastY] = lastPoint ? lastPoint.split(",") : [0,0];
 
     return (
         <div className={className}>

@@ -51,20 +51,16 @@ const PatientCard = memo(({
 
     const renderVitalGraph = (vital, index) => {
         if (vital.title === "Heart Rate") {
-            if (vital.heartRate === 0 || !vital.heartRate) return null;
-            return <HeartRateLive width={140} height={26} className="-ml-3 mt-3" />;
+            return <HeartRateLive width={140} height={26} className="-ml-3 mt-3" historyData={vital.historyData} />;
         }
         if (vital.title === "SpO2") {
-            if (vital.spo2 === 0 || !vital.spo2) return null;
             return <Spo2Gauge value={vital.spo2 || 90} className="h-20 w-40 -mt-7 -ml-5" set_height={true} animate={true} />;
         }
         if (vital.title === "BP Trend") {
-            if (vital.bp === "0/0" || !vital.bp) return null;
-            return <BPBars className="h-8 scale-130 -mb-2" />;
+            return <BPBars className="h-8 scale-130 -mb-2" historyData={vital.historyData} />;
         }
         if (vital.title === "Temp") {
-            if (vital.temp === 0 || vital.temp === "0.0" || !vital.temp) return null;
-            return <TempWave className="h-11 -ml-3 w-[calc(100%+24px)]! -mb-2" />;
+            return <TempWave className="h-11 -ml-3 w-[calc(100%+24px)]! -mb-2" historyData={vital.historyData} />;
         }
         return null;
     };
@@ -134,8 +130,8 @@ const PatientCard = memo(({
                                             <span className="text-xs text-white font-medium">{vital.title}</span>
                                         </div>
                                         <div className="text-2xl font-medium [text-shadow:1px_1px_5px_rgba(255,0,0,0.16),-1px_-1px_5px_rgba(0,170,255,0.16) ]">
-                                            {vital.heartRate !== undefined && <>{vital.heartRate} <span className="text-xs text-para">bpm</span></>}
-                                            {vital.spo2 !== undefined && <>{vital.spo2}%</>}
+                                            {vital.heartRate !== undefined && <>{vital.heartRate || '--'} <span className="text-xs text-para">bpm</span></>}
+                                            {vital.spo2 !== undefined && <>{vital.spo2 || '--'}%</>}
                                             {vital.bp && <>{vital.bp.split("/")[0]}<span className="text-sm">/{vital.bp.split("/")[1]}</span> <span className="text-xs text-para">mmHg</span></>}
                                             {vital.temp !== undefined && <>{vital.temp} <span className="text-xs text-para">°C</span></>}
                                         </div>

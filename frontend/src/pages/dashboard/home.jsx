@@ -333,6 +333,109 @@ export default function Home() {
   const [cardMenu, setCardMenu] = useState(null);
 
   // --- Transform API Data to UI Structure ---
+  // Helper functions moved above useMemo to avoid ReferenceError
+  const formatTemperature = (temp) => {
+    if (temp === undefined || temp === null) return 0;
+    const numTemp = typeof temp === "object" ? temp.value : temp;
+    return parseFloat(numTemp).toFixed(1);
+  };
+
+  const getPatientStatusFromVitals = (vitalsData) => {
+    const hasCritical =
+      vitalsData.heartRate?.status?.toLowerCase() === "critical" ||
+      vitalsData.spo2?.status?.toLowerCase() === "critical" ||
+      vitalsData.bloodPressure?.status?.toLowerCase() === "critical";
+    if (hasCritical) return "Critical";
+
+    const hasWarning =
+      vitalsData.heartRate?.status?.toLowerCase() === "high" ||
+      vitalsData.heartRate?.status?.toLowerCase() === "low" ||
+      vitalsData.spo2?.status?.toLowerCase() === "high" ||
+      vitalsData.spo2?.status?.toLowerCase() === "low" ||
+      vitalsData.bloodPressure?.status?.toLowerCase() === "high" ||
+      vitalsData.bloodPressure?.status?.toLowerCase() === "low" ||
+      vitalsData.temperature?.status?.toLowerCase() === "high" ||
+      vitalsData.temperature?.status?.toLowerCase() === "low";
+    if (hasWarning) return "Warning";
+
+    return "Stable";
+  };
+
+  const mapAssessmentsToAlerts = (assessments) => {
+    if (!assessments) return defaultAlerts;
+    const alerts = [];
+
+    if (assessments.news2) {
+      const news2 = assessments.news2;
+      const riskLevel = news2.riskLevel || "Low";
+      const score = news2.score || 0;
+      const color = riskLevel === "High" ? "#E54D4D" : riskLevel === "Medium" ? "#FFF133BF" : "#2CD155BF";
+      alerts.push({
+        type: "NEWS2",
+        status: `Score ${score}`,
+        color: color,
+        icon: (
+          <svg className="size-6" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+            <path d="M2 12.625H6L8.33333 8.875L12 17L16 7L18.6667 12.625H22" stroke={color} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        ),
+      });
+    }
+
+    if (assessments.af_warning) {
+      const afStatus = assessments.af_warning.status || "Normal";
+      const color = afStatus === "Normal" ? "#2CD155BF" : "#E54D4D";
+      alerts.push({
+        type: "AF Warning",
+        status: afStatus === "Normal" ? "Normal" : "High",
+        color: color,
+        icon: (
+          <svg className="size-6" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 15 20" fill="none">
+            <path d="M2.01243 11.88H5.19716V19.0794C5.19716 20.7592 6.13506 21.0992 7.27909 19.8393L15.0812 11.24C16.0397 10.1901 15.6377 9.32021 14.1845 9.32021H10.9998V2.12084C10.9998 0.440986 10.0619 0.101015 8.91783 1.36091L1.11575 9.96015C0.167548 11.0201 0.569505 11.88 2.01243 11.88Z" stroke={color} strokeWidth="1.2" strokeMiterlimit="10" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        ),
+      });
+    }
+
+    if (assessments.stroke_risk) {
+      const strokeRisk = assessments.stroke_risk.riskLevel || "Low";
+      const color = strokeRisk === "High" ? "#E54D4D" : strokeRisk === "Medium" ? "#FFF133BF" : "#2CD155BF";
+      alerts.push({
+        type: "Stroke Risk",
+        status: strokeRisk === "High" ? "High" : strokeRisk === "Medium" ? "Medium" : "Low",
+        color: color,
+        icon: (
+          <svg className="size-6" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 22 22" fill="none">
+            <path d="M10.5999 16.6002V3.60023M10.5999 3.60023C10.5998 3.14005 10.7057 2.68604 10.9092 2.27332C11.1127 1.86059 11.4084 1.50022 11.7735 1.22007C12.1386 0.939931 12.5632 0.747526 13.0146 0.657747C13.4659 0.567967 13.9318 0.583219 14.3763 0.702323C14.8208 0.821427 15.232 1.04119 15.5779 1.34461C15.9239 1.64803 16.1954 2.02697 16.3715 2.45212C16.5476 2.87727 16.6235 3.33724 16.5934 3.79642C16.5633 4.25561 16.428 4.70172 16.1979 5.10023M10.5999 3.60023C10.5999 3.14005 10.494 2.68604 10.2905 2.27332C10.087 1.86059 9.79126 1.50022 9.42619 1.22007C9.06111 0.939931 8.63648 0.747526 8.18515 0.657747C7.73382 0.567967 7.26788 0.583219 6.82339 0.702323C6.37889 0.821427 5.96776 1.04119 5.62178 1.34461C5.27581 1.64803 5.00427 2.02697 4.82818 2.45212C4.65209 2.87727 4.57617 3.33724 4.60628 3.79642C4.6364 4.25561 4.77175 4.70172 5.00185 5.10023M13.5999 11.6002C12.7347 11.3473 11.9747 10.8209 11.4339 10.0997C10.893 9.3786 10.6004 8.50164 10.5999 7.60023C10.5993 8.50164 10.3067 9.3786 9.76585 10.0997C9.22501 10.8209 8.46505 11.3473 7.59985 11.6002" stroke={color} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M16.5962 3.7251C17.184 3.87623 17.7297 4.15915 18.192 4.55241C18.6542 4.94567 19.021 5.43897 19.2643 5.99495C19.5077 6.55092 19.6214 7.15499 19.5968 7.76141C19.5722 8.36783 19.4099 8.96069 19.1222 9.4951" stroke={color} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M16.6001 16.5993C17.4806 16.5992 18.3365 16.3086 19.035 15.7726C19.7336 15.2366 20.2357 14.485 20.4636 13.6345C20.6915 12.784 20.6324 11.8821 20.2955 11.0686C19.9585 10.2551 19.3626 9.57554 18.6001 9.13525" stroke={color} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M18.5671 16.0825C18.6372 16.6248 18.5954 17.1756 18.4442 17.701C18.2931 18.2265 18.0358 18.7154 17.6883 19.1375C17.3408 19.5596 16.9105 19.906 16.4239 20.1553C15.9373 20.4046 15.4047 20.5514 14.8591 20.5869C14.3135 20.6223 13.7665 20.5454 13.2517 20.3611C12.737 20.1768 12.2655 19.8889 11.8663 19.5153C11.4672 19.1416 11.1489 18.6901 10.9311 18.1886C10.7133 17.6871 10.6007 17.1463 10.6001 16.5995C10.5995 17.1463 10.4868 17.6871 10.2691 18.1886C10.0513 18.6901 9.73298 19.1416 9.33386 19.5153C8.93473 19.8889 8.46323 20.1768 7.94848 20.3611C7.43374 20.5454 6.88667 20.6223 6.34107 20.5869C5.79547 20.5514 5.26292 20.4046 4.77631 20.1553C4.28971 19.906 3.85937 19.5596 3.51188 19.1375C3.16439 18.7154 2.90713 18.2265 2.75598 17.701C2.60484 17.1756 2.56301 16.6248 2.6331 16.0825" stroke={color} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M4.59992 16.5993C3.71942 16.5992 2.86353 16.3086 2.16499 15.7726C1.46645 15.2366 0.964294 14.485 0.736399 13.6345C0.508505 12.784 0.567607 11.8821 0.904539 11.0686C1.24147 10.2551 1.83741 9.57554 2.59992 9.13525" stroke={color} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M4.604 3.7251C4.01621 3.87623 3.47051 4.15915 3.00823 4.55241C2.54596 4.94567 2.17924 5.43897 1.93585 5.99495C1.69245 6.55092 1.57876 7.15499 1.60339 7.76141C1.62802 8.36783 1.79032 8.96069 2.078 9.4951" stroke={color} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        ),
+      });
+    }
+
+    if (assessments.seizure_risk) {
+      const seizureRisk = assessments.seizure_risk.riskLevel || "Normal";
+      const color = seizureRisk === "High" ? "#E54D4D" : seizureRisk === "Medium" ? "#FFF133BF" : "#2CD155BF";
+      alerts.push({
+        type: "Seizure Risk",
+        status: seizureRisk === "High" ? "High" : seizureRisk === "Medium" ? "Medium" : "Normal",
+        color: color,
+        icon: (
+          <svg className="size-6" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 22 22" fill="none">
+            <path d="M7.26676 8.37788H7.25565M13.9334 8.37788H13.9223M10.6001 20.6001C9.28688 20.6001 7.98652 20.3414 6.77326 19.8389C5.56001 19.3363 4.45762 18.5998 3.52903 17.6712C2.60044 16.7426 1.86385 15.6402 1.3613 14.4269C0.858755 13.2137 0.600098 11.9133 0.600098 10.6001C0.600098 9.28688 0.858755 7.98652 1.3613 6.77326C1.86385 5.56001 2.60044 4.45762 3.52903 3.52903C4.45762 2.60044 5.56001 1.86385 6.77326 1.3613C7.98652 0.858755 9.28688 0.600098 10.6001 0.600098C13.2523 0.600098 15.7958 1.65367 17.6712 3.52903C19.5465 5.40439 20.6001 7.94793 20.6001 10.6001C20.6001 13.2523 19.5465 15.7958 17.6712 17.6712C15.7958 19.5465 13.2523 20.6001 10.6001 20.6001Z" stroke={color} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M6.6001 14.6001L7.6001 13.6001L9.1001 14.6001L10.6001 13.6001L12.1001 14.6001L13.6001 13.6001L14.6001 14.6001" stroke={color} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        ),
+      });
+    }
+
+    return alerts.length > 0 ? alerts : defaultAlerts;
+  };
+
   const cardData = useMemo(() => {
     return rawPatients.map((p) => {
       // Get the latest vitals from history
@@ -344,11 +447,11 @@ export default function Home() {
         heartRate: { value: latestVitals?.heart_rate || 0, status: latestVitals?.heart_rate_status || "Stable" },
         spo2: { value: latestVitals?.spo2 || 0, status: latestVitals?.spo2_status || "Stable" },
         bloodPressure: { 
-          systolic: latestVitals?.systolic || 0, 
-          diastolic: latestVitals?.diastolic || 0, 
+          systolic: latestVitals?.bp_systolic || latestVitals?.systolic || 0, 
+          diastolic: latestVitals?.bp_diastolic || latestVitals?.diastolic || 0, 
           status: latestVitals?.bp_status || "Stable" 
         },
-        temperature: { value: latestVitals?.temperature || 0, status: latestVitals?.temperature_status || "Stable" }
+        temperature: { value: latestVitals?.temp || latestVitals?.temperature || 0, status: latestVitals?.temperature_status || "Stable" }
       };
 
       let status = "Stable";
@@ -366,13 +469,13 @@ export default function Home() {
         room: p.room_no || "General",
         lastSync: latestVitals?.recorded_at || new Date().toISOString(),
         vitals: [
-          { icon: <Hart />, title: "Heart Rate", heartRate: vitals.heartRate?.value || 0 },
-          { icon: <Spo />, title: "SpO2", spo2: vitals.spo2?.value || 0 },
-          { icon: <Bp />, title: "BP Trend", bp: `${vitals.bloodPressure?.systolic || 0}/${vitals.bloodPressure?.diastolic || 0}` },
-          { icon: <Temp />, title: "Temp", temp: formatTemperature(vitals.temperature?.value || 0) },
+          { icon: <Hart />, title: "Heart Rate", heartRate: vitals.heartRate?.value || 0, historyData: p.vitals_history || [] },
+          { icon: <Spo />, title: "SpO2", spo2: vitals.spo2?.value ? Math.round(vitals.spo2.value) : 0, historyData: p.vitals_history || [] },
+          { icon: <Bp />, title: "BP Trend", bp: `${vitals.bloodPressure?.systolic || '--'}/${vitals.bloodPressure?.diastolic || '--'}`, historyData: p.vitals_history || [] },
+          { icon: <Temp />, title: "Temp", temp: vitals.temperature?.value ? formatTemperature(vitals.temperature?.value) : '--', historyData: p.vitals_history || [] },
         ],
         alerts: mapAssessmentsToAlerts(p.assessments),
-        deviceBattery: p.device_battery || "80%",
+        deviceBattery: p.device_battery || (latestVitals?.battery_percent ? `${latestVitals.battery_percent}%` : "80%"),
       };
     });
   }, [rawPatients]);
@@ -533,120 +636,6 @@ export default function Home() {
     ];
   };
 
-  // Helper function to format temperature to 1 decimal place
-  const formatTemperature = (temp) => {
-    if (temp === undefined || temp === null) return 0;
-    const numTemp = typeof temp === "object" ? temp.value : temp;
-    return parseFloat(numTemp).toFixed(1);
-  };
-
-  // Helper function to determine patient status from vitals
-  const getPatientStatusFromVitals = (vitalsData) => {
-    // Check if any vital is critical
-    const hasCritical =
-      vitalsData.heartRate?.status?.toLowerCase() === "critical" ||
-      vitalsData.spo2?.status?.toLowerCase() === "critical" ||
-      vitalsData.bloodPressure?.status?.toLowerCase() === "critical";
-
-    if (hasCritical) return "Critical";
-
-    // Check if any vital is high/low (warning)
-    const hasWarning =
-      vitalsData.heartRate?.status?.toLowerCase() === "high" ||
-      vitalsData.heartRate?.status?.toLowerCase() === "low" ||
-      vitalsData.spo2?.status?.toLowerCase() === "high" ||
-      vitalsData.spo2?.status?.toLowerCase() === "low" ||
-      vitalsData.bloodPressure?.status?.toLowerCase() === "high" ||
-      vitalsData.bloodPressure?.status?.toLowerCase() === "low" ||
-      vitalsData.temperature?.status?.toLowerCase() === "high" ||
-      vitalsData.temperature?.status?.toLowerCase() === "low";
-
-    if (hasWarning) return "Warning";
-
-    return "Stable";
-  };
-
-  // Helper function to map assessments to alerts
-  const mapAssessmentsToAlerts = (assessments) => {
-    if (!assessments) return defaultAlerts;
-
-    const alerts = [];
-
-    // 1. NEWS2 Score
-    if (assessments.news2) {
-      const news2 = assessments.news2;
-      const riskLevel = news2.riskLevel || "Low";
-      const score = news2.score || 0;
-      const color = riskLevel === "High" ? "#E54D4D" : riskLevel === "Medium" ? "#FFF133BF" : "#2CD155BF";
-      alerts.push({
-        type: "NEWS2",
-        status: riskLevel === "High" ? `Score ${score}` : riskLevel === "Medium" ? `Score ${score}` : `Score ${score}`,
-        color: color,
-        icon: (
-          <svg className="size-6" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
-            <path d="M2 12.625H6L8.33333 8.875L12 17L16 7L18.6667 12.625H22" stroke={color} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        ),
-      });
-    }
-
-    // 2. AF Warning
-    if (assessments.af_warning) {
-      const afStatus = assessments.af_warning.status || "Normal";
-      const color = afStatus === "Normal" ? "#2CD155BF" : "#E54D4D";
-      alerts.push({
-        type: "AF Warning",
-        status: afStatus === "Normal" ? "Normal" : "High",
-        color: color,
-        icon: (
-          <svg className="size-6" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 15 20" fill="none">
-            <path d="M2.01243 11.88H5.19716V19.0794C5.19716 20.7592 6.13506 21.0992 7.27909 19.8393L15.0812 11.24C16.0397 10.1901 15.6377 9.32021 14.1845 9.32021H10.9998V2.12084C10.9998 0.440986 10.0619 0.101015 8.91783 1.36091L1.11575 9.96015C0.167548 11.0201 0.569505 11.88 2.01243 11.88Z" stroke={color} strokeWidth="1.2" strokeMiterlimit="10" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        ),
-      });
-    }
-
-    // 3. Stroke Risk
-    if (assessments.stroke_risk) {
-      const strokeRisk = assessments.stroke_risk.riskLevel || "Low";
-      const color = strokeRisk === "High" ? "#E54D4D" : strokeRisk === "Medium" ? "#FFF133BF" : "#2CD155BF";
-      alerts.push({
-        type: "Stroke Risk",
-        status: strokeRisk === "High" ? "High" : strokeRisk === "Medium" ? "Medium" : "Low",
-        color: color,
-        icon: (
-          <svg className="size-6" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 22 22" fill="none">
-            <path d="M10.5999 16.6002V3.60023M10.5999 3.60023C10.5998 3.14005 10.7057 2.68604 10.9092 2.27332C11.1127 1.86059 11.4084 1.50022 11.7735 1.22007C12.1386 0.939931 12.5632 0.747526 13.0146 0.657747C13.4659 0.567967 13.9318 0.583219 14.3763 0.702323C14.8208 0.821427 15.232 1.04119 15.5779 1.34461C15.9239 1.64803 16.1954 2.02697 16.3715 2.45212C16.5476 2.87727 16.6235 3.33724 16.5934 3.79642C16.5633 4.25561 16.428 4.70172 16.1979 5.10023M10.5999 3.60023C10.5999 3.14005 10.494 2.68604 10.2905 2.27332C10.087 1.86059 9.79126 1.50022 9.42619 1.22007C9.06111 0.939931 8.63648 0.747526 8.18515 0.657747C7.73382 0.567967 7.26788 0.583219 6.82339 0.702323C6.37889 0.821427 5.96776 1.04119 5.62178 1.34461C5.27581 1.64803 5.00427 2.02697 4.82818 2.45212C4.65209 2.87727 4.57617 3.33724 4.60628 3.79642C4.6364 4.25561 4.77175 4.70172 5.00185 5.10023M13.5999 11.6002C12.7347 11.3473 11.9747 10.8209 11.4339 10.0997C10.893 9.3786 10.6004 8.50164 10.5999 7.60023C10.5993 8.50164 10.3067 9.3786 9.76585 10.0997C9.22501 10.8209 8.46505 11.3473 7.59985 11.6002" stroke={color} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M16.5962 3.7251C17.184 3.87623 17.7297 4.15915 18.192 4.55241C18.6542 4.94567 19.021 5.43897 19.2643 5.99495C19.5077 6.55092 19.6214 7.15499 19.5968 7.76141C19.5722 8.36783 19.4099 8.96069 19.1222 9.4951" stroke={color} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M16.6001 16.5993C17.4806 16.5992 18.3365 16.3086 19.035 15.7726C19.7336 15.2366 20.2357 14.485 20.4636 13.6345C20.6915 12.784 20.6324 11.8821 20.2955 11.0686C19.9585 10.2551 19.3626 9.57554 18.6001 9.13525" stroke={color} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M18.5671 16.0825C18.6372 16.6248 18.5954 17.1756 18.4442 17.701C18.2931 18.2265 18.0358 18.7154 17.6883 19.1375C17.3408 19.5596 16.9105 19.906 16.4239 20.1553C15.9373 20.4046 15.4047 20.5514 14.8591 20.5869C14.3135 20.6223 13.7665 20.5454 13.2517 20.3611C12.737 20.1768 12.2655 19.8889 11.8663 19.5153C11.4672 19.1416 11.1489 18.6901 10.9311 18.1886C10.7133 17.6871 10.6007 17.1463 10.6001 16.5995C10.5995 17.1463 10.4868 17.6871 10.2691 18.1886C10.0513 18.6901 9.73298 19.1416 9.33386 19.5153C8.93473 19.8889 8.46323 20.1768 7.94848 20.3611C7.43374 20.5454 6.88667 20.6223 6.34107 20.5869C5.79547 20.5514 5.26292 20.4046 4.77631 20.1553C4.28971 19.906 3.85937 19.5596 3.51188 19.1375C3.16439 18.7154 2.90713 18.2265 2.75598 17.701C2.60484 17.1756 2.56301 16.6248 2.6331 16.0825" stroke={color} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M4.59992 16.5993C3.71942 16.5992 2.86353 16.3086 2.16499 15.7726C1.46645 15.2366 0.964294 14.485 0.736399 13.6345C0.508505 12.784 0.567607 11.8821 0.904539 11.0686C1.24147 10.2551 1.83741 9.57554 2.59992 9.13525" stroke={color} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M4.604 3.7251C4.01621 3.87623 3.47051 4.15915 3.00823 4.55241C2.54596 4.94567 2.17924 5.43897 1.93585 5.99495C1.69245 6.55092 1.57876 7.15499 1.60339 7.76141C1.62802 8.36783 1.79032 8.96069 2.078 9.4951" stroke={color} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        ),
-      });
-    }
-
-    // 4. Seizure Risk
-    if (assessments.seizure_risk) {
-      const seizureRisk = assessments.seizure_risk.riskLevel || "Normal";
-      const color = seizureRisk === "High" ? "#E54D4D" : seizureRisk === "Medium" ? "#FFF133BF" : "#2CD155BF";
-      alerts.push({
-        type: "Seizure Risk",
-        status: seizureRisk === "High" ? "High" : seizureRisk === "Medium" ? "Medium" : "Normal",
-        color: color,
-        icon: (
-          <svg className="size-6" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 22 22" fill="none">
-            <path d="M7.26676 8.37788H7.25565M13.9334 8.37788H13.9223M10.6001 20.6001C9.28688 20.6001 7.98652 20.3414 6.77326 19.8389C5.56001 19.3363 4.45762 18.5998 3.52903 17.6712C2.60044 16.7426 1.86385 15.6402 1.3613 14.4269C0.858755 13.2137 0.600098 11.9133 0.600098 10.6001C0.600098 9.28688 0.858755 7.98652 1.3613 6.77326C1.86385 5.56001 2.60044 4.45762 3.52903 3.52903C4.45762 2.60044 5.56001 1.86385 6.77326 1.3613C7.98652 0.858755 9.28688 0.600098 10.6001 0.600098C13.2523 0.600098 15.7958 1.65367 17.6712 3.52903C19.5465 5.40439 20.6001 7.94793 20.6001 10.6001C20.6001 13.2523 19.5465 15.7958 17.6712 17.6712C15.7958 19.5465 13.2523 20.6001 10.6001 20.6001Z" stroke={color} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M6.6001 14.6001L7.6001 13.6001L9.1001 14.6001L10.6001 13.6001L12.1001 14.6001L13.6001 13.6001L14.6001 14.6001" stroke={color} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        ),
-      });
-    }
-
-    return alerts.length > 0 ? alerts : defaultAlerts;
-  };
-
   // --- Helper: Status Priority Sorting ---
   const getStatusPriority = (status) => {
     const s = (status || "").toLowerCase();
@@ -728,7 +717,7 @@ export default function Home() {
                   <div className="flex gap-4 items-center shrink-0 w-full md:w-auto overflow-x-auto">
                     <button
                       className="h-12 bg-[linear-gradient(94.82deg,#b2884d_0%,#cca166_48.98%,#b2884d_98.92%)] text-white px-6 rounded-xl font-lufga font-medium hover:opacity-90 transition-opacity text-[16px] whitespace-nowrap"
-                      onClick={() => setFilteredStatus(null)}
+                      onClick={() => setTriageFilter("All")}
                     >
                       Show All Patients
                     </button>

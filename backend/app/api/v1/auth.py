@@ -11,6 +11,8 @@ from app.models.user import User
 from app.core.config import settings
 from app.schemas.auth import OTPRequest, OTPVerify
 
+from app.api.deps import get_current_user
+
 router = APIRouter()
 
 # AWS SNS Client
@@ -20,6 +22,17 @@ sns_client = boto3.client(
     aws_secret_access_key=settings.CUSTOM_AWS_SECRET_ACCESS_KEY,
     region_name=settings.CUSTOM_AWS_REGION,
 )
+
+@router.get("/profile")
+async def get_profile(current_user: User = Depends(get_current_user)):
+    """Get currently logged in user profile"""
+    return {
+        "id": current_user.id,
+        "user_id": current_user.user_id,
+        "full_name": current_user.full_name,
+        "role": current_user.role,
+        "organization_id": current_user.organization_id,
+    }
 
 @router.post("/login-initiate")
 async def initiate_login(

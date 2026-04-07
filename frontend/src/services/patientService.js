@@ -137,11 +137,21 @@ export const patientService = {
    * Get list of doctors by organization ID
    */
   async getDoctors(orgId) {
-    return {
-      success: true,
-      data: [],
-      message: "No doctors found",
-    };
+    try {
+      const response = await apiClient.get(`/api/v1/discovery/organizations/${orgId}/doctors`);
+      return {
+        success: true,
+        data: response.data || [],
+        message: "Success",
+      };
+    } catch (error) {
+      console.error('Error fetching doctors:', error);
+      return {
+        success: false,
+        data: [],
+        message: error.message || "Failed to fetch doctors",
+      };
+    }
   },
 
   /**
@@ -163,6 +173,44 @@ export const patientService = {
         data: [],
         count: 0,
         message: error.message || "Failed to fetch organization vitals",
+      };
+    }
+  },
+
+  /**
+   * Get patient history timeline
+   */
+  async getPatientHistory(userId, params = {}) {
+    try {
+      // Default to 24h if not specified
+      let startTime = params.start_time;
+      let endTime = params.end_time || new Date().toISOString();
+      let scaleMinutes = params.scale_minutes || 1;
+
+      if (!startTime) {
+        const d = new Date();
+        d.setHours(d.getHours() - 24);
+        startTime = d.toISOString();
+      }
+
+      const response = await apiClient.get(`/api/v1/patients/history/${userId}`, { 
+        params: {
+          start_time: startTime,
+          end_time: endTime,
+          scale_minutes: scaleMinutes
+        }
+      });
+      return {
+        success: true,
+        data: response.data || [],
+        message: "Success",
+      };
+    } catch (error) {
+      console.error('Error fetching patient history:', error);
+      return {
+        success: false,
+        data: [],
+        message: error.message || "Failed to fetch patient history",
       };
     }
   },

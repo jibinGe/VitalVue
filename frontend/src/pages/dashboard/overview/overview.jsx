@@ -11,6 +11,7 @@ import BaselineDeviationModal from "@/components/ui/BaselineDeviationModal";
 import ConfirmationModal from "@/components/ui/ConfirmationModal";
 import CriticalAlarmModal from "@/components/ui/CriticalAlarmModal";
 import { usePatient } from "@/hooks/usePatient";
+import { usePatientHistory } from "@/hooks/usePatientHistory";
 import { useDashboardStore } from "@/store/useDashboardStore";
 
 import {
@@ -48,15 +49,20 @@ import HistoryTable from "@/components/dashboard/HistoryTable";
 export default function Overview() {
   const { userId } = useParams();
   const navigate = useNavigate();
-  const { 
-    setCriticalAlarmData, 
-    setSelectedUserId, 
-    setSelectedUserName 
+  const {
+    criticalAlarmData,
+    setCriticalAlarmData,
+    setSelectedUserId,
+    setSelectedUserName
   } = useDashboardStore();
 
+  const filter = ["Live", "1h", "24h"];
+  const [filterTab, setFilterTab] = useState(filter[0]);
+
   const { data: currentVitals, isLoading: loading } = usePatient(userId);
+  const { data: patientHistory, isLoading: historyLoading } = usePatientHistory(userId, filterTab);
   const patientData = currentVitals; // Map for legacy compatibility
-  
+
   const prevVitalsRaw = useRef("");
   const [chartsReady, setChartsReady] = useState(false);
 
@@ -467,85 +473,78 @@ export default function Overview() {
 
   // Get vitals from API or use defaults - memoized to update when currentVitals changes
   const vitals = useMemo(() => {
+    const historyData = patientHistory || currentVitals?.vitals_history || [];
     const latestVitals = currentVitals?.vitals_history && currentVitals.vitals_history.length > 0
       ? currentVitals.vitals_history[currentVitals.vitals_history.length - 1]
-      : null;
+      : (historyData.length > 0 ? historyData[historyData.length - 1] : null);
 
     const hrVal = latestVitals?.heart_rate;
     const spo2Val = latestVitals?.spo2;
-    const sysVal = latestVitals?.systolic;
-    const diaVal = latestVitals?.diastolic;
-    const tempVal = latestVitals?.temperature;
-    const hrvVal = latestVitals?.hrv || currentVitals?.derived_metrics?.hrv;
+    const sysVal = latestVitals?.systolic || latestVitals?.bp_systolic;
+    const diaVal = latestVitals?.diastolic || latestVitals?.bp_diastolic;
+    const tempVal = latestVitals?.temperature || latestVitals?.temp;
+    const hrvVal = latestVitals?.hrv || latestVitals?.hrv_score || currentVitals?.derived_metrics?.hrv;
 
     return [
       {
         icon: <Hart />,
         iconBg: "bg-green",
         title: "Heart Rate",
-        value: hrVal ?? 82,
+        value: hrVal ?? '--',
         extension: "bpm",
-        img: hrVal ? <HeartRateLive className="p-4 md:p-6" width={360} /> : null,
+        img: <HeartRateLive className="p-4 md:p-6" width={360} historyData={historyData} />,
         path: `/dashboard/heart-rate/${userId || ""}`,
       },
       {
         icon: <Spo />,
         iconBg: "bg-purple",
         title: "SpO2",
-        value: `${spo2Val ?? 98}%`,
+        value: spo2Val ? `${parseFloat(spo2Val).toFixed(1)}%` : '--',
         extension: "",
-        img: spo2Val ? <SpO2Gauge value={spo2Val ?? 98} /> : null,
+        img: <SpO2Gauge value={spo2Val ?? 98} />,
         path: `/dashboard/spo/${userId || ""}`,
       },
       {
         icon: <Bp />,
         iconBg: "bg-pink",
         title: "BP Trend",
-        value: `${sysVal ?? 120}/${diaVal ?? 80}`,
+        value: (sysVal || diaVal) ? `${sysVal ?? '--'}/${diaVal ?? '--'}` : '--/--',
         extension: "mmHg",
-        img: (sysVal || diaVal) ? <BPBars /> : null,
+        img: <BPBars historyData={historyData} />,
         path: `/dashboard/bp-trend/${userId || ""}`,
       },
       {
         icon: <Temp />,
         iconBg: "bg-blue",
         title: "Temperature",
-        value: formatTemperature(tempVal ?? 37.2),
+        value: tempVal ? formatTemperature(tempVal) : '--',
         extension: "°C",
-        img: (tempVal && tempVal !== 0) ? <TempWave /> : null,
+        img: <TempWave historyData={historyData} />,
         path: `/dashboard/temperature/${userId || ""}`,
       },
       {
         icon: <Hrv />,
         iconBg: "bg-yellow",
         title: "HRV Score",
-        value: hrvVal ?? 48,
+        value: hrvVal ?? '--',
         extension: "ms",
-        img: hrvVal ? <HrvScore /> : null,
+        img: <HrvScore historyData={historyData} />,
         path: `/dashboard/hrv-score/${userId || ""}`,
       },
       {
         icon: <Brain />,
         iconBg: "bg-aqua",
         title: "Movement",
-        value:
-          vitalsData.movement?.activityLevel !== undefined
-            ? vitalsData.movement.activityLevel
-            : overviewVitals.movement?.activityLevel !== undefined
-              ? overviewVitals.movement.activityLevel
-              : "High",
+        value: latestVitals?.movement ?? '--',
         extension: "",
-        img: <Movement />,
+        img: <Movement historyData={historyData} />,
         path: `/dashboard/movement/${userId || ""}`,
       },
       {
         icon: <Moon />,
         iconBg: "bg-burnt",
         title: "Sleep Pattern",
-        value:
-          vitalsData.sleepPattern?.totalSleep ||
-          overviewVitals.sleepPattern?.totalSleep ||
-          "6h 12m",
+        value: latestVitals?.sleep_pattern ?? '--',
         extension: "",
         img: <SleepPattern />,
         path: `/dashboard/sleep-pattern/${userId || ""}`,
@@ -554,13 +553,13 @@ export default function Overview() {
         icon: <Brain />,
         iconBg: "bg-deepBlue",
         title: "Stress Level",
-        value: vitalsData.stress?.level || overviewVitals.stress?.level || "Moderate",
+        value: latestVitals?.stress_level ?? '--',
         extension: "",
-        img: <StressPatternChart />,
+        img: <StressPatternChart historyData={historyData} />,
         path: `/dashboard/stress/${userId || ""}`,
       },
     ];
-  }, [currentVitals, patientData, userId]);
+  }, [currentVitals, patientData, userId, patientHistory]);
 
   const btn = [
     "Add Note",
@@ -569,19 +568,15 @@ export default function Overview() {
     "Export Summary PDF",
   ];
 
-  const filter = ["Live", "1h", "24h"];
-
-  const [filterTab, setFilterTab] = useState(filter[0]);
-
   // Check for critical vitals and trigger alarm modal via Zustand store
   useEffect(() => {
     if (!currentVitals) return;
 
-    const hasCritical = currentVitals.status?.toLowerCase() === "critical" || 
-                        currentVitals.vitals?.heartRate?.status?.toLowerCase() === "critical" ||
-                        currentVitals.vitals?.spo2?.status?.toLowerCase() === "critical" ||
-                        currentVitals.vitals?.bloodPressure?.status?.toLowerCase() === "critical";
-                        
+    const hasCritical = currentVitals.status?.toLowerCase() === "critical" ||
+      currentVitals.vitals?.heartRate?.status?.toLowerCase() === "critical" ||
+      currentVitals.vitals?.spo2?.status?.toLowerCase() === "critical" ||
+      currentVitals.vitals?.bloodPressure?.status?.toLowerCase() === "critical";
+
     if (hasCritical) {
       setCriticalAlarmData({ vitals: currentVitals.vitals || {} });
     }
@@ -834,7 +829,7 @@ export default function Overview() {
               Showing all recorded vital signs
             </div>
           </div>
-          <HistoryTable history={currentVitals?.vitals_history || []} />
+          <HistoryTable history={patientHistory || currentVitals?.vitals_history || []} />
         </div>
       </MainBody>
 

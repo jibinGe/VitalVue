@@ -2,19 +2,10 @@ import React from 'react';
 import { ComposedChart, Line, Area, Bar } from 'recharts';
 
 // Animation for .hrv-score-animated is defined globally in index.css
-export default function HrvScore() {
-    const data = [
-        { pv: 10, amt: 10 }, { pv: 13, amt: 13 }, { pv: 10, amt: 10 },
-        { pv: 13, amt: 13 }, { pv: 10, amt: 10 }, { pv: 13, amt: 13 },
-        { pv: 10, amt: 10 }, { pv: 13, amt: 13 }, { pv: 10, amt: 10 },
-        { pv: 13, amt: 13 }, { pv: 10, amt: 10 }, { pv: 13, amt: 13 },
-        { pv: 10, amt: 10 }, { pv: 13, amt: 13 }, { pv: 10, amt: 10 },
-        { pv: 13, amt: 13 }, { pv: 10, amt: 10 }, { pv: 13, amt: 13 },
-        { pv: 10, amt: 10 }, { pv: 23, amt: 23 }, { pv: 10, amt: 10 },
-        { pv: 13, amt: 13 }, { pv: 10, amt: 10 }, { pv: 13, amt: 13 },
-        { pv: 23, amt: 23 }, { pv: 10, amt: 10 }, { pv: 13, amt: 13 },
-        { pv: 10, amt: 10 }, { pv: 13, amt: 13 },
-    ];
+export default function HrvScore({ historyData = [] }) {
+    const data = historyData && historyData.length > 0
+        ? historyData.map(h => ({ pv: h.hrv_score || 0, amt: h.hrv_score || 0 }))
+        : [{ pv: 0, amt: 0 }, { pv: 0, amt: 0 }];
 
     return (
         <div className="w-full hrv-score-animated">
@@ -29,4 +20,3 @@ export default function HrvScore() {
         </div>
     );
 }
-
