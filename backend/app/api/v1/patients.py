@@ -13,6 +13,7 @@ from sqlalchemy.future import select
 from app.api.deps import get_current_user, allow_admins
 from sqlalchemy import func, and_, text
 from datetime import datetime
+from sqlalchemy import func, and_, text, select, inspect, Integer, Float, String, Boolean
 
 router = APIRouter()
 
@@ -193,4 +194,78 @@ async def get_patient_vitals_history(
         for row in rows
     ]
 
+@router.get("/history/{patient_id}/{metric_name}")
+async def get_dynamic_metric_history(
+    patient_id: int,
+    metric_name: str,
+    start_time: datetime = Query(...),
+    end_time: datetime = Query(...),
+    scale_minutes: int = Query(1, ge=1, le=1440),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    # 1. Dynamic Column Inspection
+    # This automatically finds all columns in your Vitals model
+    mapper = inspect(Vitals)
+    columns = [c.key for c in mapper.attrs]
+    
+    if metric_name not in columns:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Metric '{metric_name}' not found. Available: {', '.join(columns)}"
+        )
+
+    # 2. Security Check (Assigned Nurse/Doctor only)
+    patient_result = await db.execute(select(Patient).where(Patient.id == patient_id))
+    patient = patient_result.scalars().first()
+    
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    
+    if current_user.role == UserRole.NURSE and patient.nurse_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Unauthorized access to this patient")
+
+    # 3. Dynamic Aggregation Logic
+    bucket_size = scale_minutes * 60
+    time_bucket = func.floor(func.extract('epoch', Vitals.created_at) / bucket_size) * bucket_size
+    
+    # Get the actual SQLAlchemy column object dynamically
+    target_column = getattr(Vitals, metric_name)
+    
+    # Decide aggregation type: Numbers get Averaged, Strings get Maximum (latest/worst state)
+    is_numeric = isinstance(target_column.type, (Integer, Float))
+    agg_func = func.avg(target_column) if is_numeric else func.max(target_column)
+
+    query = (
+        select(
+            func.to_timestamp(time_bucket).label("timestamp"),
+            agg_func.label("value")
+        )
+        .where(
+            and_(
+                Vitals.patient_id == patient_id,
+                Vitals.created_at >= start_time,
+                Vitals.created_at <= end_time
+            )
+        )
+        .group_by("timestamp")
+        .order_by(text("timestamp ASC"))
+    )
+
+    result = await db.execute(query)
+    rows = result.all()
+
+    # 4. Response Generation
+    return {
+        "patient_id": patient_id,
+        "metric": metric_name,
+        "aggregation": "average" if is_numeric else "max_state",
+        "data": [
+            {
+                "t": row.timestamp, 
+                "v": round(row.value, 2) if (is_numeric and row.value) else row.value
+            }
+            for row in rows
+        ]
+    }
 
