@@ -321,7 +321,35 @@ export default function Home() {
   const [clinicalNotes, setClinicalNotes] = useState("");
   const [activeAction, setActiveAction] = useState(null);
   const [actionTime, setActionTime] = useState("");
+  const [staffName, setStaffName] = useState("");
+  const [actionDoctorSearch, setActionDoctorSearch] = useState("");
+  const [actionDoctorDropdownOpen, setActionDoctorDropdownOpen] = useState(false);
   const [isLoggingEvent, setIsLoggingEvent] = useState(false);
+
+  // Auto-fill name & time when Action Capture modal opens
+  useEffect(() => {
+    if (takeAction) {
+      // Auto-fill current time
+      const now = new Date();
+      const hh = String(now.getHours()).padStart(2, "0");
+      const mm = String(now.getMinutes()).padStart(2, "0");
+      setActionTime(`${hh}:${mm}`);
+
+      // Fetch full_name from the profile API
+      patientService.getUserProfile().then((res) => {
+        if (res?.data?.full_name) {
+          setStaffName(res.data.full_name);
+        } else {
+          // Fallback to cached localStorage user
+          const currentUser = authService.getCurrentUser();
+          setStaffName(currentUser?.name || currentUser?.full_name || "");
+        }
+      }).catch(() => {
+        const currentUser = authService.getCurrentUser();
+        setStaffName(currentUser?.name || currentUser?.full_name || "");
+      });
+    }
+  }, [takeAction]);
   const [flagDoctor, setFlagDoctor] = useState(false);
   const [endMonitoring, setEndMonitoring] = useState(false);
   const [endingMonitoring, setEndingMonitoring] = useState(false);
@@ -806,19 +834,63 @@ export default function Home() {
         title="Action Capture"
       >
         <div className="flex flex-col gap-4 md:gap-5 xl:gap-6">
-          <div className="relative z-1">
-            <Input
-              placeholder={"Dr. Sarah Mitchell"}
-              label={"Staff Name / ID"}
-            />
-            <div className="absolute bottom-0 -translate-y-[58%] right-4 flex items-center gap-4">
-              <span className="bg-[#3E3E41] px-2 min-h-6 rounded-lg text-xs flex items-center justify-center">
-                Auto-filled
-              </span>
-              <button>
+          {/* Searchable Doctor Dropdown */}
+          <div className="relative z-20">
+            <label className="block mb-2 text-sm text-white/80">Staff Name / ID</label>
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search doctor..."
+                value={actionDoctorSearch}
+                onChange={(e) => { setActionDoctorSearch(e.target.value); setActionDoctorDropdownOpen(true); }}
+                onFocus={() => setActionDoctorDropdownOpen(true)}
+                className="w-full min-h-13 px-4 pr-12 text-base font-normal text-white placeholder:text-para bg-secondary/6 border border-secondary/35 rounded-[14px] focus:outline-none focus:border-primary/50"
+              />
+              {/* Auto-filled badge */}
+              {staffName && actionDoctorSearch === staffName && (
+                <span className="absolute right-10 top-1/2 -translate-y-1/2 bg-[#3E3E41] px-2 min-h-6 rounded-lg text-xs flex items-center justify-center pointer-events-none">
+                  Auto-filled
+                </span>
+              )}
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-para pointer-events-none">
                 <Search />
-              </button>
+              </span>
             </div>
+            {/* Dropdown list */}
+            {actionDoctorDropdownOpen && (() => {
+              const filtered = doctors.filter(d =>
+                d.full_name?.toLowerCase().includes(actionDoctorSearch.toLowerCase()) ||
+                (d.employee_id || '').toLowerCase().includes(actionDoctorSearch.toLowerCase())
+              );
+              if (filtered.length === 0) return null;
+              return (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-[#2A2A2D] border border-white/10 rounded-[14px] shadow-2xl overflow-hidden max-h-48 overflow-y-auto z-50">
+                  {filtered.map((doc) => (
+                    <button
+                      key={doc.id}
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        setStaffName(doc.full_name);
+                        setActionDoctorSearch(doc.full_name);
+                        setActionDoctorDropdownOpen(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors text-left"
+                    >
+                      <div className="size-8 rounded-full bg-gradient-to-br from-[#e0e0e0] to-[#b0b0b0] flex items-center justify-center flex-shrink-0">
+                        <span className="text-[#323234] font-bold text-xs">
+                          {doc.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="text-white text-sm font-medium">{doc.full_name}</p>
+                        <p className="text-para text-xs">{doc.employee_id || 'Specialist'} · {doc.is_on_call ? <span className="text-[#2CD155]">On-call</span> : 'Off-call'}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              );
+            })()}
           </div>
           <div className="">
             <p className="mb-4">Action Taken</p>
@@ -896,17 +968,17 @@ export default function Home() {
                   const currentUser = authService.getCurrentUser();
                   const staffId = currentUser?.employeeId || currentUser?.id || '';
 
-                  const notes =
-                    activeAction === "Other Action" && clinicalNotes.trim()
+                  const otherDetails =
+                    activeAction === " Patient Examinated" || activeAction.trim() === "Other Action"
                       ? clinicalNotes.trim()
                       : "";
 
                   const response = await patientService.captureAction({
                     patientId: selectedUserId,
                     actionType: activeAction.trim(),
-                    staffId,
+                    alertId: 0,
+                    otherDetails,
                     actionTime: isoActionTime,
-                    notes,
                   });
 
                   if (response.success) {
@@ -930,6 +1002,7 @@ export default function Home() {
                   setClinicalNotes("");
                   setActiveAction(null);
                   setActionTime("");
+                  setStaffName("");
                 }
               }}
             >

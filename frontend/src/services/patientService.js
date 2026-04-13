@@ -688,25 +688,108 @@ export const patientService = {
 
   /**
    * Flag patient for doctor review
+   * POST /api/v1/patients/patients/{patient_id}/flag
+   *
+   * reviewData:
+   *   - patientId   : integer (required) — internal patient ID
+   *   - message     : string  (required) — reason / note text
+   *   - doctorId    : integer (optional) — selected_doctor_id
    */
   async flagDoctorForReview(reviewData) {
-    return {
-      success: true,
-      data: null,
-      message: "Doctor flagged successfully",
-    };
+    try {
+      const { patientId, message, doctorId } = reviewData;
+
+      if (!patientId) {
+        return { success: false, message: "Patient ID is required to flag a doctor." };
+      }
+      if (!message || !message.trim()) {
+        return { success: false, message: "A reason is required to flag a doctor." };
+      }
+
+      const params = { reason: message.trim() };
+      if (doctorId) {
+        params.selected_doctor_id = Number(doctorId);
+      }
+
+      const response = await apiClient.post(
+        `/api/v1/patients/patients/${patientId}/flag`,
+        null,         // no request body — params are in the query string
+        { params }
+      );
+
+      return {
+        success: true,
+        data: response.data,
+        message: response.data?.message || "Doctor flagged successfully",
+      };
+    } catch (error) {
+      console.error("Error flagging doctor for review:", error);
+      return {
+        success: false,
+        data: null,
+        message:
+          error.response?.data?.detail?.[0]?.msg ||
+          error.message ||
+          "Failed to flag doctor for review",
+      };
+    }
   },
 
   /**
    * Capture a clinical action for a patient
+   * POST /api/v1/patients/patients/{patient_id}/action
+   *
+   * actionData:
+   *   - patientId    : integer (required) — internal patient ID
+   *   - actionType   : string  (required) — e.g. "Patient Examinated"
+   *   - alertId      : integer (optional, default 0)
+   *   - otherDetails : string  (optional) — clinical notes
+   *   - actionTime   : string  (optional) — ISO datetime; defaults to now
    */
   async captureAction(actionData) {
-    return {
-      success: true,
-      data: null,
-      message: "Action captured successfully",
-    };
+    try {
+      const { patientId, actionType, alertId = 0, otherDetails = "", actionTime } = actionData;
+
+      if (!patientId) {
+        return { success: false, message: "Patient ID is required to capture an action." };
+      }
+      if (!actionType || !actionType.trim()) {
+        return { success: false, message: "Action type is required." };
+      }
+
+      const performedAt = actionTime || new Date().toISOString();
+
+      const body = {
+        action_type: actionType.trim(),
+        alert_id: Number(alertId) || 0,
+        other_details: otherDetails || "",
+        performed_at: performedAt,
+      };
+
+      const response = await apiClient.post(
+        `/api/v1/patients/patients/${patientId}/action`,
+        body
+      );
+
+      return {
+        success: true,
+        data: response.data,
+        message: response.data?.message || "Action captured successfully",
+      };
+    } catch (error) {
+      console.error("Error capturing patient action:", error);
+      return {
+        success: false,
+        data: null,
+        message:
+          error.response?.data?.detail?.[0]?.msg ||
+          error.response?.data?.detail ||
+          error.message ||
+          "Failed to capture action",
+      };
+    }
   },
+
 
   /**
    * Get staff notifications
@@ -746,43 +829,128 @@ export const patientService = {
    * Get NEWS2 Score for a patient
    */
   async getNews2Score(userId) {
-    return {
-      success: true,
-      data: null,
-      message: "No score found"
-    };
+    try {
+      const response = await this.getDynamicMetricHistory(userId, 'news2_score');
+      if (!response.success || !response.data || response.data.length === 0) {
+        return { success: true, data: null, message: "No data found" };
+      }
+      
+      const latest = response.data[response.data.length - 1];
+      const score = typeof latest.v === 'string' ? parseInt(latest.v, 10) : latest.v;
+      let riskLevel = 'Low';
+      if (score >= 7) riskLevel = 'High';
+      else if (score >= 5) riskLevel = 'Medium';
+      
+      return {
+        success: true,
+        data: {
+          score: score,
+          riskLevel: riskLevel,
+          timestamp: latest.t,
+          history: response.data.map(d => ({ score: d.v, timestamp: d.t })),
+          components: {}
+        },
+        message: "Success"
+      };
+    } catch (error) {
+      console.error('Error fetching NEWS2 score:', error);
+      return { success: false, data: null, message: error.message || "Failed to fetch NEWS2 score" };
+    }
   },
 
   /**
    * Get AF Warning for a patient
    */
   async getAfWarning(userId) {
-    return {
-      success: true,
-      data: null,
-      message: "No warning found"
-    };
+    try {
+      const response = await this.getDynamicMetricHistory(userId, 'af_warning');
+      if (!response.success || !response.data || response.data.length === 0) {
+        return { success: true, data: null, message: "No warning found" };
+      }
+      
+      const latest = response.data[response.data.length - 1];
+      const val = latest.v; // 'Normal' or 'Detected'
+      const status = val === 'Detected' ? 'High' : 'Normal';
+      
+      return {
+        success: true,
+        data: {
+          hasWarning: val === 'Detected',
+          status: status,
+          confidence: val === 'Detected' ? 85 : 0, 
+          detection: val === 'Detected' ? 'Irregular' : 'Regular',
+          episodes: val === 'Detected' ? [{ duration: 120 }] : [], 
+          timestamp: latest.t,
+        },
+        message: "Success"
+      };
+    } catch (error) {
+      console.error('Error fetching AF warning:', error);
+      return { success: false, data: null, message: error.message || "Failed to fetch AF warning" };
+    }
   },
 
   /**
    * Get Stroke Risk Assessment for a patient
    */
   async getStrokeRisk(userId) {
-    return {
-      success: true,
-      data: null,
-      message: "No risk assessment found"
-    };
+    try {
+      const response = await this.getDynamicMetricHistory(userId, 'stroke_risk');
+      if (!response.success || !response.data || response.data.length === 0) {
+        return { success: true, data: null, message: "No risk assessment found" };
+      }
+      
+      const latest = response.data[response.data.length - 1];
+      const riskLevel = latest.v; // 'Low', 'Medium', 'High'
+      let score = 2;
+      if (riskLevel === 'High') score = 8;
+      else if (riskLevel === 'Medium') score = 5;
+
+      return {
+        success: true,
+        data: {
+          riskLevel: riskLevel,
+          score: score,
+          neuroSigns: "Based on dynamic metric evaluation",
+          indicators: {},
+          recommendations: [],
+          timestamp: latest.t
+        },
+        message: "Success"
+      };
+    } catch (error) {
+      console.error('Error fetching stroke risk:', error);
+      return { success: false, data: null, message: error.message || "Failed to fetch stroke risk" };
+    }
   },
 
   /**
    * Get Seizure Risk Assessment for a patient
    */
   async getSeizureRisk(userId) {
-    return {
-      success: true,
-      data: null,
-      message: "No risk assessment found"
-    };
+    try {
+      const response = await this.getDynamicMetricHistory(userId, 'seizure_risk');
+      if (!response.success || !response.data || response.data.length === 0) {
+        return { success: true, data: null, message: "No risk assessment found" };
+      }
+      
+      const latest = response.data[response.data.length - 1];
+      const riskLevel = latest.v; // 'Low', 'Medium', 'High'
+
+      return {
+        success: true,
+        data: {
+          riskLevel: riskLevel,
+          status: riskLevel === 'Low' ? 'Normal' : riskLevel,
+          indicators: {},
+          episodes: [],
+          timestamp: latest.t
+        },
+        message: "Success"
+      };
+    } catch (error) {
+      console.error('Error fetching seizure risk:', error);
+      return { success: false, data: null, message: error.message || "Failed to fetch seizure risk" };
+    }
   },
 };

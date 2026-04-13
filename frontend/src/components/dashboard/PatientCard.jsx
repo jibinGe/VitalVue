@@ -197,7 +197,7 @@ const PatientCard = memo(({
                                 <div className="w-full xl:w-[270px] shrink-0">
                                     <button
                                         className="w-full btn min-h-[58px] px-0 btn-gradient rounded-xl"
-                                        onClick={(e) => { e.stopPropagation(); setFlagDoctor(true); setSelectedUserId(item.userId); setSelectedUserName(item.name); }}
+                                        onClick={(e) => { e.stopPropagation(); setFlagDoctor(true); setSelectedUserId(item.id); setSelectedUserName(item.name); }}
                                     >
                                         Flag Doctor
                                     </button>
@@ -225,7 +225,7 @@ const PatientCard = memo(({
                                     <div className="flex items-center">
                                         <button
                                             className="w-full btn min-h-[58px] px-0 bg-transparent border border-white/20 hover:bg-white/5 rounded-xl text-white font-medium text-sm"
-                                            onClick={(e) => { e.stopPropagation(); setTakeAction(true); setSelectedUserId(item.userId); setSelectedUserName(item.name); }}
+                                            onClick={(e) => { e.stopPropagation(); setTakeAction(true); setSelectedUserId(item.id); setSelectedUserName(item.name); }}
                                         >
                                             Take Action
                                         </button>

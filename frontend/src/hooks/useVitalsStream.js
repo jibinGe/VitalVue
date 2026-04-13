@@ -25,7 +25,26 @@ export const useVitalsStream = (patientId) => {
       try {
         const data = JSON.parse(event.data);
         // The server wraps vitals inside a "vitals" key; flatten for consumers
-        setStreamData(data.vitals ?? data);
+        let vitals = data.vitals ?? data;
+
+        // If battery percentage is missing, make it 0
+        if (vitals.battery_percent === undefined || vitals.battery_percent === null) {
+          vitals.battery_percent = 0;
+        }
+
+        setStreamData(vitals);
+
+        // Check for device removal or disconnection and show an alert with status
+        if (vitals.is_removed === true || vitals.is_connected === false) {
+          const status = vitals.is_removed ? 'Watch has been removed' : 'Watch has disconnected with app';
+          setCriticalAlert({
+            patient_id: data.patient_id || vitals.patient_id,
+            vital_type: 'Device Status',
+            triggered_value: status,
+            severity: 'Critical',
+            _ts: Date.now()
+          });
+        }
       } catch (err) {
         console.error('Error parsing stream data:', err);
       }
@@ -35,7 +54,24 @@ export const useVitalsStream = (patientId) => {
     eventSource.addEventListener('update', (event) => {
       try {
         const data = JSON.parse(event.data);
-        setStreamData(data.vitals ?? data);
+        let vitals = data.vitals ?? data;
+
+        if (vitals.battery_percent === undefined || vitals.battery_percent === null) {
+          vitals.battery_percent = 0;
+        }
+
+        setStreamData(vitals);
+
+        if (vitals.is_removed === true || vitals.is_connected === false) {
+          const status = vitals.is_removed ? 'Watch has been removed' : 'Watch has disconnected with app';
+          setCriticalAlert({
+            patient_id: data.patient_id || vitals.patient_id,
+            vital_type: 'Device Status',
+            triggered_value: status,
+            severity: 'Critical',
+            _ts: Date.now()
+          });
+        }
       } catch (err) {
         console.error('Error parsing stream data:', err);
       }

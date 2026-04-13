@@ -178,9 +178,9 @@ export default function CriticalAlarmModal({
                       </p>
                       <p className="text-sm font-bold" style={{ color: "#E54D4D" }}>
                         {alert?.triggered_value != null
-                          ? Math.round(parseFloat(alert.triggered_value))
+                          ? isNaN(parseFloat(alert.triggered_value)) ? alert.triggered_value : Math.round(parseFloat(alert.triggered_value))
                           : vitals?._alertTriggeredVal != null
-                            ? Math.round(parseFloat(vitals._alertTriggeredVal))
+                            ? isNaN(parseFloat(vitals._alertTriggeredVal)) ? vitals._alertTriggeredVal : Math.round(parseFloat(vitals._alertTriggeredVal))
                             : "—"}
                       </p>
                     </div>
