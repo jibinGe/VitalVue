@@ -40,7 +40,8 @@ const HeartRateChart = ({ heartRateData = [] }) => {
             heartRateData.forEach((item, index) => {
                 if (index % sampleRate === 0 || index === heartRateData.length - 1) {
                     // Replaced formatTime with formatToLocalTime
-                    labels.push(formatToLocalTime(item.timestamp));
+                    // Standardized to 'time' property from patientService
+                    labels.push(formatToLocalTime(item.time));
                     data.push(item.value);
                 }
             });

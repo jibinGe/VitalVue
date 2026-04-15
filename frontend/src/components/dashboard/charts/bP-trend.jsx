@@ -42,7 +42,7 @@ export default function BPTrend({ bloodPressureData = [] }) {
                 .map(item => {
                     const bpValue = typeof item.value === 'object' ? item.value : { systolic: null, diastolic: null };
                     return {
-                        time: formatToLocalTime(item.timestamp),
+                        time: formatToLocalTime(item.time),
                         sys: bpValue.systolic,
                         dia: bpValue.diastolic,
                     };
@@ -61,12 +61,12 @@ export default function BPTrend({ bloodPressureData = [] }) {
     return (
         <div className="h-67.75 w-full">
             <ResponsiveContainer width="100%" height="100%">
-                <ReferenceLine y={180} stroke="#3a3f45" strokeWidth={1} />
-                <ReferenceLine y={40} stroke="#3a3f45" strokeWidth={1} />
                 <LineChart
                     data={data}
                     margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
                 >
+                    <ReferenceLine y={180} stroke="#3a3f45" strokeWidth={1} />
+                    <ReferenceLine y={40} stroke="#3a3f45" strokeWidth={1} />
                     <CartesianGrid
                         stroke="#57575B"
                         strokeDasharray="3 3"

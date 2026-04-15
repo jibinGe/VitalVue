@@ -63,7 +63,7 @@ export default function Overview() {
   const parsedUserId = parseInt(userId, 10);
   const { data: patientHistory, isLoading: loading } = usePatientHistory(parsedUserId, filterTab);
   const { streamData, criticalAlert } = useVitalsStream(parsedUserId);
-  const currentVitals = patientHistory ? patientHistory[patientHistory.length - 1] : null; 
+  const currentVitals = patientHistory ? patientHistory[patientHistory.length - 1] : null;
   const patientData = currentVitals; // Map for legacy compatibility
 
   const prevVitalsRaw = useRef("");
@@ -246,7 +246,7 @@ export default function Overview() {
   const apiAssessments = useMemo(() => {
     // Start with the polling data (currentVitals or patientData)
     let assessments = currentVitals?.clinical_risks || currentVitals?.assessments || patientData?.assessments || {};
-    
+
     // If we have live stream data, override with the latest clinical risks
     if (streamData) {
       const liveRisks = {};
@@ -366,7 +366,7 @@ export default function Overview() {
     if (hrvVal !== undefined && hrvVal !== null) hrvVal = Math.round(hrvVal);
     if (movementVal !== undefined && movementVal !== null) movementVal = Math.round(movementVal);
 
-    const noGraphPlaceholder = <div className="flex items-center justify-center h-full min-h-[200px] text-white/20 font-lufga italic">no graph</div>;
+    const noGraphPlaceholder = <div className="flex items-center justify-center h-full  text-white/20 font-lufga italic">no graph</div>;
 
     return [
       {
@@ -461,14 +461,14 @@ export default function Overview() {
     const vitalsSnapshot = {
       // Current live vitals (may be populated from prior patient_vital_update events)
       heartRate: streamData?.heart_rate ?? undefined,
-      spo2:      streamData?.spo2       ?? undefined,
+      spo2: streamData?.spo2 ?? undefined,
       bloodPressure: (streamData?.bp_systolic && streamData?.bp_diastolic)
         ? { systolic: streamData.bp_systolic, diastolic: streamData.bp_diastolic }
         : undefined,
       temperature: streamData?.temp ?? undefined,
       // Pass the specific vital that triggered this alert so the modal can
       // highlight it (CriticalAlarmModal uses the vitals prop for display).
-      _alertVitalType:    criticalAlert.vital_type,
+      _alertVitalType: criticalAlert.vital_type,
       _alertTriggeredVal: criticalAlert.triggered_value,
     };
 
@@ -637,17 +637,7 @@ export default function Overview() {
 
         <div className="flex items-center gap-4 justify-between my-6">
           <h5 className="">Vitals Timeline</h5>
-          <div className="flex items-center gap-1 bg-[#313135] p-1 rounded-xl">
-            {filter.map((item, index) => (
-              <button
-                key={index}
-                className={`text-sm min-h-7 px-3 rounded-lg min-w-12.5 ${item === filterTab ? "btn btn-gradient" : ""}`}
-                onClick={() => setFilterTab(item)}
-              >
-                {item}
-              </button>
-            ))}
-          </div>
+
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-[repeat(auto-fit,325px)] gap-4 md:gap-5 xl:gap-6">
@@ -724,8 +714,16 @@ export default function Overview() {
         <div className="mt-10">
           <div className="flex items-center justify-between mb-6">
             <h4 className="text-xl lg:text-2xl font-medium text-white">Full Vitals History</h4>
-            <div className="text-para text-sm">
-              Showing all recorded vital signs
+            <div className="flex items-center gap-1 bg-[#313135] p-1 rounded-xl">
+              {filter.map((item, index) => (
+                <button
+                  key={index}
+                  className={`text-sm min-h-7 px-3 rounded-lg min-w-12.5 ${item === filterTab ? "btn btn-gradient" : ""}`}
+                  onClick={() => setFilterTab(item)}
+                >
+                  {item}
+                </button>
+              ))}
             </div>
           </div>
           <HistoryTable history={patientHistory || currentVitals?.vitals_history || []} />

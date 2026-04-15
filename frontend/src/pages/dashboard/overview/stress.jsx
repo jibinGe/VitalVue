@@ -50,7 +50,7 @@ export default function Stress() {
 
         // Fetch specific vital data
         if (patientId) {
-          const response = await patientService.getRespiratoryRateData(patientId, {
+          const response = await patientService.getStressData(patientId, {
             interval: filterTab === '1h' ? '1h' : filterTab === '6h' ? '6h' : filterTab === '24h' ? '24h' : '7d'
           });
           if (response.success) {
@@ -119,7 +119,7 @@ export default function Stress() {
     },
   ]
   // Check if data is empty
-  const hasNoData = !vitalData?.respiratoryData || vitalData.respiratoryData.length === 0 ||
+  const hasNoData = !vitalData?.stressData || vitalData.stressData.length === 0 ||
     (statistics?.min === 0 && statistics?.max === 0 && statistics?.average === 0 && statistics?.count === 0);
 
   if (loading) {
@@ -158,7 +158,7 @@ export default function Stress() {
         <TopTitle title="Stress Level" />
         <div className="bg-[#2F2F31] p-4 lg:p-5 rounded-xl lg:rounded-2xl xl:rounded-[28px]">
           <h4 className='text-lg lg:text-xl font-medium leading-none text-[#F9FAFB] mb-5 lg:mb-6 xl:mb-7'>Stress Pattern</h4>
-          <StressPatternChart className="w-full h-80" />
+          <StressPatternChart className="w-full h-80" historyData={vitalData?.stressData || []} />
         </div>
         <div className="mt-4 lg:mt-5 xl:mt-6 flex flex-wrap lg:flex-wrap xl:flex-nowrap gap-3 xl:gap-6 ">
           <div className="flex flex-wrap md:flex-nowrap gap-3 xl:gap-6 w-full xl:w-7/12">
@@ -203,9 +203,9 @@ export default function Stress() {
             <div className="flex flex-wrap md:flex-nowrap items-center justify-between gap-5 md:gap-8 lg:gap-10 xl:gap-10 max-w-115 mx-auto">
               <div className="mx-auto md:mx-0">
                 {(() => {
-                  // Calculate average quality from respiratory rate data
-                  const avgQuality = vitalData?.respiratoryData?.length > 0
-                    ? Math.round(vitalData.respiratoryData.reduce((sum, item) => sum + (item.quality || 100), 0) / vitalData.respiratoryData.length)
+                  // Calculate average quality from stress level data
+                  const avgQuality = vitalData?.stressData?.length > 0
+                    ? Math.round(vitalData.stressData.reduce((sum, item) => sum + (item.quality || 100), 0) / vitalData.stressData.length)
                     : 100;
                   const qualityStatus = avgQuality >= 80 ? 'Good' : avgQuality >= 60 ? 'Fair' : 'Poor';
                   const qualityColor = avgQuality >= 80 ? 'bg-[#4CAF50]' : avgQuality >= 60 ? 'bg-[#F59E0B]' : 'bg-[#EF4444]';

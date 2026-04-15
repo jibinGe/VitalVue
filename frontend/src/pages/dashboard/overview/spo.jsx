@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { patientService } from '@/services/patientService';
 import { formatToLocalTime } from '@/utilities/dateUtils';
@@ -74,8 +74,8 @@ export default function Spo() {
       icon: <Growth />,
       iconBg: "bg-froly",
       title: "Lowest SpO₂ Recorded",
-      value: `${statistics?.min !== undefined && statistics?.min !== null ? statistics.min : 0}%`,
-      progress: statistics?.min !== undefined && statistics?.min !== null ? statistics.min : 0,
+      value: `${statistics?.min !== undefined && statistics?.min !== null ? Math.round(statistics.min) : 0}%`,
+      progress: statistics?.min !== undefined && statistics?.min !== null ? Math.round(statistics.min) : 0,
       summary: "Lowest reading",
 
     },
@@ -95,8 +95,8 @@ export default function Spo() {
       icon: <Growth className='-scale-y-100' />,
       iconBg: "bg-green",
       title: "Maximum SpO₂",
-      value: `${statistics?.max !== undefined && statistics?.max !== null ? statistics.max : 0}%`,
-      progress: statistics?.max !== undefined && statistics?.max !== null ? statistics.max : 0,
+      value: `${statistics?.max !== undefined && statistics?.max !== null ? Math.round(statistics.max) : 0}%`,
+      progress: statistics?.max !== undefined && statistics?.max !== null ? Math.round(statistics.max) : 0,
       summary: "Peak reading",
     },
     {
@@ -123,48 +123,80 @@ export default function Spo() {
     },
   ]
 
+  const episodes = useMemo(() => {
+    if (!vitalData?.spo2Data || vitalData.spo2Data.length === 0) return { desaturations: [], drops: [] };
+
+    const data = vitalData.spo2Data;
+    const desaturations = [];
+    const drops = [];
+
+    let currentEpisode = null;
+
+    for (let i = 0; i < data.length; i++) {
+      const point = data[i];
+
+      // Desaturation detection (< 90%)
+      if (point.value < 90) {
+        if (!currentEpisode) {
+          currentEpisode = { start: point, end: point, minValue: point.value };
+        } else {
+          currentEpisode.end = point;
+          if (point.value < currentEpisode.minValue) currentEpisode.minValue = point.value;
+        }
+      } else {
+        if (currentEpisode) {
+          const durationMin = Math.round((new Date(currentEpisode.end.time) - new Date(currentEpisode.start.time)) / 60000);
+
+          desaturations.push({
+            title: 'Desaturation',
+            time: `${formatToLocalTime(currentEpisode.start.time)} - ${formatToLocalTime(currentEpisode.end.time)}`,
+            duration: durationMin > 0 ? `${durationMin} min` : "< 1 min",
+            value: `${currentEpisode.minValue}%`,
+          });
+          currentEpisode = null;
+        }
+      }
+
+      // Sudden drop detection (drop of >= 4%)
+      if (i > 0) {
+        const prevPoint = data[i - 1];
+        const diff = point.value - prevPoint.value;
+        if (diff <= -4) {
+          drops.push({
+            title: 'Sudden Drop',
+            time: formatToLocalTime(point.time),
+            icon: (
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M10.667 11.333H14.667V7.33301" stroke="white" strokeWidth="1.33333" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M14.6663 11.3337L8.99967 5.66699L5.66634 9.00033L1.33301 4.66699" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            ),
+            value: `${diff.toFixed(1)}%`,
+          });
+        }
+      }
+    }
+
+    if (currentEpisode) {
+      desaturations.push({
+        title: 'Desaturation (Ongoing)',
+        time: `${formatToLocalTime(currentEpisode.start.time)} - Now`,
+        duration: "--",
+        value: `${currentEpisode.minValue}%`,
+      });
+    }
+
+    return { desaturations, drops };
+  }, [vitalData?.spo2Data]);
+
   const card = [
     {
       title: 'Desaturation Episodes',
-      list: [
-        {
-          title: 'Desaturation',
-          time: '09:12 AM - 09:17 AM',
-          duration: "5 min",
-          value: '88.2%',
-        },
-        {
-          title: 'Desaturation',
-          time: '12:12 PM - 12:15 PM',
-          duration: "3 min",
-          value: '91.5%',
-        },
-      ]
+      list: episodes.desaturations
     },
     {
       title: 'Sudden SpO₂ Drops',
-      list: [
-        {
-          title: 'Sudden Drop',
-          time: 'Dec 16, 12:12 PM',
-          icon: (<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M10.667 11.333H14.667V7.33301" stroke="white" strokeWidth="1.33333" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M14.6663 11.3337L8.99967 5.66699L5.66634 9.00033L1.33301 4.66699" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          ),
-          value: '−6.8%',
-        },
-        {
-          title: 'Sudden Drop',
-          time: 'Dec 16, 12:12 PM',
-          icon: (<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M10.667 11.333H14.667V7.33301" stroke="white" strokeWidth="1.33333" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M14.6663 11.3337L8.99967 5.66699L5.66634 9.00033L1.33301 4.66699" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          ),
-          value: '-4.2%',
-        },
-      ]
+      list: episodes.drops
     },
   ]
 
@@ -207,47 +239,42 @@ export default function Spo() {
   return (
     <>
       <Mainbody>
-        <TopTitle title="Spo" />
+        <TopTitle title="SpO₂" />
         <div className="flex flex-col gap-4 md:gap-5 xl:gap-6">
           <div className="flex items-center justify-between gap-3 flex-wrap bg-[#9D8A71]/8 p-5 rounded-2xl">
             <div className="">
               <h6 className='text-lg md:text-xl lg:text-2xl text-white font-medium mb-2'>SpO₂ Timeline Overview</h6>
               <div className="flex items-center gap-1 text-sm">
-                <span>Sarah Mitchell</span>
+                <span>{currentVitals?.full_name || currentVitals?.name || currentVitals?.patientName || "Sarah Mitchell"}</span>
                 <div className="flex items-center gap-1">
                   <span className='size-2 rounded-full bg-[#2AD354]' />
-                  <span className='font-medium'>Bed 12A </span>
+                  <span className='font-medium'>Bed {currentVitals?.bed_no || currentVitals?.bed || "12A"} </span>
                 </div>
                 <div className="flex items-center gap-1">
                   <span className='size-2 rounded-full bg-[#2AD354]' />
-                  <span className='font-medium'>ICU Ward - 03 </span>
+                  <span className='font-medium'>{currentVitals?.ward_name || currentVitals?.ward || currentVitals?.room_no || "ICU Ward - 03"} </span>
                 </div>
               </div>
             </div>
             <div className="flex items-center gap-4">
               <div>
                 <span className='text-2xl xl:text-3xl 2xl:text-[40px] text-white font-medium block mb-1'>
-                  {statistics?.current || vitalData?.spo2Data?.[vitalData.spo2Data.length - 1]?.value || 0}%
+                  {Math.round(statistics?.current || vitalData?.spo2Data?.[vitalData.spo2Data.length - 1]?.value || 0)}%
                 </span>
-                <div class="rounded-full relative z-1 bg-white/8 text-xs min-h-8 w-max min-w-20 md:min-w-27 overflow-hidden flex items-center justify-center gap-2 font-normal text-white px-3 border border-solid border-[#2CD155]/35">
-                  <span class="h-8.5 w-36 rounded-[100%] bg-[#2CD155]/50 blur-2xl absolute -right-10 -top-3 -z-10"></span>
+                <div className="rounded-full relative z-1 bg-white/8 text-xs min-h-8 w-max min-w-20 md:min-w-27 overflow-hidden flex items-center justify-center gap-2 font-normal text-white px-3 border border-solid border-[#2CD155]/35">
+                  <span className="h-8.5 w-36 rounded-[100%] bg-[#2CD155]/50 blur-2xl absolute -right-10 -top-3 -z-10"></span>
                   {currentVitals?.vitals?.spo2?.status || 'Normal'}
                 </div>
-              </div>
-              <div className='h-8 border border-white' />
-              <div className="flex items-center gap-2 text-sm">
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M18.3337 9.99996C18.3337 14.6 14.6003 18.3333 10.0003 18.3333C5.40033 18.3333 1.66699 14.6 1.66699 9.99996C1.66699 5.39996 5.40033 1.66663 10.0003 1.66663C14.6003 1.66663 18.3337 5.39996 18.3337 9.99996Z" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M12.4 13.3917L9.81667 11.85C9.36667 11.5833 9 10.9417 9 10.4167V7" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                <span>Last updated: <span className='text-white '>
-                  {currentVitals?.timestamp ? formatToLocalTime(currentVitals.timestamp) : '02:12 PM'}
-                </span></span>
               </div>
             </div>
           </div>
           <div className="p-4 lg:p-5 bg-[#2F2F31] rounded-2xl lg:rounded-3xl xl:rounded-[30px] mb-4 lg:mb-5 xl:mb-6">
-            <ChartTitle title="SpO₂ Trend" filter_items={["Last 6h", "24h"]} />
+            <ChartTitle 
+              title="SpO₂ Trend" 
+              filter_items={filter} 
+              set_active_filter={filter.indexOf(filterTab)}
+              onFilterChange={(newFilter) => setFilterTab(newFilter)}
+            />
             <SpoTrend spo2Data={vitalData?.spo2Data || []} />
           </div>
           <h5 className=''>Analytics Summary</h5>
@@ -280,61 +307,49 @@ export default function Spo() {
               <div className="p-4 md:p-5 bg-[#27272B] rounded-[20px] cursor-pointer" key={index}>
                 <h5 className='mb-3 md:mb-4'>{item.title} </h5>
                 <div className="flex flex-col gap-4">
-                  {item.list.map((item, index) => (
-                    <div className="p-4 md:p-5 bg-[#736F6A]/10 border border-secondary/10 rounded-[20px] transition-all duration-500 hover:bg-secondary/10 hover:border-secondary/10" key={index}>
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          {item.icon &&
-                            <div className='size-8 flex items-center justify-center rounded-full bg-[#D9D9D9]/10'>
-                              {item.icon}
+                  {item.list.length > 0 ? (
+                    item.list.map((item, index) => (
+                      <div className="p-4 md:p-5 bg-[#736F6A]/10 border border-secondary/10 rounded-[20px] transition-all duration-500 hover:bg-secondary/10 hover:border-secondary/10" key={index}>
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            {item.icon &&
+                              <div className='size-8 flex items-center justify-center rounded-full bg-[#D9D9D9]/10'>
+                                {item.icon}
+                              </div>
+                            }
+                            <p className='text-[#E2E4E9] text-base'>{item.title} </p>
+                          </div>
+                          <p className='text-[#E2E4E9] text-base'>{item.value} </p>
+                        </div>
+                        <div className="flex items-center gap-3 md:gap-4 ">
+                          <div className="flex items-center gap-2 text-xs md:text-sm text-para ">
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <path d="M18.3337 10.0001C18.3337 14.6001 14.6003 18.3334 10.0003 18.3334C5.40033 18.3334 1.66699 14.6001 1.66699 10.0001C1.66699 5.40008 5.40033 1.66675 10.0003 1.66675C14.6003 1.66675 18.3337 5.40008 18.3337 10.0001Z" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                              <path d="M12.4 13.3917L9.81667 11.85C9.36667 11.5833 9 10.4167 9 10.4167V7" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                            {item.time}
+                          </div>
+                          {item.duration &&
+                            <div className="rounded-full relative z-1 bg-white/8 text-xs min-h-7 overflow-hidden flex items-center justify-center gap-2 font-normal text-white px-3 border border-solid border-[#2CD155]/35">
+                              <span className="h-8.5 w-36 rounded-[100%] bg-[#2CD155]/50 blur-2xl absolute -right-10 -top-3 -z-10"></span>
+                              Duration: {item.duration}
                             </div>
                           }
-                          <p className='text-[#E2E4E9] text-base'>{item.title} </p>
                         </div>
-                        <p className='text-[#E2E4E9] text-base'>{item.value} </p>
                       </div>
-                      <div className="flex items-center gap-3 md:gap-4 ">
-                        <div className="flex items-center gap-2 text-xs md:text-sm text-para ">
-                          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M18.3337 10.0001C18.3337 14.6001 14.6003 18.3334 10.0003 18.3334C5.40033 18.3334 1.66699 14.6001 1.66699 10.0001C1.66699 5.40008 5.40033 1.66675 10.0003 1.66675C14.6003 1.66675 18.3337 5.40008 18.3337 10.0001Z" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-                            <path d="M12.4 13.3917L9.81667 11.85C9.36667 11.5833 9 10.9417 9 10.4167V7" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                          {item.time}
-                        </div>
-                        {item.duration &&
-                          <div class="rounded-full relative z-1 bg-white/8 text-xs min-h-7 overflow-hidden flex items-center justify-center gap-2 font-normal text-white px-3 border border-solid border-[#2CD155]/35">
-                            <span class="h-8.5 w-36 rounded-[100%] bg-[#2CD155]/50 blur-2xl absolute -right-10 -top-3 -z-10"></span>
-                            Duration: {item.duration}
-                          </div>
-                        }
-                      </div>
+                    ))
+                  ) : (
+                    <div className="p-8 text-center bg-[#736F6A]/5 rounded-[20px] border border-dashed border-white/10">
+                      <p className="text-para text-sm">No episodes recorded for this period.</p>
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             ))}
           </div>
-          <div className="flex items-center justify-between gap-4 flex-wrap bg-[#27272B] p-4 md:p-5 rounded-2xl text-xs md:text-sm">
-            <div className="flex items-center gap-2 text-nowrap md:gap-4">
-              <div className="flex items-center gap-2">
-                <svg width="30" height="30" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <rect width="30" height="30" rx="15" fill="#D9D9D9" fillOpacity="0.1" />
-                  <path d="M15.0003 23.3337C19.6027 23.3337 23.3337 19.6027 23.3337 15.0003C23.3337 10.398 19.6027 6.66699 15.0003 6.66699C10.398 6.66699 6.66699 10.398 6.66699 15.0003C6.66699 19.6027 10.398 23.3337 15.0003 23.3337Z" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M15 11.667V15.0003" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M15 18.333H15.0083" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                <span className='font-medium'>Signal Quality:</span>
-              </div>
-              <div class="rounded-full relative z-1 bg-white/8  min-h-7 md:min-h-8 w-max overflow-hidden flex items-center justify-center gap-2 font-normal text-white px-3 border border-solid border-[#2CD155]/35">
-                <span class="h-8.5 w-36 rounded-[100%] bg-[#2CD155]/50 blur-2xl absolute -right-10 -top-3 -z-10"></span>
-                Fair
-              </div>
-              93.1% data completeness
-            </div>
-            <p>For clinical decision support only. Interpret in clinical context.</p>
-          </div>
+      
         </div>
-      </Mainbody >
+      </Mainbody>
       <Footer />
     </>
   )

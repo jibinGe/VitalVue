@@ -30,6 +30,7 @@ const PatientArchives = lazy(() => import('./pages/dashboard/patient-archives'))
 const Control = lazy(() => import('./pages/dashboard/control'))
 const Control2 = lazy(() => import('./pages/dashboard/control-2'))
 const Control3 = lazy(() => import('./pages/dashboard/control-3'))
+const Profile = lazy(() => import('./pages/dashboard/profile'))
 
 // Minimal themed loading fallback shown between route navigations
 const PageLoader = () => (
@@ -128,6 +129,10 @@ const router = createBrowserRouter([
       {
         path: 'control-3',
         element: <Suspense fallback={<PageLoader />}><Control3 /></Suspense>,
+      },
+      {
+        path: 'profile',
+        element: <Suspense fallback={<PageLoader />}><Profile /></Suspense>,
       },
     ]
   }

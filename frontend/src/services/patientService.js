@@ -546,6 +546,40 @@ export const patientService = {
       return { success: false, data: [], message: error.message };
     }
   },
+  /**
+   * Get stress level data for a patient
+   */
+  async getStressData(patientId, params = {}) {
+    try {
+      const historyResponse = await this.getDynamicMetricHistory(patientId, 'stress_level', params);
+      if (!historyResponse.success) return historyResponse;
+
+      const stressData = historyResponse.data.map(row => ({
+        time: row.t,
+        value: row.v,
+        stress_level: row.v // StressPatternChart expects this
+      })).filter(d => d.value !== undefined && d.value !== null);
+
+      const statistics = this._calculateStats(stressData.map(d => {
+        if (d.value === "High") return 90;
+        if (d.value === "Moderate") return 60;
+        if (d.value === "Low") return 30;
+        return 0;
+      }));
+
+      return {
+        success: true,
+        data: {
+          stressData: stressData,
+          statistics: statistics
+        },
+        message: "Success"
+      };
+    } catch (error) {
+      console.error('Error in getStressData:', error);
+      return { success: false, data: [], message: error.message };
+    }
+  },
 
   /**
    * Get respiratory rate data for a patient

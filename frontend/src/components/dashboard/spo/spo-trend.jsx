@@ -36,7 +36,7 @@ export default function SpoTrend({ spo2Data = [] }) {
             return spo2Data
                 .filter((_, index) => index % sampleRate === 0 || index === spo2Data.length - 1)
                 .map((item) => ({
-                    time: formatToLocalTime(item.timestamp),
+                    time: formatToLocalTime(item.time),
                     RR: item.value,
                 }));
         }
@@ -81,8 +81,8 @@ export default function SpoTrend({ spo2Data = [] }) {
                         />
 
                         <YAxis
-                            domain={[70, 110]}
-                            ticks={[70, 80, 90, 100, 110]}
+                            domain={[0, 100]}
+                            ticks={[0, 20, 40, 60, 80, 100]}
                             tick={{ fill: '#BABEC4', fontSize: 11 }}
                             axisLine={{ stroke: '#585D68' }}
                         />
@@ -90,14 +90,14 @@ export default function SpoTrend({ spo2Data = [] }) {
                             contentStyle={{ backgroundColor: '#2F2F31', border: '1px solid #555555', borderRadius: '8px' }}
                             labelStyle={{ color: '#9CA3AF' }}
                         />
-                        <ReferenceLine y={6} stroke="r" strokeDasharray="5 5" />
+                        <ReferenceLine y={90} stroke="red" strokeDasharray="5 5" />
                         <Area
                             type="monotone"
                             dataKey="RR"
                             stroke="#2563EB"
                             strokeWidth={1.5}
                             fillOpacity={1}
-                            fill="url(#2F2F31)"
+                            fill="url(#areaGradient)"
                         />
                     </AreaChart>
                 </ResponsiveContainer>

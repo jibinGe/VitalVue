@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 
 export default function ChartTitle({ className = "mb-4 lg:mb-5", title, titleChildren, des, filter_items, set_active_filter, onFilterChange, children }) {
-    const filters = filter_items ? filter_items : ['Live', '6h', '24h'];
+    const filters = filter_items ? filter_items : [];
     const [activeFilter, setActiveFilter] = useState(filters[set_active_filter ? set_active_filter : 0])
 
     const handleFilterClick = (item) => {

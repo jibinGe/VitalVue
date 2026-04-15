@@ -79,13 +79,7 @@ export default function Header() {
     {
       name: 'Profile',
       icon: <User />,
-      path: '/dashbaord/profile',
-      isLink: true,
-    },
-    {
-      name: 'Settings',
-      icon: <Settings />,
-      path: '/dashboard/control',
+      path: '/dashboard/profile',
       isLink: true,
     },
     {
@@ -146,12 +140,12 @@ export default function Header() {
             </AnimatePresence>
           </div>
 
-          <Link to='/dashboard/settings' className="size-12 lg:size-14 flex items-center justify-center text-white bg-[#373739] hover:bg-primary/40 rounded-full">
+          {/* <Link to='/dashboard/settings' className="size-12 lg:size-14 flex items-center justify-center text-white bg-[#373739] hover:bg-primary/40 rounded-full">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M3 9.10937V14.8794C3 16.9994 3 16.9994 5 18.3494L10.5 21.5294C11.33 22.0094 12.68 22.0094 13.5 21.5294L19 18.3494C21 16.9994 21 16.9994 21 14.8894V9.10937C21 6.99937 21 6.99937 19 5.64937L13.5 2.46937C12.68 1.98937 11.33 1.98937 10.5 2.46937L5 5.64937C3 6.99937 3 6.99937 3 9.10937Z" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
               <path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-          </Link>
+          </Link> */}
 
           <div className="w-px h-6 bg-white/16 rounded-full"></div>
 
@@ -159,7 +153,7 @@ export default function Header() {
             <button onClick={() => setProfileOpen((prev) => !prev)} className="flex items-center justify-end gap-3">
               <div className="flex flex-col items-end gap-y-1.5 pt-1">
                 <span className='text-sm font-light text-white leading-none'>Welcome</span>
-                <span className='text-base font-medium text-white leading-none'>{user?.fullName || 'DR. Andrew'}</span>
+                <span className='text-base font-medium text-white leading-none'>{user?.name || 'DR. Andrew'}</span>
               </div>
               <div className="size-12 overflow-hidden rounded-full bg-[#2F2F31]">
                 <img src={avater} alt="User Profile" className="w-full h-full object-cover" />

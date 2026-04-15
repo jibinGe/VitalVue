@@ -19,12 +19,12 @@ export default function BpTrend() {
   const [currentVitals, setCurrentVitals] = useState(null);
 
   const filter = [
-    "Live",
     "1h",
-    "12h",
+    "6h",
     "24h",
+    "7d",
   ]
-  const [filterTab, setFilterTab] = useState(filter[3])
+  const [filterTab, setFilterTab] = useState(filter[2])
 
   useEffect(() => {
     const fetchData = async () => {
@@ -43,10 +43,9 @@ export default function BpTrend() {
           patientId = patientResponse.data.id;
         }
 
-        // Fetch specific vital data (skip if "Live" is selected)
-        if (patientId && filterTab !== 'Live') {
+        if (patientId) {
           const response = await patientService.getBloodPressureData(patientId, {
-            interval: filterTab === '1h' ? '1h' : filterTab === '12h' ? '12h' : filterTab === '24h' ? '24h' : '24h'
+            interval: filterTab
           });
           if (response.success) {
             setVitalData(response.data);
@@ -163,71 +162,7 @@ export default function BpTrend() {
     },
   ]
 
-  const bpTrend2 = [
-    {
-      title: "Hypertensive Episode",
-      date: 'Today · 08:14 AM',
-      progressStatus: ["Below", "Baseline", "Above"],
-      status: "Critical",
-      value: "178 / 112",
-      progressValue: 90,
-      extension: "mmHg",
-      info: [
-        {
-          text: '18 min',
-        },
-        {
-          text: 'Peak phase',
-        },
-        {
-          text: 'Gradual',
-        },
-      ],
-      des: "Systolic pressure increased progressively prior to onset"
-    },
-    {
-      title: "Hypertensive Episode",
-      date: 'Yesterday · 11:28 PM',
-      progressStatus: ["Below", "Baseline", "Above"],
-      status: "Stable",
-      value: "152 / 94",
-      progressValue: 90,
-      extension: "mmHg",
-      info: [
-        {
-          text: '8 min',
-        },
-        {
-          text: 'Resolved',
-        },
-        {
-          text: 'Rapid',
-        },
-      ],
-      des: "Brief elevation within expected circadian pattern"
-    },
-    {
-      title: "Hypertensive Episode",
-      date: 'Today · 06:42 AM',
-      progressStatus: ["Low", "Normal", "High"],
-      status: "warning",
-      value: "88 / 54",
-      progressValue: 90,
-      extension: "mmHg",
-      info: [
-        {
-          text: '12 min',
-        },
-        {
-          text: 'Peak phase',
-        },
-        {
-          text: 'Gradual',
-        },
-      ],
-      des: "Transient deviation followed by rapid stabilization"
-    },
-  ]
+  const bpTrend2 = []
   const symbol = [
     {
       text: "Systolic",
@@ -284,6 +219,22 @@ export default function BpTrend() {
       <Mainbody>
         <TopTitle title="BP Trend" />
         <div className="flex flex-col gap-4 md:gap-5 xl:gap-6">
+          <div className="flex items-center justify-between gap-3 flex-wrap bg-[#9D8A71]/8 p-5 rounded-2xl">
+            <div className="">
+              <h6 className='text-lg md:text-xl lg:text-2xl text-white font-medium mb-2'>Blood Pressure Overview</h6>
+              <div className="flex items-center gap-1 text-sm">
+                <span>{currentVitals?.full_name || currentVitals?.name || currentVitals?.patientName || "Sarah Mitchell"}</span>
+                <div className="flex items-center gap-1">
+                  <span className='size-2 rounded-full bg-[#2AD354]' />
+                  <span className='font-medium'>Bed {currentVitals?.bed_no || currentVitals?.bed || "12A"} </span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className='size-2 rounded-full bg-[#2AD354]' />
+                  <span className='font-medium'>{currentVitals?.ward_name || currentVitals?.ward || currentVitals?.room_no || "ICU Ward - 03"} </span>
+                </div>
+              </div>
+            </div>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5 xl:gap-6">
             {bpTrend.map((item, index) => (
               <div className="bg-[#2F2F31] rounded-3xl overflow-hidden min-h-52  flex flex-col justify-between" key={index}>
@@ -313,7 +264,13 @@ export default function BpTrend() {
           </div>
           <div className="p-4 lg:p-5 bg-[#2F2F31] rounded-2xl lg:rounded-3xl xl:rounded-[30px] mb-4 lg:mb-5 xl:mb-6">
 
-            <ChartTitle title="BP Trend" des="24-hour monitoring view" filter_items={["Live", "1h", "12h", "24h"]} >
+            <ChartTitle 
+              title="BP Trend" 
+              des={`${filterTab} monitoring view`} 
+              filter_items={filter} 
+              set_active_filter={filter.indexOf(filterTab)}
+              onFilterChange={(newFilter) => setFilterTab(newFilter)}
+            >
               <div className="flex items-center gap-5 ml-auto mr-8">
                 {symbol.map((item, index) => (
                   <div key={index} className="flex items-center gap-2">
@@ -338,53 +295,59 @@ export default function BpTrend() {
           <div className="">
             <div className="mb-4">
               <h6 className='text-lg lg:text-xl mb-1'>Clinical Events</h6>
-              <p className='text-sm text-[#E2E4E9]'>3 events recorded</p>
+              <p className='text-sm text-[#E2E4E9]'>{bpTrend2.length} events recorded</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4 md:gap-5 xl:gap-6">
-              {bpTrend2.map((item, index) => (
-                <div className="bg-[#2F2F31] rounded-3xl overflow-hidden min-h-52  flex flex-col justify-between" key={index}>
-                  <div className="p-5">
-                    <div className="">
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="">
-                          <span className="block mb-1 text-base  text-[#E2E4E9]">{item.title} </span>
-                          <span>{item.date} </span>
+              {bpTrend2.length > 0 ? (
+                bpTrend2.map((item, index) => (
+                  <div className="bg-[#2F2F31] rounded-3xl overflow-hidden min-h-52  flex flex-col justify-between" key={index}>
+                    <div className="p-5">
+                      <div className="">
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="">
+                            <span className="block mb-1 text-base  text-[#E2E4E9]">{item.title} </span>
+                            <span>{item.date} </span>
+                          </div>
+                          <p className={`px-3 min-h-6 flex items-center font-lufga justify-center font-light rounded-full text-sm ${item.status === "Critical" ? "text-[#E54D4D] bg-[#E54D4D]/10" : item.status === "Stable" ? "text-[#4DE573] bg-[#4DE573]/10" : "text-[#E5DB4CBF] bg-[#E5DB4CBF]/10"}`}>
+                            {item.status}
+                          </p>
                         </div>
-                        <p className={`px-3 min-h-6 flex items-center font-lufga justify-center font-light rounded-full text-sm ${item.status === "Critical" ? "text-[#E54D4D] bg-[#E54D4D]/10" : item.status === "Stable" ? "text-[#4DE573] bg-[#4DE573]/10" : "text-[#E5DB4CBF] bg-[#E5DB4CBF]/10"}`}>
-                          {item.status}
-                        </p>
-                      </div>
-                      <div className="text-2xl lg:text-3xl xl:text-[36px] text-white font-medium [text-shadow:1px_1px_5px_rgba(255,0,0,0.16),-1px_-1px_5px_rgba(0,170,255,0.16)]">
-                        {item.value}
-                        <span className="text-base text-para ml-1.5 font-normal">
-                          {item.extension}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="my-3 md:my-5">
-                      <RangeGauge2 value={item.progressValue} status={item.progressStatus} />
-                    </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      {item.info.map((item, index) => (
-                        <div key={index} className="mb-2">
-                          {index != 0 &&
-                            <span className='inline-block mr-2' >•</span>
-                          }
-                          {index === 0 &&
-                            <span className='text-white font-medium '>Duration: </span>
-                          }
-                          {index === 2 &&
-                            <span className=' '>Recovery: </span>
-                          }
-                          {item.text}
+                        <div className="text-2xl lg:text-3xl xl:text-[36px] text-white font-medium [text-shadow:1px_1px_5px_rgba(255,0,0,0.16),-1px_-1px_5px_rgba(0,170,255,0.16)]">
+                          {item.value}
+                          <span className="text-base text-para ml-1.5 font-normal">
+                            {item.extension}
+                          </span>
                         </div>
-                      ))}
+                      </div>
+                      <div className="my-3 md:my-5">
+                        <RangeGauge2 value={item.progressValue} status={item.progressStatus} />
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        {item.info.map((item, index) => (
+                          <div key={index} className="mb-2">
+                            {index != 0 &&
+                              <span className='inline-block mr-2' >•</span>
+                            }
+                            {index === 0 &&
+                              <span className='text-white font-medium '>Duration: </span>
+                            }
+                            {index === 2 &&
+                              <span className=' '>Recovery: </span>
+                            }
+                            {item.text}
+                          </div>
+                        ))}
+                      </div>
+                      <p className='text-sm text-para'>{item.des} </p>
                     </div>
-                    <p className='text-sm text-para'>{item.des} </p>
-                  </div>
 
+                  </div>
+                ))
+              ) : (
+                <div className="col-span-full p-8 text-center bg-[#736F6A]/5 rounded-[20px] border border-dashed border-white/10">
+                  <p className="text-para text-sm">No clinical events recorded for this period.</p>
                 </div>
-              ))}
+              )}
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5 xl:gap-6">
