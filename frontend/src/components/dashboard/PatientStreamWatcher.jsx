@@ -13,10 +13,19 @@ import { useDashboardStore } from '@/store/useDashboardStore';
  */
 export default function PatientStreamWatcher({ patientId, patientName }) {
   const { criticalAlert, streamData } = useVitalsStream(patientId);
-  const { setCriticalAlarmData } = useDashboardStore();
+  const { setCriticalAlarmData, updateLiveVitals } = useDashboardStore();
 
+  // 1. Update live vitals cache for clinical risks / UI bubbles
+  useEffect(() => {
+    if (streamData) {
+      updateLiveVitals(patientId, streamData);
+    }
+  }, [streamData, patientId, updateLiveVitals]);
+
+  // 2. Handle critical alarms (modals)
   useEffect(() => {
     if (!criticalAlert) return;
+
 
     // Build vitals snapshot from the most recent patient_vital_update data
     const vitalsSnapshot = {

@@ -35,7 +35,8 @@ export default function Home() {
     selectedUserId,
     setSelectedUserId,
     selectedUserName,
-    setSelectedUserName
+    setSelectedUserName,
+    liveVitals,
   } = useDashboardStore();
 
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -401,10 +402,10 @@ export default function Home() {
     if (!assessments) return defaultAlerts;
     const alerts = [];
 
-    if (assessments.news2) {
-      const news2 = assessments.news2;
-      const riskLevel = news2.riskLevel || "Low";
-      const score = news2.score || 0;
+    // NEWS2 Score
+    if (assessments.news2 || assessments.news2_score !== undefined) {
+      const score = assessments.news2_score ?? assessments.news2?.score ?? 0;
+      const riskLevel = assessments.news2?.riskLevel || (score >= 7 ? "High" : score >= 5 ? "Medium" : "Low");
       const color = riskLevel === "High" ? "#E54D4D" : riskLevel === "Medium" ? "#FFF133BF" : "#2CD155BF";
       alerts.push({
         type: "NEWS2",
@@ -418,12 +419,14 @@ export default function Home() {
       });
     }
 
-    if (assessments.af_warning) {
-      const afStatus = assessments.af_warning.status || "Normal";
+    // AF Warning
+    if (assessments.af_warning !== undefined) {
+      const afVal = assessments.af_warning;
+      const afStatus = (afVal === "Normal" || afVal === 0 || afVal === false) ? "Normal" : "High";
       const color = afStatus === "Normal" ? "#2CD155BF" : "#E54D4D";
       alerts.push({
         type: "AF Warning",
-        status: afStatus === "Normal" ? "Normal" : "High",
+        status: afStatus,
         color: color,
         icon: (
           <svg className="size-6" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 15 20" fill="none">
@@ -433,12 +436,13 @@ export default function Home() {
       });
     }
 
-    if (assessments.stroke_risk) {
-      const strokeRisk = assessments.stroke_risk.riskLevel || "Low";
+    // Stroke Risk
+    if (assessments.stroke_risk !== undefined) {
+      const strokeRisk = assessments.stroke_risk?.riskLevel || assessments.stroke_risk || "Low";
       const color = strokeRisk === "High" ? "#E54D4D" : strokeRisk === "Medium" ? "#FFF133BF" : "#2CD155BF";
       alerts.push({
         type: "Stroke Risk",
-        status: strokeRisk === "High" ? "High" : strokeRisk === "Medium" ? "Medium" : "Low",
+        status: strokeRisk,
         color: color,
         icon: (
           <svg className="size-6" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 22 22" fill="none">
@@ -453,12 +457,13 @@ export default function Home() {
       });
     }
 
-    if (assessments.seizure_risk) {
-      const seizureRisk = assessments.seizure_risk.riskLevel || "Normal";
+    // Seizure Risk
+    if (assessments.seizure_risk !== undefined) {
+      const seizureRisk = assessments.seizure_risk.riskLevel || assessments.seizure_risk || "Normal";
       const color = seizureRisk === "High" ? "#E54D4D" : seizureRisk === "Medium" ? "#FFF133BF" : "#2CD155BF";
       alerts.push({
         type: "Seizure Risk",
-        status: seizureRisk === "High" ? "High" : seizureRisk === "Medium" ? "Medium" : "Normal",
+        status: seizureRisk,
         color: color,
         icon: (
           <svg className="size-6" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 22 22" fill="none">
@@ -474,26 +479,52 @@ export default function Home() {
 
   const cardData = useMemo(() => {
     return rawPatients.map((p) => {
-      // Get the latest vitals from history
-      const latestVitals = p.vitals_history && p.vitals_history.length > 0 
+      // Get the latest vitals from history (fallback)
+      const latestHistoryVitals = p.vitals_history && p.vitals_history.length > 0 
         ? p.vitals_history[p.vitals_history.length - 1] 
         : null;
 
+      // Merge with live stream data if available
+      const live = liveVitals[p.id] || {};
+      
       const vitals = {
-        heartRate: { value: latestVitals?.heart_rate || 0, status: latestVitals?.heart_rate_status || "Stable" },
-        spo2: { value: latestVitals?.spo2 || 0, status: latestVitals?.spo2_status || "Stable" },
-        bloodPressure: { 
-          systolic: latestVitals?.bp_systolic || latestVitals?.systolic || 0, 
-          diastolic: latestVitals?.bp_diastolic || latestVitals?.diastolic || 0, 
-          status: latestVitals?.bp_status || "Stable" 
+        heartRate: { 
+          value: live.heart_rate ?? latestHistoryVitals?.heart_rate ?? 0, 
+          status: live.heart_rate_status ?? latestHistoryVitals?.heart_rate_status ?? "Stable" 
         },
-        temperature: { value: latestVitals?.temp || latestVitals?.temperature || 0, status: latestVitals?.temperature_status || "Stable" }
+        spo2: { 
+          value: live.spo2 ?? latestHistoryVitals?.spo2 ?? 0, 
+          status: live.spo2_status ?? latestHistoryVitals?.spo2_status ?? "Stable" 
+        },
+        bloodPressure: { 
+          systolic: live.bp_systolic ?? latestHistoryVitals?.bp_systolic ?? latestHistoryVitals?.systolic ?? 0, 
+          diastolic: live.bp_diastolic ?? latestHistoryVitals?.bp_diastolic ?? latestHistoryVitals?.diastolic ?? 0, 
+          status: live.bp_status ?? latestHistoryVitals?.bp_status ?? "Stable" 
+        },
+        temperature: { 
+          value: live.temp ?? latestHistoryVitals?.temp ?? latestHistoryVitals?.temperature ?? 0, 
+          status: live.temperature_status ?? latestHistoryVitals?.temperature_status ?? "Stable" 
+        }
       };
+
+      // Merge assessments for clinical alerts
+      const liveAssessments = {
+        news2_score: live.news2_score,
+        af_warning: live.af_warning,
+        stroke_risk: live.stroke_risk,
+        seizure_risk: live.seizure_risk
+      };
+
+      // We only merge if we have live assessment data
+      const finalAssessments = (liveAssessments.news2_score !== undefined || liveAssessments.af_warning !== undefined)
+        ? { ...p.assessments, ...liveAssessments }
+        : p.assessments;
 
       let status = "Stable";
       const hasCritical = vitals.heartRate?.status?.toLowerCase() === "critical" || 
                          vitals.spo2?.status?.toLowerCase() === "critical" || 
-                         vitals.bloodPressure?.status?.toLowerCase() === "critical";
+                         vitals.bloodPressure?.status?.toLowerCase() === "critical" ||
+                         (finalAssessments?.news2?.riskLevel?.toLowerCase() === "high");
       if (hasCritical) status = "Critical";
 
       return {
@@ -503,19 +534,19 @@ export default function Home() {
         patientId: p.user_id, // For UI display
         name: p.full_name || "Unknown Patient",
         room: p.room_no || "General",
-        lastSync: latestVitals?.recorded_at || new Date().toISOString(),
+        lastSync: live.recorded_at || latestHistoryVitals?.recorded_at || new Date().toISOString(),
         vitals: [
           { icon: <Hart />, title: "Heart Rate", heartRate: vitals.heartRate?.value || 0, historyData: p.vitals_history || [] },
           { icon: <Spo />, title: "SpO2", spo2: vitals.spo2?.value ? Math.round(vitals.spo2.value) : 0, historyData: p.vitals_history || [] },
           { icon: <Bp />, title: "BP Trend", bp: `${vitals.bloodPressure?.systolic || '--'}/${vitals.bloodPressure?.diastolic || '--'}`, historyData: p.vitals_history || [] },
           { icon: <Temp />, title: "Temp", temp: vitals.temperature?.value ? formatTemperature(vitals.temperature?.value) : '--', historyData: p.vitals_history || [] },
         ],
-        alerts: mapAssessmentsToAlerts(p.assessments),
-        deviceBattery: latestVitals?.battery_percent !== undefined ? `${latestVitals.battery_percent}%` : (p.device_battery || "80%"),
-        isConnected: latestVitals?.is_connected ?? true,
+        alerts: mapAssessmentsToAlerts(finalAssessments),
+        deviceBattery: live.battery_percent !== undefined ? `${live.battery_percent}%` : (latestHistoryVitals?.battery_percent !== undefined ? `${latestHistoryVitals.battery_percent}%` : (p.device_battery || "80%")),
+        isConnected: live.is_connected ?? latestHistoryVitals?.is_connected ?? true,
       };
     });
-  }, [rawPatients]);
+  }, [rawPatients, liveVitals]);
 
   const filteredAndSortedCards = useMemo(() => {
     let result = [...cardData];

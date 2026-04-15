@@ -242,8 +242,27 @@ export default function Overview() {
     return statusMap;
   };
 
-  // Get triage status from API assessments or use defaults
-  const apiAssessments = currentVitals?.clinical_risks || currentVitals?.assessments || patientData?.assessments;
+  // Get triage status from API assessments or use defaults - memoized to combine polling + live stream
+  const apiAssessments = useMemo(() => {
+    // Start with the polling data (currentVitals or patientData)
+    let assessments = currentVitals?.clinical_risks || currentVitals?.assessments || patientData?.assessments || {};
+    
+    // If we have live stream data, override with the latest clinical risks
+    if (streamData) {
+      const liveRisks = {};
+      if (streamData.news2_score !== undefined) liveRisks.news2_score = streamData.news2_score;
+      if (streamData.af_warning !== undefined) liveRisks.af_warning = streamData.af_warning;
+      if (streamData.stroke_risk !== undefined) liveRisks.stroke_risk = streamData.stroke_risk;
+      if (streamData.seizure_risk !== undefined) liveRisks.seizure_risk = streamData.seizure_risk;
+
+      // Only merge if we actually have at least one risk value in the stream
+      if (Object.keys(liveRisks).length > 0) {
+        assessments = { ...assessments, ...liveRisks };
+      }
+    }
+    return assessments;
+  }, [currentVitals, patientData, streamData]);
+
   const apiTriageStatus = apiAssessments ? mapAssessmentsToTriageStatus(apiAssessments) : [];
 
   const triageStatus = apiTriageStatus.map((item, index) => ({

@@ -15,4 +15,13 @@ export const useDashboardStore = create((set) => ({
   setSelectedUserId: (id) => set({ selectedUserId: id }),
   selectedUserName: null,
   setSelectedUserName: (name) => set({ selectedUserName: name }),
+
+  // Live Vitals Cache (keyed by patientId)
+  liveVitals: {},
+  updateLiveVitals: (patientId, vitals) => set((state) => ({
+    liveVitals: {
+      ...state.liveVitals,
+      [patientId]: { ...(state.liveVitals[patientId] || {}), ...vitals }
+    }
+  })),
 }));
