@@ -2,10 +2,18 @@ import React, { memo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Angle, Bp, Hart, Spo, Temp } from "@/utilities/icons";
 import HeartRateLive from "@/components/charts/HeartRateLive";
-import BPBars from "@/components/animation/overview/bpBars";
+import BPTrend from "@/components/animation/overview/BPTrend";
 import TempWave from "@/components/animation/overview/tempWave";
 import Spo2Gauge from "@/components/animation/overview/spo2Gauge";
 import { motion, AnimatePresence } from "framer-motion";
+
+const BatteryIcon = ({ percent, color = "currentColor" }) => (
+    <svg width="14" height="8" viewBox="0 0 24 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="0.5" y="0.5" width="20" height="11" rx="1.5" stroke={color} strokeWidth="1" />
+        <path d="M22 4V8" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+        <rect x="2" y="2" width={(17 * percent) / 100} height="8" rx="0.5" fill={color} />
+    </svg>
+);
 
 const PatientCard = memo(({
     item,
@@ -50,6 +58,22 @@ const PatientCard = memo(({
     };
 
     const renderVitalGraph = (vital, index) => {
+        // Condition for "zero" values or missing data
+        const isZero = (title) => {
+            if (title === "Heart Rate") return vital.heartRate === 0 || !vital.heartRate;
+            if (title === "SpO2") return vital.spo2 === 0 || !vital.spo2;
+            if (title === "BP Trend") {
+                const parts = vital.bp ? vital.bp.split('/') : [];
+                return parts[0] === '0' || parts[0] === '--' || !vital.bp;
+            }
+            if (title === "Temp") return vital.temp === "0.0" || vital.temp === 0 || !vital.temp;
+            return false;
+        };
+
+        if (isZero(vital.title)) {
+            return <div className="text-[10px] text-white/30 font-lufga mt-4 ml-1 italic">no graph</div>;
+        }
+
         if (vital.title === "Heart Rate") {
             return <HeartRateLive width={140} height={26} className="-ml-3 mt-3" historyData={vital.historyData} />;
         }
@@ -57,7 +81,7 @@ const PatientCard = memo(({
             return <Spo2Gauge value={vital.spo2 || 90} className="h-20 w-40 -mt-7 -ml-5" set_height={true} animate={true} />;
         }
         if (vital.title === "BP Trend") {
-            return <BPBars className="h-8 scale-130 -mb-2" historyData={vital.historyData} />;
+            return <BPTrend className="h-8 scale-130 -mb-2" historyData={vital.historyData} />;
         }
         if (vital.title === "Temp") {
             return <TempWave className="h-11 -ml-3 w-[calc(100%+24px)]! -mb-2" historyData={vital.historyData} />;
@@ -71,6 +95,15 @@ const PatientCard = memo(({
         "BP Trend": <Bp />,
         "Temp": <Temp />
     };
+
+    const getBatteryColor = (percent) => {
+        if (percent > 60) return "#2CD155";
+        if (percent > 30) return "#E5DB4C";
+        return "#E54D4D";
+    };
+
+    const batteryValue = parseInt(item.deviceBattery) || 0;
+    const batteryColor = getBatteryColor(batteryValue);
 
     return (
         <motion.div
@@ -145,15 +178,16 @@ const PatientCard = memo(({
                                 <div className="flex flex-col gap-3.5 w-full relative z-10">
                                     <div className="flex items-center gap-1.5 w-full justify-between xl:justify-start">
                                         <span className="font-lufga font-medium text-[15px] xl:text-[16px] text-white">Status</span>
-                                        <div className={`px-2 py-[3px] flex items-center justify-center font-lufga font-normal rounded-full text-[12px] xl:text-[13px] cursor-pointer whitespace-nowrap mt-0.5 ${getStatusBadgeClass(item.status)}`}
+                                        <div className={`px-2 py-[3px] flex items-center justify-center font-lufga font-normal rounded-full text-[12px] xl:text-[13px] cursor-pointer whitespace-nowrap mt-0.5 ${item.isConnected ? getStatusBadgeClass(item.status) : 'text-[#E54D4D] bg-[#E54D4D]/20'}`}
                                             onClick={(e) => { e.stopPropagation(); setCardMenu(cardMenu === index + 1 ? null : index + 1) }}>
-                                            {item.status === 'Critical' ? 'Disconnected' : 'Connected'}
+                                            {item.isConnected ? 'Connected' : 'Disconnected'}
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-1.5 w-full justify-between xl:justify-start">
                                         <span className="font-lufga font-medium text-[15px] xl:text-[16px] text-white">Battery</span>
-                                        <div className="bg-white/10 text-white px-2 py-[2px] mt-0.5 flex items-center justify-center rounded-full text-[12px] xl:text-[13px] font-lufga">
-                                            🔋 {item.deviceBattery || "80%"}
+                                        <div className="bg-white/10 px-2 py-[2px] mt-0.5 flex items-center justify-center rounded-full text-[12px] xl:text-[13px] font-lufga gap-1.5">
+                                            <BatteryIcon percent={batteryValue} color={batteryColor} />
+                                            <span style={{ color: batteryColor }}>{item.deviceBattery || "80%"}</span>
                                         </div>
                                     </div>
                                 </div>

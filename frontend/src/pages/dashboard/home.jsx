@@ -337,16 +337,21 @@ export default function Home() {
 
       // Fetch full_name from the profile API
       patientService.getUserProfile().then((res) => {
+        let name = "";
         if (res?.data?.full_name) {
-          setStaffName(res.data.full_name);
+          name = res.data.full_name;
         } else {
           // Fallback to cached localStorage user
           const currentUser = authService.getCurrentUser();
-          setStaffName(currentUser?.name || currentUser?.full_name || "");
+          name = currentUser?.name || currentUser?.full_name || "";
         }
+        setStaffName(name);
+        setActionDoctorSearch(name);
       }).catch(() => {
         const currentUser = authService.getCurrentUser();
-        setStaffName(currentUser?.name || currentUser?.full_name || "");
+        const name = currentUser?.name || currentUser?.full_name || "";
+        setStaffName(name);
+        setActionDoctorSearch(name);
       });
     }
   }, [takeAction]);
@@ -505,7 +510,8 @@ export default function Home() {
           { icon: <Temp />, title: "Temp", temp: vitals.temperature?.value ? formatTemperature(vitals.temperature?.value) : '--', historyData: p.vitals_history || [] },
         ],
         alerts: mapAssessmentsToAlerts(p.assessments),
-        deviceBattery: p.device_battery || (latestVitals?.battery_percent ? `${latestVitals.battery_percent}%` : "80%"),
+        deviceBattery: latestVitals?.battery_percent !== undefined ? `${latestVitals.battery_percent}%` : (p.device_battery || "80%"),
+        isConnected: latestVitals?.is_connected ?? true,
       };
     });
   }, [rawPatients]);

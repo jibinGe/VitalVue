@@ -52,6 +52,7 @@ export const usePatientHistory = (patientId, filterTab = 'Live') => {
         bp_systolic: row.primary_vitals?.blood_pressure ? parseInt(row.primary_vitals.blood_pressure.split('/')[0]) : undefined,
 
         // Map risks
+        clinical_risks: row.clinical_risks,
         news2_score: row.clinical_risks?.news2_score,
         af_warning: row.clinical_risks?.af_warning,
         stroke_risk: row.clinical_risks?.stroke_risk,

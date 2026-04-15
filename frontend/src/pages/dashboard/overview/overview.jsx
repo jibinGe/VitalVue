@@ -35,7 +35,7 @@ import SeizureRisk from "@/components/dashboard/overview/seizure-risk";
 import { Link } from "react-router-dom";
 
 import SpO2Gauge from "@/components/animation/overview/spo2Gauge";
-import BPBars from "@/components/animation/overview/bpBars";
+import BPTrend from "@/components/animation/overview/BPTrend";
 import HrvScore from "@/components/animation/overview/hrv-score";
 import TempWave from "../../../components/animation/overview/tempWave";
 import SleepPattern from "@/components/animation/overview/sleep-pattern";
@@ -234,236 +234,64 @@ export default function Overview() {
   const apiAssessments = currentVitals?.clinical_risks || currentVitals?.assessments || patientData?.assessments;
   const apiTriageStatus = apiAssessments ? mapAssessmentsToTriageStatus(apiAssessments) : [];
 
-  const triageStatus =
-    apiTriageStatus.length > 0
-      ? apiTriageStatus.map((item, index) => ({
-        icon:
-          item.title === "NEWS2 Score" ? (
-            <Bp className="size-4.5" />
-          ) : item.title === "AF Warning" ? (
-            <High />
-          ) : item.title === "Stroke Risk" ? (
-            <Brain />
-          ) : (
-            <Face />
-          ),
-        status: item.status,
-        title: item.title,
-        position: item.position,
-        des: item.description,
-        color: item.color,
-        progress: (
-          <svg
-            width="116"
-            height="104"
-            viewBox="0 0 116 104"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <circle
-              cx="104"
-              cy="104"
-              r="102"
-              stroke={item.color}
-              strokeOpacity="0.08"
-              strokeWidth="4"
-            />
-            <path
-              d="M21.4803 44.0459C12.0189 57.0684 5.77386 72.1452 3.25579 88.0437C0.737717 103.942 2.01809 120.211 6.99223 135.52C11.9664 150.829 20.493 164.743 31.8751 176.125C43.2572 187.507 57.1714 196.034 72.4803 201.008C87.7891 205.982 104.058 207.262 119.956 204.744C135.855 202.226 150.932 195.981 163.954 186.52C176.977 177.058 187.575 164.649 194.883 150.307C202.19 135.965 206 120.097 206 104"
-              stroke={item.color}
-              strokeWidth="4"
-              strokeLinecap="round"
-            />
-            <rect
-              x="12"
-              y="33"
-              width="20"
-              height="20"
-              rx="10"
-              fill="#2F2F31"
-            />
-            <circle cx="22" cy="43" r="4" fill={item.color} />
-          </svg>
-        ),
-        action:
-          item.title === "NEWS2 Score"
-            ? () => set_news_score(true)
-            : item.title === "AF Warning"
-              ? () => set_ap_warning(true)
-              : item.title === "Stroke Risk"
-                ? () => set_stroke_risk(true)
-                : () => set_seizure_risk(true),
-      }))
-      : [
-        {
-          icon: <Bp className="size-4.5" />,
-          status: "Warning",
-          title: "NEWS2 Score",
-          position: 5,
-          des: "Medium Clinical Risk",
-          color: "#FFBB33",
-          progress: (
-            <svg
-              width="116"
-              height="104"
-              viewBox="0 0 116 104"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <circle
-                cx="104"
-                cy="104"
-                r="102"
-                stroke="#FFBB33"
-                strokeOpacity="0.08"
-                strokeWidth="4"
-              />
-              <path
-                d="M21.4803 44.0459C12.0189 57.0684 5.77386 72.1452 3.25579 88.0437C0.737717 103.942 2.01809 120.211 6.99223 135.52C11.9664 150.829 20.493 164.743 31.8751 176.125C43.2572 187.507 57.1714 196.034 72.4803 201.008C87.7891 205.982 104.058 207.262 119.956 204.744C135.855 202.226 150.932 195.981 163.954 186.52C176.977 177.058 187.575 164.649 194.883 150.307C202.19 135.965 206 120.097 206 104"
-                stroke="#FFBB33"
-                strokeWidth="4"
-                strokeLinecap="round"
-              />
-              <rect
-                x="12"
-                y="33"
-                width="20"
-                height="20"
-                rx="10"
-                fill="#2F2F31"
-              />
-              <circle cx="22" cy="43" r="4" fill="#FFBB33" />
-            </svg>
-          ),
-          action: () => set_news_score(true),
-        },
-        {
-          icon: <High />,
-          status: "High",
-          title: "AF Warning",
-          position: "High",
-          des: "Irregular Rhythm",
-          color: "#E54D4D",
-          progress: (
-            <svg
-              width="116"
-              height="104"
-              viewBox="0 0 116 104"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <circle
-                cx="104"
-                cy="104"
-                r="102"
-                stroke="#E54D4D"
-                strokeOpacity="0.08"
-                strokeWidth="4"
-              />
-              <path
-                d="M21.4803 44.0459C12.0189 57.0684 5.77386 72.1452 3.25579 88.0437C0.737717 103.942 2.01809 120.211 6.99223 135.52C11.9664 150.829 20.493 164.743 31.8751 176.125C43.2572 187.507 57.1714 196.034 72.4803 201.008C87.7891 205.982 104.058 207.262 119.956 204.744C135.855 202.226 150.932 195.981 163.954 186.52C176.977 177.058 187.575 164.649 194.883 150.307C202.19 135.965 206 120.097 206 104"
-                stroke="#E54D4D"
-                strokeWidth="4"
-                strokeLinecap="round"
-              />
-              <rect
-                x="12"
-                y="33"
-                width="20"
-                height="20"
-                rx="10"
-                fill="#2F2F31"
-              />
-              <circle cx="22" cy="43" r="4" fill="#E54D4D" />
-            </svg>
-          ),
-          action: () => set_ap_warning(true),
-        },
-        {
-          icon: <Brain />,
-          status: "Normal",
-          title: "Stroke Risk",
-          position: "Low",
-          des: "Normal neuro sign",
-          color: "#2CD155",
-          progress: (
-            <svg
-              width="116"
-              height="104"
-              viewBox="0 0 116 104"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <circle
-                cx="104"
-                cy="104"
-                r="102"
-                stroke="#2CD155"
-                strokeOpacity="0.08"
-                strokeWidth="4"
-              />
-              <path
-                d="M21.4803 44.0459C12.0189 57.0684 5.77386 72.1452 3.25579 88.0437C0.737717 103.942 2.01809 120.211 6.99223 135.52C11.9664 150.829 20.493 164.743 31.8751 176.125C43.2572 187.507 57.1714 196.034 72.4803 201.008C87.7891 205.982 104.058 207.262 119.956 204.744C135.855 202.226 150.932 195.981 163.954 186.52C176.977 177.058 187.575 164.649 194.883 150.307C202.19 135.965 206 120.097 206 104"
-                stroke="#2CD155"
-                strokeWidth="4"
-                strokeLinecap="round"
-              />
-              <rect
-                x="12"
-                y="33"
-                width="20"
-                height="20"
-                rx="10"
-                fill="#2F2F31"
-              />
-              <circle cx="22" cy="43" r="4" fill="#2CD155" />
-            </svg>
-          ),
-          action: () => set_stroke_risk(true),
-        },
-        {
-          icon: <Face />,
-          status: "Normal",
-          title: "Seizure Risk",
-          position: "Normal",
-          des: "Elevate EDA levels",
-          color: "#2CD155",
-          progress: (
-            <svg
-              width="116"
-              height="104"
-              viewBox="0 0 116 104"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <circle
-                cx="104"
-                cy="104"
-                r="102"
-                stroke="#2CD155"
-                strokeOpacity="0.08"
-                strokeWidth="4"
-              />
-              <path
-                d="M21.4803 44.0459C12.0189 57.0684 5.77386 72.1452 3.25579 88.0437C0.737717 103.942 2.01809 120.211 6.99223 135.52C11.9664 150.829 20.493 164.743 31.8751 176.125C43.2572 187.507 57.1714 196.034 72.4803 201.008C87.7891 205.982 104.058 207.262 119.956 204.744C135.855 202.226 150.932 195.981 163.954 186.52C176.977 177.058 187.575 164.649 194.883 150.307C202.19 135.965 206 120.097 206 104"
-                stroke="#2CD155"
-                strokeWidth="4"
-                strokeLinecap="round"
-              />
-              <rect
-                x="12"
-                y="33"
-                width="20"
-                height="20"
-                rx="10"
-                fill="#2F2F31"
-              />
-              <circle cx="22" cy="43" r="4" fill="#2CD155" />
-            </svg>
-          ),
-          action: () => set_seizure_risk(true),
-        },
-      ];
+  const triageStatus = apiTriageStatus.map((item, index) => ({
+    icon:
+      item.title === "NEWS2 Score" ? (
+        <Bp className="size-4.5" />
+      ) : item.title === "AF Warning" ? (
+        <High />
+      ) : item.title === "Stroke Risk" ? (
+        <Brain />
+      ) : (
+        <Face />
+      ),
+    status: item.status,
+    title: item.title,
+    position: item.position,
+    des: item.description,
+    color: item.color,
+    progress: (
+      <svg
+        width="116"
+        height="104"
+        viewBox="0 0 116 104"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <circle
+          cx="104"
+          cy="104"
+          r="102"
+          stroke={item.color}
+          strokeOpacity="0.08"
+          strokeWidth="4"
+        />
+        <path
+          d="M21.4803 44.0459C12.0189 57.0684 5.77386 72.1452 3.25579 88.0437C0.737717 103.942 2.01809 120.211 6.99223 135.52C11.9664 150.829 20.493 164.743 31.8751 176.125C43.2572 187.507 57.1714 196.034 72.4803 201.008C87.7891 205.982 104.058 207.262 119.956 204.744C135.855 202.226 150.932 195.981 163.954 186.52C176.977 177.058 187.575 164.649 194.883 150.307C202.19 135.965 206 120.097 206 104"
+          stroke={item.color}
+          strokeWidth="4"
+          strokeLinecap="round"
+        />
+        <rect
+          x="12"
+          y="33"
+          width="20"
+          height="20"
+          rx="10"
+          fill="#2F2F31"
+        />
+        <circle cx="22" cy="43" r="4" fill={item.color} />
+      </svg>
+    ),
+    action:
+      item.title === "NEWS2 Score"
+        ? () => set_news_score(true)
+        : item.title === "AF Warning"
+          ? () => set_ap_warning(true)
+          : item.title === "Stroke Risk"
+            ? () => set_stroke_risk(true)
+            : () => set_seizure_risk(true),
+  }));
 
   // Helper function to format temperature to 1 decimal place
   const formatTemperature = (temp) => {
@@ -507,6 +335,8 @@ export default function Overview() {
     if (hrvVal !== undefined && hrvVal !== null) hrvVal = Math.round(hrvVal);
     if (movementVal !== undefined && movementVal !== null) movementVal = Math.round(movementVal);
 
+    const noGraphPlaceholder = <div className="flex items-center justify-center h-full min-h-[200px] text-white/20 font-lufga italic">no graph</div>;
+
     return [
       {
         icon: <Hart />,
@@ -514,7 +344,7 @@ export default function Overview() {
         title: "Heart Rate",
         value: hrVal ?? '--',
         extension: "bpm",
-        img: <HeartRateLive className="p-4 md:p-6" width={360} historyData={historyData} />,
+        img: (hrVal === 0 || !hrVal) ? noGraphPlaceholder : <HeartRateLive className="p-4 md:p-6" width={360} historyData={historyData} />,
         path: `/dashboard/heart-rate/${userId || ""}`,
       },
       {
@@ -523,7 +353,7 @@ export default function Overview() {
         title: "SpO2",
         value: spo2Val ? `${spo2Val}%` : '--',
         extension: "",
-        img: <SpO2Gauge value={spo2Val ?? 98} />,
+        img: (spo2Val === 0 || !spo2Val) ? noGraphPlaceholder : <SpO2Gauge value={spo2Val ?? 98} />,
         path: `/dashboard/spo/${userId || ""}`,
       },
       {
@@ -532,7 +362,7 @@ export default function Overview() {
         title: "BP Trend",
         value: (sysVal || diaVal) ? `${sysVal ?? '--'}/${diaVal ?? '--'}` : '--/--',
         extension: "mmHg",
-        img: <BPBars historyData={historyData} />,
+        img: (sysVal === 0 || sysVal === '0' || !sysVal) ? noGraphPlaceholder : <BPTrend historyData={historyData} />,
         path: `/dashboard/bp-trend/${userId || ""}`,
       },
       {
@@ -541,7 +371,7 @@ export default function Overview() {
         title: "Temperature",
         value: tempVal ? formatTemperature(tempVal) : '--',
         extension: "°C",
-        img: <TempWave historyData={historyData} />,
+        img: (tempVal === 0 || tempVal === '0' || !tempVal) ? noGraphPlaceholder : <TempWave historyData={historyData} />,
         path: `/dashboard/temperature/${userId || ""}`,
       },
       {
@@ -550,7 +380,7 @@ export default function Overview() {
         title: "HRV Score",
         value: hrvVal ?? '--',
         extension: "ms",
-        img: <HrvScore historyData={historyData} />,
+        img: (hrvVal === 0 || !hrvVal) ? noGraphPlaceholder : <HrvScore historyData={historyData} />,
         path: `/dashboard/hrv-score/${userId || ""}`,
       },
       {
@@ -559,7 +389,7 @@ export default function Overview() {
         title: "Movement",
         value: movementVal ?? '--',
         extension: "",
-        img: <Movement historyData={historyData} />,
+        img: (movementVal === 0 || !movementVal) ? noGraphPlaceholder : <Movement historyData={historyData} />,
         path: `/dashboard/movement/${userId || ""}`,
       },
       {
@@ -568,7 +398,7 @@ export default function Overview() {
         title: "Sleep Pattern",
         value: latestVitals?.sleep_pattern ?? '--',
         extension: "",
-        img: <SleepPattern />,
+        img: (latestVitals?.sleep_pattern === "Unknown" || !latestVitals?.sleep_pattern || latestVitals?.sleep_pattern === '--') ? noGraphPlaceholder : <SleepPattern />,
         path: `/dashboard/sleep-pattern/${userId || ""}`,
       },
       {
@@ -577,7 +407,7 @@ export default function Overview() {
         title: "Stress Level",
         value: latestVitals?.stress_level ?? '--',
         extension: "",
-        img: <StressPatternChart historyData={historyData} />,
+        img: (latestVitals?.stress_level === "Normal" && (hrVal === 0 || !hrVal)) ? noGraphPlaceholder : <StressPatternChart historyData={historyData} />,
         path: `/dashboard/stress/${userId || ""}`,
       },
     ];
