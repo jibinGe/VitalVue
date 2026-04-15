@@ -363,65 +363,86 @@ async def flag_doctor(
 @router.post("/patients/{patient_id}/action")
 async def perform_patient_action(
     patient_id: int,
-    action_type: str = Body(..., embed=True), # 'Acknowledge Only', 'Medication', etc.
-    alert_id: int = Body(None, embed=True),    # Optional: Link to a specific alert
+    action_type: str = Body(..., embed=True),
+    alert_id: int = Body(None, embed=True),
     other_details: str = Body(None, embed=True),
-    performed_at: datetime = Body(None, embed=True), # Back-dated time from UI
+    performed_at: datetime = Body(None, embed=True),
     db: AsyncSession = Depends(get_db),
     redis = Depends(get_redis),
     current_user: User = Depends(get_current_user)
 ):
     # 1. Validation: Ensure Patient exists
     patient_check = await db.execute(select(Patient).where(Patient.id == patient_id))
-    if not patient_check.scalars().first():
+    patient = patient_check.scalars().first()
+    if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
 
-    # 2. Create the Action Log
+    # 2. Fix Timezone Mismatch (Naive vs Aware)
+    # SQLAlchemy TIMESTAMP WITHOUT TIME ZONE needs naive objects
+    clean_performed_at = performed_at
+    if clean_performed_at:
+        if clean_performed_at.tzinfo is not None:
+            clean_performed_at = clean_performed_at.replace(tzinfo=None)
+    else:
+        clean_performed_at = datetime.utcnow()
+
+    # 3. Handle Foreign Key logic (Convert 0 to None)
+    # This prevents the asyncpg.exceptions.ForeignKeyViolationError
+    actual_alert_id = alert_id if alert_id != 0 else None
+
+    # 4. Create the Action Log
     new_action = Action(
         patient_id=patient_id,
-        alert_id=alert_id,
+        alert_id=actual_alert_id,
         staff_id=current_user.id,
         action_type=action_type,
         other_details=other_details,
-        performed_at=performed_at or datetime.utcnow()
+        performed_at=clean_performed_at,
+        created_at=datetime.utcnow()
     )
     db.add(new_action)
 
-    # 3. If linked to an Alert, Mark the Alert as Resolved
-    if alert_id:
-        alert_result = await db.execute(select(Alert).where(Alert.id == alert_id))
+    # 5. If linked to an Alert, Mark the Alert as Resolved
+    if actual_alert_id:
+        alert_result = await db.execute(select(Alert).where(Alert.id == actual_alert_id))
         alert = alert_result.scalars().first()
         
         if alert:
             alert.is_resolved = True
             alert.resolved_at = datetime.utcnow()
             alert.resolved_by = current_user.id
+            alert.status = "resolved" # Matching your Alert model status column
             
-            # Broadcast the "Clear Alert" signal to the Dashboard via Redis
+            # Broadcast "Clear Alert" signal to Dashboard
             clear_payload = {
                 "event": "ALERT_RESOLVED",
-                "alert_id": alert_id,
+                "alert_id": actual_alert_id,
                 "patient_id": patient_id,
                 "action_taken": action_type,
                 "by": current_user.full_name
             }
             await redis.publish(f"patient:{patient_id}:alerts", json.dumps(clear_payload))
 
-    # 4. Broadcast the Action to the Ward Stream (for real-time timeline updates)
+    # 6. Broadcast Action to Ward Stream for Real-time Timeline
     action_payload = {
         "event": "ACTION_LOGGED",
         "patient_id": patient_id,
+        "patient_name": patient.full_name,
         "staff_name": current_user.full_name,
         "action": action_type,
-        "time": str(new_action.performed_at)
+        "details": other_details,
+        "time": clean_performed_at.isoformat()
     }
-    await redis.publish(f"ward_vitals_stream", json.dumps(action_payload))
+    await redis.publish("ward_vitals_stream", json.dumps(action_payload))
 
-    await db.commit()
+    try:
+        await db.commit()
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
     
     return {
         "status": "success",
         "action_id": new_action.id,
-        "message": f"Action '{action_type}' recorded by {current_user.full_name}"
+        "message": f"Action '{action_type}' recorded successfully"
     }
-
