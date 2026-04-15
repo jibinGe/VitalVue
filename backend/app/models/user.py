@@ -74,6 +74,7 @@ class Doctor(User):
     __tablename__ = "doctors"
     id: Mapped[int] = mapped_column(ForeignKey("users.id"), primary_key=True)
     specialization: Mapped[str] = mapped_column(String(100))
+    is_on_call: Mapped[bool] = mapped_column(Boolean, nullable=True)
     __mapper_args__ = {"polymorphic_identity": "doctor"}
 
 class OrgAdmin(User):

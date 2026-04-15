@@ -60,14 +60,15 @@ async def initiate_login(
 
     # Dispatch via SNS using the phone_number from your User table
     try:
-        sns_client.publish(
-            PhoneNumber=user.phone_number,
-            Message=f"Vitalvue Login Code: {otp}. Valid for 5 mins.",
-            MessageAttributes={
-                'AWS.SNS.SMS.SenderID': {'DataType': 'String', 'StringValue': 'Vitalvue'},
-                'AWS.SNS.SMS.SMSType': {'DataType': 'String', 'StringValue': 'Transactional'}
-            }
-        )
+        print(otp)
+        # sns_client.publish(
+        #     PhoneNumber=user.phone_number,
+        #     Message=f"Vitalvue Login Code: {otp}. Valid for 5 mins.",
+        #     MessageAttributes={
+        #         'AWS.SNS.SMS.SenderID': {'DataType': 'String', 'StringValue': 'Vitalvue'},
+        #         'AWS.SNS.SMS.SMSType': {'DataType': 'String', 'StringValue': 'Transactional'}
+        #     }
+        # )
     except Exception as e:
         # Logging error here is important
         raise HTTPException(status_code=500, detail="Failed to send SMS")

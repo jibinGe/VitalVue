@@ -33,3 +33,5 @@ docker exec -it vitalvue_redis redis-cli -a secure_redis_password_456 MONITOR
 docker exec -t vitalvue_db_container_name pg_dumpall -c -U postgres > vitalvue_backup_$(date +%Y%m%d_%H%M%S).sql
 
 cat vitalvue_backup_20260406.sql | docker exec -i vitalvue_db psql -U vitalvue_admin -d vitalvue_db
+
+
