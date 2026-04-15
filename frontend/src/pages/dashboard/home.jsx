@@ -29,6 +29,7 @@ export default function Home() {
   const { 
     criticalAlarmData, 
     setCriticalAlarmData, 
+    clearCriticalAlarm,
     triageFilter, 
     setTriageFilter,
     selectedUserId,
@@ -683,7 +684,16 @@ export default function Home() {
 
   const triageData = useMemo(() => recalculateTriageData(cardData), [cardData]);
 
-  // Handle Critical Alarm logic
+  // Clear alarm store when Home unmounts so stale home-page alarms
+  // never appear on the Overview page (and vice-versa).
+  useEffect(() => {
+    return () => {
+      clearCriticalAlarm();
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Handle Critical Alarm logic — tag with source:'home' so the
+  // Overview page's modal ignores alarms raised here.
   useEffect(() => {
     const criticals = cardData.filter(p => p.status?.toLowerCase() === "critical");
     criticals.forEach(p => {
@@ -691,7 +701,8 @@ export default function Home() {
         setCriticalAlarmData({
           name: p.name,
           userId: p.userId,
-          vitals: p.vitals || {}
+          vitals: p.vitals || {},
+          source: 'home',
         });
       }
     });
@@ -1274,14 +1285,15 @@ export default function Home() {
         ) : null
       )}
 
-      {/* 🚨 Critical Alarm Modal — fires when a critical_alert arrives via SSE */}
+      {/* 🚨 Critical Alarm Modal — only shows alarms originating from this
+          page (source:'home'). Overview-sourced alarms are filtered out. */}
       <CriticalAlarmModal
-        isOpen={!!criticalAlarmData}
+        isOpen={!!criticalAlarmData && criticalAlarmData?.source !== 'overview'}
         patientName={criticalAlarmData?.name}
         patientId={criticalAlarmData?.userId}
         vitals={criticalAlarmData?.vitals}
         alert={criticalAlarmData?.alert}
-        onDismiss={() => setCriticalAlarmData(null)}
+        onDismiss={() => clearCriticalAlarm()}
         onViewPatient={() => {
           if (criticalAlarmData?.userId) {
             navigate(`/dashboard/overview/${criticalAlarmData.userId}`);

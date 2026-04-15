@@ -33,6 +33,7 @@ export default function PatientStreamWatcher({ patientId, patientName }) {
       userId:  patientId,
       vitals:  vitalsSnapshot,
       alert:   criticalAlert,   // { vital_type, triggered_value, severity, ... }
+      source:  'home',          // prevents overview from showing home-page alarms
     });
   }, [criticalAlert]); // eslint-disable-line react-hooks/exhaustive-deps
 

@@ -52,6 +52,7 @@ export default function Overview() {
   const {
     criticalAlarmData,
     setCriticalAlarmData,
+    clearCriticalAlarm,
     setSelectedUserId,
     setSelectedUserName
   } = useDashboardStore();
@@ -80,6 +81,17 @@ export default function Overview() {
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
+
+  // ── Clear alarm store on mount and unmount ──────────────────────────────
+  // On mount: clears any stale alarm from the Home page so it doesn't
+  // immediately pop up when navigating to Overview.
+  // On unmount: clears any overview alarm so Home doesn't inherit it.
+  useEffect(() => {
+    clearCriticalAlarm();
+    return () => {
+      clearCriticalAlarm();
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!loading) {
@@ -441,28 +453,12 @@ export default function Overview() {
       _alertTriggeredVal: criticalAlert.triggered_value,
     };
 
-    setCriticalAlarmData({ vitals: vitalsSnapshot, alert: criticalAlert });
+    setCriticalAlarmData({ vitals: vitalsSnapshot, alert: criticalAlert, source: 'overview' });
   }, [criticalAlert]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Fallback: trigger alarm from clinical risk flags in snapshot data ─
-  useEffect(() => {
-    if (!currentVitals) return;
-
-    let hasCritical = false;
-    if (currentVitals && currentVitals.clinical_risks) {
-      if (currentVitals.clinical_risks.news2_score >= 7 || 
-          currentVitals.clinical_risks.af_warning || 
-          currentVitals.clinical_risks.stroke_risk === "High" || 
-          currentVitals.clinical_risks.seizure_risk === "High"
-      ) {
-         hasCritical = true;
-      }
-    }
-
-    if (hasCritical) {
-      setCriticalAlarmData({ vitals: currentVitals.primary_vitals || {} });
-    }
-  }, [currentVitals, setCriticalAlarmData]);
+  // (Removed: fallback polling alarm from clinical_risks — the SSE-based
+  //  criticalAlert effect above is sufficient and avoids re-triggering the
+  //  modal on every 5-second data refresh.)
 
   useEffect(() => {
     if (
@@ -827,16 +823,17 @@ export default function Overview() {
         icon={<SuccessTik className="size-6 text-[#2CD155]" />}
       />
 
-      {/* 🚨 Critical Alarm Modal */}
+      {/* 🚨 Critical Alarm Modal — only shows alarms originating from this
+          page (source:'overview'). Home-sourced alarms are filtered out. */}
       <CriticalAlarmModal
-        isOpen={!!criticalAlarmData}
+        isOpen={!!criticalAlarmData && criticalAlarmData?.source !== 'home'}
         patientName={patientData?.name || patientData?.fullName}
         patientId={userId}
         vitals={criticalAlarmData?.vitals}
         alert={criticalAlarmData?.alert}
-        onDismiss={() => setCriticalAlarmData(null)}
+        onDismiss={() => clearCriticalAlarm()}
         onViewPatient={() => {
-          setCriticalAlarmData(null);
+          clearCriticalAlarm();
           // Already on the patient page, just scroll to top
           window.scrollTo({ top: 0, behavior: "smooth" });
         }}
