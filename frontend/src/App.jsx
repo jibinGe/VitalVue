@@ -5,6 +5,7 @@ import viteLogo from './assets/vite.svg'
 import heroImg from './assets/hero.png'
 import './App.css'
 import LoginPage from './login page/LoginPage'
+import NurseDashboard from './nurse dashboard/NurseDashboard'
 
 function App() {
   const [count, setCount] = useState(0)
@@ -15,6 +16,10 @@ function App() {
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
   }, [])
+
+  if (path === '/nursedashboard' || path === '/nursedashboard/') {
+    return <NurseDashboard />
+  }
 
   if (path === '/loginpage' || path === '/loginpage/') {
     return <LoginPage />

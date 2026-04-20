@@ -1,0 +1,134 @@
+.dashboard-top-bar {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 24px 8px 16px;
+  background: #27272b;
+  border-top: 1.2px solid #0f0f0f;
+  border-bottom: 1.2px solid #0f0f0f;
+  box-shadow: 0 0 50px rgba(0, 0, 0, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.dashboard-top-bar__statuses {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.dashboard-status-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 14px;
+  border-radius: 50px;
+  color: #fff;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+.dashboard-status-chip.is-critical {
+  background: #4a4a4c;
+  outline: 1px solid #969696;
+  outline-offset: -1px;
+}
+
+.dashboard-status-chip.is-warning,
+.dashboard-status-chip.is-stable {
+  background: #373739;
+}
+
+.dashboard-status-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+}
+
+.dashboard-status-label {
+  font-family: 'Lufga', 'Lufga:Regular', sans-serif;
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.dashboard-status-value {
+  font-family: 'Lufga', 'Lufga:Medium', sans-serif;
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.dashboard-top-bar__action {
+  width: 156px;
+  min-height: 34px;
+  padding: 0 22px;
+  margin-right: 12px;
+  border: 0;
+  border-radius: 12px;
+  background: linear-gradient(117deg, #b2884d 0%, #cca166 50%, #b2884d 100%);
+  box-shadow: inset -1px -1px 5.8px rgba(139, 139, 139, 0.23);
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.dashboard-top-bar__action-label {
+  color: #fff;
+  font-family: 'Lufga', 'Lufga:Regular', sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1;
+  text-align: center;
+}
+
+@media (max-width: 1024px) {
+  .dashboard-top-bar {
+    padding: 7px 24px 7px 16px;
+  }
+
+  .dashboard-top-bar__statuses {
+    gap: 10px;
+  }
+
+  .dashboard-status-chip {
+    padding-inline: 12px;
+  }
+
+  .dashboard-status-label {
+    font-size: 16px;
+  }
+
+  .dashboard-status-value {
+    font-size: 19px;
+  }
+
+  .dashboard-top-bar__action {
+    width: 148px;
+    min-height: 32px;
+    padding-inline: 18px;
+  }
+
+  .dashboard-top-bar__action-label {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-top-bar {
+    justify-content: center;
+  }
+
+  .dashboard-top-bar__action {
+    width: 100%;
+    max-width: 320px;
+  }
+}

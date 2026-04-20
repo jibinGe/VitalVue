@@ -1,0 +1,19 @@
+.patient-details-cards {
+  width: 100%;
+  margin: 0;
+  box-sizing: border-box;
+  padding: 24px;
+}
+
+.cards-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+@media (max-width: 1024px) {
+  .cards-container {
+    gap: 15px;
+  }
+}
+
