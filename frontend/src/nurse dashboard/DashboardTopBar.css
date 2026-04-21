@@ -46,21 +46,21 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
   flex: 0 0 auto;
 }
 
 .dashboard-status-label {
   font-family: 'Lufga', 'Lufga:Regular', sans-serif;
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 400;
   line-height: 1;
 }
 
 .dashboard-status-value {
   font-family: 'Lufga', 'Lufga:Medium', sans-serif;
-  font-size: 22px;
+  font-size: 16px;
   font-weight: 500;
   line-height: 1;
 }
@@ -75,10 +75,11 @@
   background: linear-gradient(117deg, #b2884d 0%, #cca166 50%, #b2884d 100%);
   box-shadow: inset -1px -1px 5.8px rgba(139, 139, 139, 0.23);
   overflow: hidden;
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  flex-shrink: 0;
 }
 
 .dashboard-top-bar__action-label {
@@ -122,7 +123,7 @@
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 480px) {
   .dashboard-top-bar {
     justify-content: center;
   }
