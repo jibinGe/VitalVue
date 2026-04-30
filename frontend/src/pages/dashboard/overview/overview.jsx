@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { patientService } from "@/services/patientService";
 import { authService } from "@/services/authService";
 import MainBody from "@/components/dashboard/main-body";
@@ -49,6 +49,8 @@ import HistoryTable from "@/components/dashboard/HistoryTable";
 export default function Overview() {
   const { userId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const statePatient = location.state || {};
   const {
     criticalAlarmData,
     setCriticalAlarmData,
@@ -507,11 +509,11 @@ export default function Overview() {
   return (
     <>
       <MainBody>
-        {/* Back Button */}
-        <div className="mb-6">
+        {/* Back Button and Patient Details Strip */}
+        <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#252527] p-4 rounded-2xl border border-white/5 shadow-sm">
           <Link
             to="/dashboard/home"
-            className="inline-flex items-center gap-2 text-white hover:text-primary transition-colors duration-200"
+            className="inline-flex items-center gap-2 text-white hover:text-primary transition-colors duration-200 shrink-0"
           >
             <svg
               width="24"
@@ -530,6 +532,29 @@ export default function Overview() {
             </svg>
             <span className="text-base font-medium">Back to Home</span>
           </Link>
+
+          {/* Patient Details */}
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm md:text-base">
+            <div className="flex items-center gap-2">
+              <span className="text-white/60 font-lufga">Patient:</span>
+              <span className="text-white font-medium font-lufga">{statePatient.patientName || patientData?.name || currentVitals?.patientName || "--"}</span>
+            </div>
+            <div className="hidden md:block w-[1px] h-4 bg-white/20"></div>
+            <div className="flex items-center gap-2">
+              <span className="text-white/60 font-lufga">ID:</span>
+              <span className="text-white font-medium font-lufga">{statePatient.patientId || patientData?.patientId || currentVitals?.patientId || userId || "--"}</span>
+            </div>
+            <div className="hidden md:block w-[1px] h-4 bg-white/20"></div>
+            <div className="flex items-center gap-2">
+              <span className="text-white/60 font-lufga">Ward:</span>
+              <span className="text-white font-medium font-lufga">{patientData?.ward || currentVitals?.ward || "--"}</span>
+            </div>
+            <div className="hidden md:block w-[1px] h-4 bg-white/20"></div>
+            <div className="flex items-center gap-2">
+              <span className="text-white/60 font-lufga">Room/Bed:</span>
+              <span className="text-white font-medium font-lufga">{statePatient.room || patientData?.room || currentVitals?.room || patientData?.bed || currentVitals?.bed || "--"}</span>
+            </div>
+          </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-[repeat(auto-fit,325px)] gap-4 md:gap-5 xl:gap-6">
           {triageStatus.map((item, index) => (
@@ -779,10 +804,10 @@ export default function Overview() {
           onClick={() => set_flag_doctor_review(false)}
           userId={userId}
           patientDetails={{
-            name: patientData?.name || currentVitals?.patientName || "Arthur Crane",
-            id: patientData?.patientId || currentVitals?.patientId || userId || "P-1049",
-            ward: patientData?.ward || currentVitals?.ward || "ICU Ward - 03",
-            bed: patientData?.bed || currentVitals?.bed || "12A",
+            name: statePatient.patientName || patientData?.name || currentVitals?.patientName || "--",
+            id: statePatient.patientId || patientData?.patientId || currentVitals?.patientId || userId || "--",
+            ward: patientData?.ward || currentVitals?.ward || "--",
+            bed: statePatient.room || patientData?.bed || currentVitals?.bed || "--",
             news2Score: currentVitals?.assessments?.news2?.score || patientData?.assessments?.news2?.score || 1,
             lastSync: "2m ago" // You can calculate this from currentVitals?.timestamp if needed
           }}
@@ -797,10 +822,10 @@ export default function Overview() {
         onSave={handleSaveNotes}
         title="Add Clinical Note"
         patientDetails={{
-          name: patientData?.name || currentVitals?.patientName || "Arthur Crane",
-          id: patientData?.patientId || currentVitals?.patientId || userId || "P-1049",
-          bed: patientData?.bed || currentVitals?.bed || "12A",
-          ward: patientData?.ward || currentVitals?.ward || "ICU Ward - 03"
+          name: statePatient.patientName || patientData?.name || currentVitals?.patientName || "--",
+          id: statePatient.patientId || patientData?.patientId || currentVitals?.patientId || userId || "--",
+          bed: statePatient.room || patientData?.bed || currentVitals?.bed || "--",
+          ward: patientData?.ward || currentVitals?.ward || "--"
         }}
       />
 
@@ -810,10 +835,10 @@ export default function Overview() {
         onSave={handleSaveEventLog}
         title="Log Event"
         patientDetails={{
-          name: patientData?.name || currentVitals?.patientName || "Arthur Crane",
-          id: patientData?.patientId || currentVitals?.patientId || userId || "P-1049",
-          bed: patientData?.bed || currentVitals?.bed || "12A",
-          ward: patientData?.ward || currentVitals?.ward || "ICU Ward - 03"
+          name: statePatient.patientName || patientData?.name || currentVitals?.patientName || "--",
+          id: statePatient.patientId || patientData?.patientId || currentVitals?.patientId || userId || "--",
+          bed: statePatient.room || patientData?.bed || currentVitals?.bed || "--",
+          ward: patientData?.ward || currentVitals?.ward || "--"
         }}
       />
 
@@ -823,10 +848,10 @@ export default function Overview() {
         onSave={handleSaveBaselineDeviation}
         title="Baseline Deviation"
         patientDetails={{
-          name: patientData?.name || currentVitals?.patientName || "Arthur Crane",
-          id: patientData?.patientId || currentVitals?.patientId || userId || "P-1049",
-          bed: patientData?.bed || currentVitals?.bed || "12A",
-          ward: patientData?.ward || currentVitals?.ward || "ICU Ward - 03"
+          name: statePatient.patientName || patientData?.name || currentVitals?.patientName || "--",
+          id: statePatient.patientId || patientData?.patientId || currentVitals?.patientId || userId || "--",
+          bed: statePatient.room || patientData?.bed || currentVitals?.bed || "--",
+          ward: patientData?.ward || currentVitals?.ward || "--"
         }}
       />
 

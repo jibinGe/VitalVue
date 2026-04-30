@@ -130,15 +130,15 @@ const PatientCard = memo(({
                         <div className="hidden xl:block absolute right-0 top-0 bottom-0 w-[1px] bg-[linear-gradient(180deg,rgba(102,102,102,0)_0%,#CCA166_49.52%,rgba(102,102,102,0)_100%)]"></div>
                         <div className="flex flex-col gap-3.5 mt-2 text-nowrap">
                             <div className="flex items-center">
-                                <span className="text-white font-lufga font-medium text-[28px]">{item.name}</span>
+                                <span className="text-white font-lufga font-medium text-[18px]">{item.name}</span>
                             </div>
                             <div className="flex items-center gap-1.5">
-                                <span className="text-white font-lufga font-medium text-[28px] whitespace-nowrap">Id:</span>
-                                <span className="text-white font-lufga font-medium text-[28px]">{item.patientId || item.userId?.toString().slice(0, 5)}</span>
+                                <span className="text-white font-lufga font-medium text-[18px] whitespace-nowrap">Id:</span>
+                                <span className="text-white font-lufga font-medium text-[18px]">{item.patientId || item.userId?.toString().slice(0, 5)}</span>
                             </div>
                             <div className="flex items-center gap-1.5">
-                                <span className="text-white font-lufga font-medium text-[28px] whitespace-nowrap">R.No:</span>
-                                <span className="text-white font-lufga font-medium text-[28px]">{item.room}</span>
+                                <span className="text-white font-lufga font-medium text-[18px] whitespace-nowrap">R.No:</span>
+                                <span className="text-white font-lufga font-medium text-[18px]">{item.room}</span>
                             </div>
                         </div>
                     </div>
@@ -151,6 +151,7 @@ const PatientCard = memo(({
                                 <Link
                                     key={vIndex}
                                     to={`/dashboard/overview/${item.id}`}
+                                    state={{ patientName: item.name, patientId: item.patientId || item.userId, room: item.room }}
                                     onClick={(e) => e.stopPropagation()}
                                     className="bg-[#2F2F31] rounded-[20px] overflow-hidden p-2.5 flex flex-col justify-between relative z-1 min-h-[140px]"
                                 >
