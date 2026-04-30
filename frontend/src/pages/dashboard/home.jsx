@@ -520,12 +520,54 @@ export default function Home() {
         ? { ...p.assessments, ...liveAssessments }
         : p.assessments;
 
+      // --- Triage Classification (NEWS2 + Risk Formula) ---
+      const news2Score = finalAssessments?.news2_score ?? finalAssessments?.news2?.score ?? 0;
+      const afWarning = finalAssessments?.af_warning;
+      const strokeRisk = finalAssessments?.stroke_risk?.riskLevel || finalAssessments?.stroke_risk || "Low";
+      const seizureRisk = finalAssessments?.seizure_risk?.riskLevel || finalAssessments?.seizure_risk || "Low";
+
+      // Check if no vitals are present at all (all values are 0 or missing)
+      const hasNoVitals = 
+        (!vitals.heartRate?.value || vitals.heartRate.value === 0) &&
+        (!vitals.spo2?.value || vitals.spo2.value === 0) &&
+        (!vitals.bloodPressure?.systolic || vitals.bloodPressure.systolic === 0) &&
+        (!vitals.temperature?.value || vitals.temperature.value === 0);
+
+      // Critical: any vital in "critical" status, or NEWS2 >= 7, or high stroke/seizure risk + abnormal HR
+      const hasCriticalVital =
+        vitals.heartRate?.status?.toLowerCase() === "critical" ||
+        vitals.spo2?.status?.toLowerCase() === "critical" ||
+        vitals.bloodPressure?.status?.toLowerCase() === "critical" ||
+        vitals.temperature?.status?.toLowerCase() === "critical";
+      const hasCriticalScore =
+        news2Score >= 7 ||
+        (finalAssessments?.news2?.riskLevel?.toLowerCase() === "high");
+      const hasCriticalRisk =
+        (strokeRisk === "High") ||
+        (seizureRisk === "High") ||
+        (afWarning !== undefined && afWarning !== "Normal" && afWarning !== 0 && afWarning !== false);
+
+      // Warning: NEWS2 score 5-6, or any vital "high"/"low", or medium risks
+      const hasWarningVital =
+        vitals.heartRate?.status?.toLowerCase() === "high" ||
+        vitals.heartRate?.status?.toLowerCase() === "low" ||
+        vitals.spo2?.status?.toLowerCase() === "high" ||
+        vitals.spo2?.status?.toLowerCase() === "low" ||
+        vitals.bloodPressure?.status?.toLowerCase() === "high" ||
+        vitals.bloodPressure?.status?.toLowerCase() === "low" ||
+        vitals.temperature?.status?.toLowerCase() === "high" ||
+        vitals.temperature?.status?.toLowerCase() === "low";
+      const hasWarningScore = news2Score >= 5 && news2Score < 7;
+      const hasWarningRisk =
+        strokeRisk === "Medium" ||
+        seizureRisk === "Medium";
+
       let status = "Stable";
-      const hasCritical = vitals.heartRate?.status?.toLowerCase() === "critical" || 
-                         vitals.spo2?.status?.toLowerCase() === "critical" || 
-                         vitals.bloodPressure?.status?.toLowerCase() === "critical" ||
-                         (finalAssessments?.news2?.riskLevel?.toLowerCase() === "high");
-      if (hasCritical) status = "Critical";
+      if (hasNoVitals || hasCriticalVital || hasCriticalScore || hasCriticalRisk) {
+        status = "Critical";
+      } else if (hasWarningVital || hasWarningScore || hasWarningRisk) {
+        status = "Warning";
+      }
 
       return {
         status: status,
