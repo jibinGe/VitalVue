@@ -51,7 +51,7 @@ export default function PatientArchives() {
                 // Placeholder for future backend integration
                 // const response = await patientService.getArchivedPatients();
                 // if (response.success) setArchivedPatients(response.data);
-                setArchivedPatients([]); 
+                setArchivedPatients([]);
             } catch (error) {
                 console.error('Failed to fetch archived patients:', error);
             } finally {
@@ -108,11 +108,11 @@ export default function PatientArchives() {
                                 >
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4 md:p-6">
                                         <DatePicker
-                                            label="Monitoring End (From)"
+                                            label="Monitoring From"
                                             placeholder="mm / dd / yyyyy"
                                         />
                                         <DatePicker
-                                            label="Monitoring End (To)"
+                                            label="Monitoring To"
                                             placeholder="mm / dd / yyyyy"
                                         />
                                         <Dropdown

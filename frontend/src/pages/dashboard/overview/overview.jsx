@@ -6,7 +6,6 @@ import MainBody from "@/components/dashboard/main-body";
 import Modal from "@/components/ui/modal-right";
 import Modal2 from "@/components/ui/modal";
 import AddNotesModal from "@/components/ui/AddNotesModal";
-import EventLogModal from "@/components/ui/EventLogModal";
 import BaselineDeviationModal from "@/components/ui/BaselineDeviationModal";
 import ConfirmationModal from "@/components/ui/ConfirmationModal";
 import CriticalAlarmModal from "@/components/ui/CriticalAlarmModal";
@@ -36,13 +35,13 @@ import { Link } from "react-router-dom";
 
 import SpO2Gauge from "@/components/animation/overview/spo2Gauge";
 import BPTrend from "@/components/animation/overview/BPTrend";
-import HrvScore from "@/components/animation/overview/hrv-score";
+// import HrvScore from "@/components/animation/overview/hrv-score";
 import TempWave from "../../../components/animation/overview/tempWave";
 import SleepPattern from "@/components/animation/overview/sleep-pattern";
-import StressPatternChart from "@/components/dashboard/charts/stress-pattern-chart";
+// import StressPatternChart from "@/components/dashboard/charts/stress-pattern-chart";
 import DoctorReview from "../../../components/dashboard/overview/doctor-review";
 import HeartRateLive from "../../../components/charts/HeartRateLive";
-import Movement from "../../../components/animation/overview/movement";
+// import Movement from "../../../components/animation/overview/movement";
 import ArcProgress from "../../../components/arc-progress";
 import HistoryTable from "@/components/dashboard/HistoryTable";
 
@@ -78,7 +77,6 @@ export default function Overview() {
   const [seizure_risk, set_seizure_risk] = useState(false);
   const [flag_doctor_review, set_flag_doctor_review] = useState(false);
   const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
-  const [isEventLogModalOpen, setIsEventLogModalOpen] = useState(false);
   const [isBaselineDeviationModalOpen, setIsBaselineDeviationModalOpen] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
@@ -125,36 +123,6 @@ export default function Overview() {
       console.error('Error saving clinical note:', error);
       setIsNotesModalOpen(false);
       setSuccessMessage('An error occurred while saving the clinical note.');
-      setIsSuccessModalOpen(true);
-    }
-  };
-
-  const handleSaveEventLog = async (data) => {
-    try {
-      // Convert datetime-local string to ISO 8601 (e.g. "2026-03-02T06:34" -> ISO string)
-      const isoTimestamp = data.timestamp
-        ? new Date(data.timestamp).toISOString()
-        : new Date().toISOString();
-
-      const response = await patientService.logClinicalEvent({
-        patientId: userId,
-        eventType: data.eventType,
-        timestamp: isoTimestamp,
-        description: data.description,
-      });
-
-      setIsEventLogModalOpen(false);
-
-      if (response.success) {
-        setSuccessMessage(`Event "${data.eventType}" has been logged successfully for the patient.`);
-      } else {
-        setSuccessMessage(response.message || `Failed to log event "${data.eventType}".`);
-      }
-      setIsSuccessModalOpen(true);
-    } catch (error) {
-      console.error("Error logging clinical event:", error);
-      setIsEventLogModalOpen(false);
-      setSuccessMessage("An error occurred while logging the event.");
       setIsSuccessModalOpen(true);
     }
   };
@@ -222,6 +190,7 @@ export default function Overview() {
     });
 
     // Stroke Risk
+    /*
     const strokeRisk = assessments.stroke_risk?.riskLevel || assessments.stroke_risk || "Low";
     statusMap.push({
       title: "Stroke Risk",
@@ -230,8 +199,10 @@ export default function Overview() {
       description: strokeRisk === "High" ? "Elevated risk" : strokeRisk === "Medium" ? "Moderate risk" : "Normal neuro sign",
       color: strokeRisk === "High" ? "#E54D4D" : strokeRisk === "Medium" ? "#FFBB33" : "#2CD155",
     });
+    */
 
     // Seizure Risk
+    /*
     const seizureRisk = assessments.seizure_risk?.riskLevel || assessments.seizure_risk || "Normal";
     statusMap.push({
       title: "Seizure Risk",
@@ -240,6 +211,7 @@ export default function Overview() {
       description: seizureRisk === "High" ? "Elevated EDA levels" : seizureRisk === "Normal" ? "Normal EDA levels" : "Moderate EDA levels",
       color: seizureRisk === "High" ? "#E54D4D" : seizureRisk === "Medium" ? "#FFBB33" : "#2CD155",
     });
+    */
 
     return statusMap;
   };
@@ -407,7 +379,7 @@ export default function Overview() {
         img: (tempVal === 0 || tempVal === '0' || !tempVal) ? noGraphPlaceholder : <TempWave historyData={historyData} />,
         path: `/dashboard/temperature/${userId || ""}`,
       },
-      {
+      /* {
         icon: <Hrv />,
         iconBg: "bg-yellow",
         title: "HRV Score",
@@ -424,7 +396,7 @@ export default function Overview() {
         extension: "",
         img: (movementVal === 0 || !movementVal) ? noGraphPlaceholder : <Movement historyData={historyData} />,
         path: `/dashboard/movement/${userId || ""}`,
-      },
+      }, */
       {
         icon: <Moon />,
         iconBg: "bg-burnt",
@@ -434,7 +406,7 @@ export default function Overview() {
         img: (latestVitals?.sleep_pattern === "Unknown" || !latestVitals?.sleep_pattern || latestVitals?.sleep_pattern === '--') ? noGraphPlaceholder : <SleepPattern />,
         path: `/dashboard/sleep-pattern/${userId || ""}`,
       },
-      {
+      /* {
         icon: <Brain />,
         iconBg: "bg-deepBlue",
         title: "Stress Level",
@@ -442,13 +414,12 @@ export default function Overview() {
         extension: "",
         img: (latestVitals?.stress_level === "Normal" && (hrVal === 0 || !hrVal)) ? noGraphPlaceholder : <StressPatternChart historyData={historyData} />,
         path: `/dashboard/stress/${userId || ""}`,
-      },
+      }, */
     ];
   }, [currentVitals, patientData, userId, patientHistory]);
 
   const btn = [
     "Add Note",
-    "Event Log",
     "Baseline Deviation",
     "Export Summary PDF",
   ];
@@ -510,46 +481,48 @@ export default function Overview() {
     <>
       <MainBody>
         {/* Back Button and Patient Details Strip */}
-        <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#252527] p-4 rounded-2xl border border-white/5 shadow-sm">
-          <Link
-            to="/dashboard/home"
-            className="inline-flex items-center gap-2 text-white hover:text-primary transition-colors duration-200 shrink-0"
-          >
-            <svg
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
+        <div className="mb-6 flex flex-col md:flex-row md:items-center justify-start bg-[#252527] p-4 rounded-2xl border border-white/5 shadow-sm">
+          <div className="w-full md:w-[calc(50%-6px)] lg:w-[calc(25%-11px)] xl:w-[325px] flex-shrink-0 xl:mr-[8px] mb-4 md:mb-0">
+            <Link
+              to="/dashboard/home"
+              className="inline-flex items-center gap-2 text-white hover:text-primary transition-colors duration-200 shrink-0"
             >
-              <path
-                d="M15 18L9 12L15 6"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-            <span className="text-base font-medium">Back to Home</span>
-          </Link>
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M15 18L9 12L15 6"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <span className="text-base font-medium  md:text-lg xl:text-[22px]">Back</span>
+            </Link>
+          </div>
 
           {/* Patient Details */}
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm md:text-base">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-3 text-base md:text-lg xl:text-[22px]">
             <div className="flex items-center gap-2">
               <span className="text-white/60 font-lufga">Patient:</span>
               <span className="text-white font-medium font-lufga">{statePatient.patientName || patientData?.name || currentVitals?.patientName || "--"}</span>
             </div>
-            <div className="hidden md:block w-[1px] h-4 bg-white/20"></div>
+            <div className="hidden md:block w-[1px] h-5 xl:h-6 bg-white/20"></div>
             <div className="flex items-center gap-2">
               <span className="text-white/60 font-lufga">ID:</span>
               <span className="text-white font-medium font-lufga">{statePatient.patientId || patientData?.patientId || currentVitals?.patientId || userId || "--"}</span>
             </div>
-            <div className="hidden md:block w-[1px] h-4 bg-white/20"></div>
+            <div className="hidden md:block w-[1px] h-5 xl:h-6 bg-white/20"></div>
             <div className="flex items-center gap-2">
               <span className="text-white/60 font-lufga">Ward:</span>
               <span className="text-white font-medium font-lufga">{patientData?.ward || currentVitals?.ward || "--"}</span>
             </div>
-            <div className="hidden md:block w-[1px] h-4 bg-white/20"></div>
+            <div className="hidden md:block w-[1px] h-5 xl:h-6 bg-white/20"></div>
             <div className="flex items-center gap-2">
               <span className="text-white/60 font-lufga">Room/Bed:</span>
               <span className="text-white font-medium font-lufga">{statePatient.room || patientData?.room || currentVitals?.room || patientData?.bed || currentVitals?.bed || "--"}</span>
@@ -716,8 +689,6 @@ export default function Overview() {
                 onClick={() => {
                   if (item === "Add Note") {
                     setIsNotesModalOpen(true);
-                  } else if (item === "Event Log") {
-                    setIsEventLogModalOpen(true);
                   } else if (item === "Baseline Deviation") {
                     setIsBaselineDeviationModalOpen(true);
                   }
@@ -821,19 +792,6 @@ export default function Overview() {
         onClose={() => setIsNotesModalOpen(false)}
         onSave={handleSaveNotes}
         title="Add Clinical Note"
-        patientDetails={{
-          name: statePatient.patientName || patientData?.name || currentVitals?.patientName || "--",
-          id: statePatient.patientId || patientData?.patientId || currentVitals?.patientId || userId || "--",
-          bed: statePatient.room || patientData?.bed || currentVitals?.bed || "--",
-          ward: patientData?.ward || currentVitals?.ward || "--"
-        }}
-      />
-
-      <EventLogModal
-        isOpen={isEventLogModalOpen}
-        onClose={() => setIsEventLogModalOpen(false)}
-        onSave={handleSaveEventLog}
-        title="Log Event"
         patientDetails={{
           name: statePatient.patientName || patientData?.name || currentVitals?.patientName || "--",
           id: statePatient.patientId || patientData?.patientId || currentVitals?.patientId || userId || "--",

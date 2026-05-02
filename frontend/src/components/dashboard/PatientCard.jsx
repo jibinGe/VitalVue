@@ -1,5 +1,5 @@
 import React, { memo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Angle, Bp, Hart, Spo, Temp } from "@/utilities/icons";
 import HeartRateLive from "@/components/charts/HeartRateLive";
 import BPTrend from "@/components/animation/overview/BPTrend";
@@ -34,6 +34,7 @@ const PatientCard = memo(({
 }) => {
     // --- ADDED STATE FOR TOGGLING ---
     const [isExpanded, setIsExpanded] = useState(false);
+    const navigate = useNavigate();
 
     // --- EXACT ORIGINAL FUNCTIONS ---
     const getCardGlowClass = (status) => {
@@ -128,9 +129,37 @@ const PatientCard = memo(({
                     <div className="flex flex-col w-full xl:w-[270px] shrink-0 xl:pr-12 relative gap-4">
                         {/* Vertical Divider for xl+ */}
                         <div className="hidden xl:block absolute right-0 top-0 bottom-0 w-[1px] bg-[linear-gradient(180deg,rgba(102,102,102,0)_0%,#CCA166_49.52%,rgba(102,102,102,0)_100%)]"></div>
-                        <div className="flex flex-col gap-3.5 mt-2 text-nowrap">
-                            <div className="flex items-center">
+                        <div className="flex flex-col gap-3.5 mt-2 text-nowrap relative">
+                            <div className="flex items-center justify-between">
                                 <span className="text-white font-lufga font-medium text-[18px]">{item.name}</span>
+                                <button onClick={(e) => { e.stopPropagation(); setCardMenu(cardMenu === index + 1 ? null : index + 1) }} className="relative z-20 hover:bg-white/10 p-1.5 rounded-full transition-colors cursor-pointer">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-white opacity-80"><circle cx="12" cy="5" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="19" r="1.5" fill="currentColor"/></svg>
+                                </button>
+                                <AnimatePresence>
+                                    {cardMenu === index + 1 && (
+                                        <motion.div ref={card_ref} initial={{ opacity: 0, scale: 0.9, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 10 }} transition={{ duration: 0.15 }} className="absolute top-8 right-0 min-w-[200px] bg-[#222225] border border-white/16 rounded-2xl shadow-2xl z-[90] overflow-hidden">
+                                            {CardMenu.map((menuItem, menuIndex) => {
+                                                const isAction = menuItem.text === "End Monitoring";
+                                                const text = (isAction && !item.isConnected) ? "Start Monitoring" : menuItem.text;
+                                                return (
+                                                <button key={menuIndex} onClick={(e) => { 
+                                                    e.stopPropagation(); 
+                                                    if (isAction) { 
+                                                        setSelectedUserId(item.id); 
+                                                        setSelectedUserName(item.name); 
+                                                        setEndMonitoring(true); 
+                                                    } else if (menuItem.text === "View Details") {
+                                                        navigate(`/dashboard/overview/${item.id}`, { state: { patientName: item.name, patientId: item.patientId || item.userId, room: item.room } });
+                                                    }
+                                                    setCardMenu(null); 
+                                                }} className={`flex items-center hover:bg-white/5 gap-3 font-normal py-3.5 px-4 text-[15px] relative z-1 w-full text-nowrap transition-colors ${isAction ? "text-[#E86363] hover:bg-[#E86363]/10" : "text-white"}`}>
+                                                    {menuItem.icon} {text} {menuIndex !== CardMenu.length - 1 && <span className="absolute bottom-0 left-0 w-full bg-[linear-gradient(90deg,rgba(255,255,255,0)_0%,rgba(255,255,255,0.1)_50%,rgba(255,255,255,0)_100%)] h-[1px]" />}
+                                                </button>
+                                                )
+                                            })}
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
                             </div>
                             <div className="flex items-center gap-1.5">
                                 <span className="text-white font-lufga font-medium text-[18px] whitespace-nowrap">Id:</span>
@@ -179,8 +208,7 @@ const PatientCard = memo(({
                                 <div className="flex flex-col gap-3.5 w-full relative z-10">
                                     <div className="flex items-center gap-1.5 w-full justify-between xl:justify-start">
                                         <span className="font-lufga font-medium text-[15px] xl:text-[16px] text-white">Status</span>
-                                        <div className={`px-2 py-[3px] flex items-center justify-center font-lufga font-normal rounded-full text-[12px] xl:text-[13px] cursor-pointer whitespace-nowrap mt-0.5 ${item.isConnected ? getStatusBadgeClass(item.status) : 'text-[#E54D4D] bg-[#E54D4D]/20'}`}
-                                            onClick={(e) => { e.stopPropagation(); setCardMenu(cardMenu === index + 1 ? null : index + 1) }}>
+                                        <div className={`px-2 py-[3px] flex items-center justify-center font-lufga font-normal rounded-full text-[12px] xl:text-[13px] whitespace-nowrap mt-0.5 ${item.isConnected ? getStatusBadgeClass(item.status) : 'text-[#E54D4D] bg-[#E54D4D]/20'}`}>
                                             {item.isConnected ? 'Connected' : 'Disconnected'}
                                         </div>
                                     </div>
@@ -195,19 +223,6 @@ const PatientCard = memo(({
                                 <button className="bg-white/10 hover:bg-white/20 transition-all w-full h-6 absolute bottom-0 left-0 flex items-center justify-center border-t border-white/5" onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded); }}>
                                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className={`size-4 opacity-80 transition-transform ${isExpanded ? 'rotate-180' : ''}`}><path d="M19.92 8.95L13.4 15.47C12.63 16.24 11.37 16.24 10.6 15.47L4.07996 8.95" stroke="white" strokeWidth="1.5" strokeMiterlimit="10" strokeLinecap="round" strokeLinejoin="round" /></svg>
                                 </button>
-                                <div className="relative z-2 w-full flex justify-center mt-3">
-                                    <AnimatePresence>
-                                        {cardMenu === index + 1 && (
-                                            <motion.div ref={card_ref} initial={{ opacity: 0, scale: 0.9, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 10 }} transition={{ duration: 0.15 }} className="absolute top-[0%] right-0 xl:right-full min-w-[200px] bg-[#222225] border border-white/16 rounded-2xl shadow-2xl z-[90] overflow-hidden">
-                                                {CardMenu.map((menuItem, menuIndex) => (
-                                                    <button key={menuIndex} onClick={(e) => { e.stopPropagation(); if (menuIndex === 2) { setSelectedUserId(item.id); setSelectedUserName(item.name); setEndMonitoring(true); } setCardMenu(null); }} className={`flex items-center hover:bg-white/5 gap-3 font-normal py-3.5 px-4 text-[15px] relative z-1 w-full text-nowrap transition-colors ${menuIndex === 2 ? "text-[#E86363] hover:bg-[#E86363]/10" : "text-white"}`}>
-                                                        {menuItem.icon} {menuItem.text} {menuIndex !== CardMenu.length - 1 && <span className="absolute bottom-0 left-0 w-full bg-[linear-gradient(90deg,rgba(255,255,255,0)_0%,rgba(255,255,255,0.1)_50%,rgba(255,255,255,0)_100%)] h-[1px]" />}
-                                                    </button>
-                                                ))}
-                                            </motion.div>
-                                        )}
-                                    </AnimatePresence>
-                                </div>
                             </div>
                         </div>
                     </div>

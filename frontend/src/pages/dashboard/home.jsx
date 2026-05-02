@@ -20,17 +20,14 @@ import { useWard } from "@/contexts/WardContext";
 import { usePatients } from "@/hooks/usePatients";
 import { useDoctors } from "@/hooks/useDoctors";
 import { useDashboardStore } from "@/store/useDashboardStore";
-import PatientStreamWatcher from "@/components/dashboard/PatientStreamWatcher";
-
-
 export default function Home() {
   const navigate = useNavigate();
   const { selectedWard } = useWard();
-  const { 
-    criticalAlarmData, 
-    setCriticalAlarmData, 
+  const {
+    criticalAlarmData,
+    setCriticalAlarmData,
     clearCriticalAlarm,
-    triageFilter, 
+    triageFilter,
     setTriageFilter,
     selectedUserId,
     setSelectedUserId,
@@ -365,6 +362,7 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [doctorFilterTab, setDoctorFilterTab] = useState("All");
   const [toast, setToast] = useState({ visible: false, message: "" });
+  const [patientSearchQuery, setPatientSearchQuery] = useState("");
 
   const card_ref = useRef(null);
   const [cardMenu, setCardMenu] = useState(null);
@@ -480,30 +478,30 @@ export default function Home() {
   const cardData = useMemo(() => {
     return rawPatients.map((p) => {
       // Get the latest vitals from history (fallback)
-      const latestHistoryVitals = p.vitals_history && p.vitals_history.length > 0 
-        ? p.vitals_history[p.vitals_history.length - 1] 
+      const latestHistoryVitals = p.vitals_history && p.vitals_history.length > 0
+        ? p.vitals_history[p.vitals_history.length - 1]
         : null;
 
       // Merge with live stream data if available
       const live = liveVitals[p.id] || {};
-      
+
       const vitals = {
-        heartRate: { 
-          value: live.heart_rate ?? latestHistoryVitals?.heart_rate ?? 0, 
-          status: live.heart_rate_status ?? latestHistoryVitals?.heart_rate_status ?? "Stable" 
+        heartRate: {
+          value: live.heart_rate ?? latestHistoryVitals?.heart_rate ?? 0,
+          status: live.heart_rate_status ?? latestHistoryVitals?.heart_rate_status ?? "Stable"
         },
-        spo2: { 
-          value: live.spo2 ?? latestHistoryVitals?.spo2 ?? 0, 
-          status: live.spo2_status ?? latestHistoryVitals?.spo2_status ?? "Stable" 
+        spo2: {
+          value: live.spo2 ?? latestHistoryVitals?.spo2 ?? 0,
+          status: live.spo2_status ?? latestHistoryVitals?.spo2_status ?? "Stable"
         },
-        bloodPressure: { 
-          systolic: live.bp_systolic ?? latestHistoryVitals?.bp_systolic ?? latestHistoryVitals?.systolic ?? 0, 
-          diastolic: live.bp_diastolic ?? latestHistoryVitals?.bp_diastolic ?? latestHistoryVitals?.diastolic ?? 0, 
-          status: live.bp_status ?? latestHistoryVitals?.bp_status ?? "Stable" 
+        bloodPressure: {
+          systolic: live.bp_systolic ?? latestHistoryVitals?.bp_systolic ?? latestHistoryVitals?.systolic ?? 0,
+          diastolic: live.bp_diastolic ?? latestHistoryVitals?.bp_diastolic ?? latestHistoryVitals?.diastolic ?? 0,
+          status: live.bp_status ?? latestHistoryVitals?.bp_status ?? "Stable"
         },
-        temperature: { 
-          value: live.temp ?? latestHistoryVitals?.temp ?? latestHistoryVitals?.temperature ?? 0, 
-          status: live.temperature_status ?? latestHistoryVitals?.temperature_status ?? "Stable" 
+        temperature: {
+          value: live.temp ?? latestHistoryVitals?.temp ?? latestHistoryVitals?.temperature ?? 0,
+          status: live.temperature_status ?? latestHistoryVitals?.temperature_status ?? "Stable"
         }
       };
 
@@ -527,7 +525,7 @@ export default function Home() {
       const seizureRisk = finalAssessments?.seizure_risk?.riskLevel || finalAssessments?.seizure_risk || "Low";
 
       // Check if no vitals are present at all (all values are 0 or missing)
-      const hasNoVitals = 
+      const hasNoVitals =
         (!vitals.heartRate?.value || vitals.heartRate.value === 0) &&
         (!vitals.spo2?.value || vitals.spo2.value === 0) &&
         (!vitals.bloodPressure?.systolic || vitals.bloodPressure.systolic === 0) &&
@@ -674,7 +672,7 @@ export default function Home() {
         ),
         status: "Critical",
         patients: criticalPatients.length,
-        color: "#E54D4D",
+        color: "#fc0000ff",
         beds: criticalPatients.map((p) => p.room || "N/A"),
       },
       {
@@ -711,7 +709,7 @@ export default function Home() {
         ),
         status: "Warning",
         patients: warningPatients.length,
-        color: "#E5DB4D",
+        color: "#ffee00ff",
         beds: warningPatients.map((p) => p.room || "N/A"),
       },
       {
@@ -740,7 +738,7 @@ export default function Home() {
         ),
         status: "Stable",
         patients: stablePatients.length,
-        color: "#2CD155",
+        color: "#00ff40ff",
         beds: stablePatients.map((p) => p.room || "N/A"),
       },
     ];
@@ -803,9 +801,12 @@ export default function Home() {
           {/* --- TOP SECTION: Triage Status Panel (Horizontal) --- */}
           {/* --- TOP SECTION: Triage Status Panel (Horizontal) --- */}
           <div className="w-full">
-            <h4 className="text-xl lg:text-2xl mb-4 text-white">
-              Patient Details Cards
-            </h4>
+            <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-4">
+              <h4 className="text-xl lg:text-2xl text-white">
+                Patient Details Cards
+              </h4>
+
+            </div>
             <div className="bg-[#27272b] border-[#0f0f0f] border-y-[1.2px] flex flex-col md:flex-row items-center justify-between p-5 mb-8 rounded-[12px] shadow-[0_0_50px_rgba(0,0,0,0.08)] gap-4">
               {loading ? (
                 <p className="text-white/50">Loading Triage...</p>
@@ -856,15 +857,21 @@ export default function Home() {
 
           {/* --- BOTTOM SECTION: Patient Details Grid --- */}
           <div className="w-full mt-2">
-            <h4 className="text-xl lg:text-2xl mb-4 text-white">
-              Patient Details Grid
-            </h4>
             <div className="flex flex-col gap-5 3xl:gap-6 w-full">              {loading ? (
               <div className="col-span-full text-white p-5">Loading Patients...</div>
             ) : (
               <AnimatePresence mode="popLayout">
                 {(() => {
                   const displayData = (triageFilter !== "All" ? cardData.filter(item => item.status === triageFilter) : cardData)
+                    .filter(item => {
+                      if (!patientSearchQuery.trim()) return true;
+                      const q = patientSearchQuery.toLowerCase();
+                      return (
+                        (item.name && item.name.toLowerCase().includes(q)) ||
+                        (item.patientId && String(item.patientId).toLowerCase().includes(q)) ||
+                        (item.room && String(item.room).toLowerCase().includes(q))
+                      );
+                    })
                     .slice()
                     .sort((a, b) => getStatusPriority(a.status) - getStatusPriority(b.status));
 
@@ -925,7 +932,7 @@ export default function Home() {
       >
         <div className="flex flex-col gap-4 md:gap-5 xl:gap-6">
           {/* Searchable Doctor Dropdown */}
-          <div className="relative z-20">
+          <div className="relative z-20 hidden">
             <label className="block mb-2 text-sm text-white/80">Staff Name / ID</label>
             <div className="relative">
               <input
@@ -1015,7 +1022,7 @@ export default function Home() {
               />
             </div>
           )}
-          <div className="">
+          <div className="hidden">
             <label htmlFor="time" className="block mb-3">
               Time
             </label>
@@ -1345,18 +1352,7 @@ export default function Home() {
       />
       {/* for flag end monitoring */}
 
-      {/* 🔴 SSE Critical Alert Watchers — one per patient on this ward.
-          These are invisible — they just open an SSE connection and fire
-          setCriticalAlarmData via Zustand when a critical_alert event arrives. */}
-      {rawPatients.map((p) =>
-        p.id ? (
-          <PatientStreamWatcher
-            key={p.id}
-            patientId={p.id}
-            patientName={p.full_name || "Unknown Patient"}
-          />
-        ) : null
-      )}
+
 
       {/* 🚨 Critical Alarm Modal — only shows alarms originating from this
           page (source:'home'). Overview-sourced alarms are filtered out. */}

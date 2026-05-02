@@ -5,7 +5,7 @@ export default function SiteVerstion() {
         <div className="min-h-16 bg-[#1D1D20] shadow-[0_8px_25px_0_rgba(0,0,0,0.16)] flex flex-wrap gap-3 items-center justify-between px-4 md:px-6">
             <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2 text-white leading-none">
-                    <span className='size-2 bg-[#28D353] rounded-full'></span>Cannected to Cloud
+                    <span className='size-2 bg-[#28D353] rounded-full'></span>Connected to Cloud
                 </div>
                 <div className="rounded-xl relative z-1 bg-white/8 min-h-8.5 overflow-hidden flex items-center justify-center gap-2 text-sm font-normal text-white px-3 border border-solid border-[#2CD155]/35">
                     <span className='size-12 rounded-full bg-[#2CD155]/50 blur-2xl absolute -right-3 -top-4 -z-10' />
