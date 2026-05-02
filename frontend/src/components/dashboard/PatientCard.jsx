@@ -204,19 +204,38 @@ const PatientCard = memo(({
                             ))}
 
                             {/* Status and Battery card */}
-                            <div className="bg-[#2F2F31] rounded-[20px] pt-4.5 pb-2.5 px-3 flex flex-col justify-between items-start overflow-hidden relative shadow-[0px_0px_50px_0px_rgba(0,0,0,0.08)] z-2 min-h-[140px]">
-                                <div className="flex flex-col gap-3.5 w-full relative z-10">
-                                    <div className="flex items-center gap-1.5 w-full justify-between xl:justify-start">
-                                        <span className="font-lufga font-medium text-[15px] xl:text-[16px] text-white">Status</span>
-                                        <div className={`px-2 py-[3px] flex items-center justify-center font-lufga font-normal rounded-full text-[12px] xl:text-[13px] whitespace-nowrap mt-0.5 ${item.isConnected ? getStatusBadgeClass(item.status) : 'text-[#E54D4D] bg-[#E54D4D]/20'}`}>
-                                            {item.isConnected ? 'Connected' : 'Disconnected'}
+                            <div className="bg-[#2F2F31] rounded-[20px] p-2.5 flex flex-col justify-between items-start overflow-hidden relative shadow-[0px_0px_50px_0px_rgba(0,0,0,0.08)] z-2 min-h-[140px]">
+                                <div className="w-full relative z-10">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <div className="size-8 rounded-full flex items-center justify-center shrink-0 bg-white/10">
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <path d="M4 7C4 5.34315 5.34315 4 7 4H17C18.6569 4 20 5.34315 20 7V17C20 18.6569 18.6569 20 17 20H7C5.34315 20 4 18.6569 4 17V7Z" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                <path d="M12 16V16.01" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                <path d="M8 4V2" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                <path d="M16 4V2" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                <path d="M8 22V20" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                <path d="M16 22V20" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                <path d="M4 8H2" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                <path d="M4 16H2" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                <path d="M22 8H20" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                <path d="M22 16H20" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                                            </svg>
                                         </div>
+                                        <span className="text-xs text-white font-medium">Device</span>
                                     </div>
-                                    <div className="flex items-center gap-1.5 w-full justify-between xl:justify-start">
-                                        <span className="font-lufga font-medium text-[15px] xl:text-[16px] text-white">Battery</span>
-                                        <div className="bg-white/10 px-2 py-[2px] mt-0.5 flex items-center justify-center rounded-full text-[12px] xl:text-[13px] font-lufga gap-1.5">
-                                            <BatteryIcon percent={batteryValue} color={batteryColor} />
-                                            <span style={{ color: batteryColor }}>{item.deviceBattery || "80%"}</span>
+                                    <div className="flex flex-col gap-2 w-full">
+                                        <div className="flex items-center gap-1.5 w-full justify-between xl:justify-start">
+                                            <span className="font-lufga font-medium text-[13px] xl:text-[14px] text-white">Status</span>
+                                            <div className={`px-2 py-[2px] flex items-center justify-center font-lufga font-normal rounded-full text-[11px] xl:text-[12px] whitespace-nowrap mt-0.5 ${item.isConnected ? getStatusBadgeClass(item.status) : 'text-[#E54D4D] bg-[#E54D4D]/20'}`}>
+                                                {item.isConnected ? 'Connected' : 'Disconnected'}
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 w-full justify-between xl:justify-start">
+                                            <span className="font-lufga font-medium text-[13px] xl:text-[14px] text-white">Battery</span>
+                                            <div className="bg-white/10 px-2 py-[2px] mt-0.5 flex items-center justify-center rounded-full text-[11px] xl:text-[12px] font-lufga gap-1.5">
+                                                <BatteryIcon percent={batteryValue} color={batteryColor} />
+                                                <span style={{ color: batteryColor }}>{item.deviceBattery || "80%"}</span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

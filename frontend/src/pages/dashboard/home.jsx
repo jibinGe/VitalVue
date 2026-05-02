@@ -358,7 +358,7 @@ export default function Home() {
   const [endMonitoring, setEndMonitoring] = useState(false);
   const [endingMonitoring, setEndingMonitoring] = useState(false);
   // Doctor Flagging State
-  const [selectedDoctor, setSelectedDoctor] = useState(null);
+  const [selectedDoctors, setSelectedDoctors] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [doctorFilterTab, setDoctorFilterTab] = useState("All");
   const [toast, setToast] = useState({ visible: false, message: "" });
@@ -1116,7 +1116,7 @@ export default function Home() {
         onClick={() => {
           setFlagDoctor(false);
           setSearchQuery("");
-          setSelectedDoctor(null);
+          setSelectedDoctors([]);
         }}
         title="Select Doctor to Notify"
         titleClass="text-base!"
@@ -1171,16 +1171,31 @@ export default function Home() {
                   </div>
                 )
               }
-              return filteredDoctors.map((item) => (
+              return filteredDoctors.map((item) => {
+                const isSelected = selectedDoctors.some(d => d.id === item.id);
+                return (
                 <div
                   key={item.id}
-                  onClick={() => setSelectedDoctor(item)}
-                  className={`bg-[#323234] rounded-[20px] py-4.5 px-5 flex items-center justify-between cursor-pointer border transition-all ${selectedDoctor?.id === item.id
+                  onClick={() => {
+                    if (isSelected) {
+                      setSelectedDoctors(prev => prev.filter(d => d.id !== item.id));
+                    } else {
+                      setSelectedDoctors(prev => [...prev, item]);
+                    }
+                  }}
+                  className={`bg-[#323234] rounded-[20px] py-4.5 px-5 flex items-center justify-between cursor-pointer border transition-all ${isSelected
                     ? "border-[#CCA166] bg-[#CCA166]/10"
                     : "border-transparent hover:border-[#4A4A5A]"
                     }`}
                 >
                   <div className="flex items-center gap-4">
+                    <div className={`size-5 rounded flex items-center justify-center shrink-0 transition-colors ${isSelected ? "bg-[#CCA166] border-[#CCA166]" : "border border-[#A0A0A0]"}`}>
+                      {isSelected && (
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#27272B" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                      )}
+                    </div>
                     <div className="size-12 overflow-hidden bg-gradient-to-br from-[#e0e0e0] to-[#b0b0b0] rounded-full flex items-center justify-center flex-shrink-0">
                       <span className="text-[#323234] font-bold text-lg">
                         {item.full_name
@@ -1210,7 +1225,8 @@ export default function Home() {
                     <span>{item.is_on_call ? 'On-call' : 'Off-call'}</span>
                   </div>
                 </div>
-              ));
+              );
+              });
             })()}
           </div>
 
@@ -1222,37 +1238,39 @@ export default function Home() {
                 setFlagDoctor(false);
                 setSearchQuery("");
                 setDoctorFilterTab("All");
-                setSelectedDoctor(null);
+                setSelectedDoctors([]);
               }}
             >
               Cancel
             </button>
             <button
-              className={`btn grow min-h-13.5 rounded-2xl px-8 btn-gradient ${!selectedDoctor ? "opacity-50 cursor-not-allowed" : ""
+              className={`btn grow min-h-13.5 rounded-2xl px-8 btn-gradient ${selectedDoctors.length === 0 ? "opacity-50 cursor-not-allowed" : ""
                 }`}
-              disabled={!selectedDoctor}
+              disabled={selectedDoctors.length === 0}
               onClick={async () => {
                 const patientName = selectedUserName || "Patient";
-                const doctorName = selectedDoctor?.full_name || "Doctor";
+                const doctorNames = selectedDoctors.map(d => d.full_name).join(", ") || "Doctor";
 
                 try {
-                  await patientService.flagDoctorForReview({
-                    patientId: selectedUserId,
-                    doctorId: selectedDoctor?.id || '',
-                    message: `Manual urgent clinical assistance requested. Patient: ${patientName}`,
-                    priority: 'High',
-                  });
+                  await Promise.all(selectedDoctors.map(doctor =>
+                    patientService.flagDoctorForReview({
+                      patientId: selectedUserId,
+                      doctorId: doctor.id,
+                      message: `Manual urgent clinical assistance requested. Patient: ${patientName}`,
+                      priority: 'High',
+                    })
+                  ));
                 } catch (error) {
-                  console.error("Error flagging doctor for review:", error);
+                  console.error("Error flagging doctors for review:", error);
                 }
 
                 setFlagDoctor(false);
                 setSearchQuery("");
                 setDoctorFilterTab("All");
-                setSelectedDoctor(null);
+                setSelectedDoctors([]);
                 setToast({
                   visible: true,
-                  message: `${patientName} vitals have been sent to ${doctorName}`
+                  message: `${patientName} vitals have been sent to ${doctorNames}`
                 });
                 setTimeout(() => setToast({ visible: false, message: "" }), 3000);
               }}

@@ -28,8 +28,9 @@ export default function DoctorReview({ onClick, patientDetails = {}, userId }) {
     // Doctor selection state
     const [doctors, setDoctors] = useState([]);
     const [doctorsLoading, setDoctorsLoading] = useState(false);
-    const [selectedDoctor, setSelectedDoctor] = useState(null);
+    const [selectedDoctors, setSelectedDoctors] = useState([]);
     const [doctorSearchQuery, setDoctorSearchQuery] = useState("");
+    const [doctorFilterTab, setDoctorFilterTab] = useState("All");
 
     // Fetch doctors: first get org_id from /api/v1/user/me, then fetch doctors for that org
     useEffect(() => {
@@ -123,18 +124,25 @@ export default function DoctorReview({ onClick, patientDetails = {}, userId }) {
         const message = `${tagString}${noteText}`;
 
         try {
-            const response = await patientService.flagDoctorForReview({
-                patientId: userId || id,
-                doctorId: selectedDoctor?.id || '',
-                message,
-                priority: 'High',
-            });
-
-            if (response.success) {
-                const doctorName = selectedDoctor ? ` Assigned to ${selectedDoctor.full_name}.` : '';
-                setSuccessMessage(`Doctor review has been saved and synced successfully for patient ${name}.${doctorName}`);
+            if (selectedDoctors.length > 0) {
+                await Promise.all(selectedDoctors.map(doctor => 
+                    patientService.flagDoctorForReview({
+                        patientId: userId || id,
+                        doctorId: doctor.id,
+                        message,
+                        priority: 'High',
+                    })
+                ));
+                const doctorNames = selectedDoctors.map(d => d.full_name).join(', ');
+                setSuccessMessage(`Doctor review has been saved and synced successfully for patient ${name}. Assigned to ${doctorNames}.`);
             } else {
-                setSuccessMessage(response.message || 'Failed to flag doctor for review.');
+                await patientService.flagDoctorForReview({
+                    patientId: userId || id,
+                    doctorId: '',
+                    message,
+                    priority: 'High',
+                });
+                setSuccessMessage(`Doctor review has been saved and synced successfully for patient ${name}.`);
             }
         } catch (error) {
             console.error('Error flagging doctor for review:', error);
@@ -187,12 +195,21 @@ export default function DoctorReview({ onClick, patientDetails = {}, userId }) {
             color: '#29A3A3',
             bg: '#E9FCF91F',
         },
+        {
+            value: 'Others',
+            color: '#D2A92D',
+            bg: '#D2A92D1F',
+        },
     ];
 
-    const filteredDoctors = doctors.filter(d =>
-        d.full_name.toLowerCase().includes(doctorSearchQuery.toLowerCase()) ||
-        (d.employee_id || '').toLowerCase().includes(doctorSearchQuery.toLowerCase())
-    );
+    const filteredDoctors = doctors.filter(d => {
+        const matchesSearch = d.full_name.toLowerCase().includes(doctorSearchQuery.toLowerCase()) ||
+            (d.employee_id || '').toLowerCase().includes(doctorSearchQuery.toLowerCase());
+        let matchesTab = true;
+        if (doctorFilterTab === "On-call") matchesTab = d.is_on_call === true;
+        if (doctorFilterTab === "Off-call") matchesTab = d.is_on_call === false;
+        return matchesSearch && matchesTab;
+    });
 
     return (
         <>
@@ -205,10 +222,7 @@ export default function DoctorReview({ onClick, patientDetails = {}, userId }) {
                         <span>{ward}</span>
                     </div>
                 </div>
-                <div className="flex flex-col items-end gap-y-1.5">
-                    <span className='inline-flex items-center justify-center min-h-8 text-sm lg:text-base px-4 text-[#E54D4D] rounded-full bg-[#E54D4D]/15'>NEWS2: {news2Score}</span>
-                    <p className='text-sm lg:text-base text-para flex items-center gap-1'>Last Sync: <span className='text-white'>{lastSync}</span></p>
-                </div>
+
             </div>
             <div className="h-px w-full bg-[linear-gradient(90deg,rgba(255,255,255,0)_0%,rgba(255,255,255,0.25)_50%,rgba(255,255,255,0)_100%)]" />
             <div className="p-5 md:p-6 lg:p-8 flex flex-col gap-y-4 md:gap-y-6 lg:gap-y-9">
@@ -220,22 +234,36 @@ export default function DoctorReview({ onClick, patientDetails = {}, userId }) {
                     </label>
                     <div className="bg-[#2C2C2E] border border-solid border-white/10 rounded-2xl p-3 flex flex-col gap-2">
                         {/* Search */}
-                        <input
-                            type="text"
-                            placeholder="Search doctor..."
-                            value={doctorSearchQuery}
-                            onChange={(e) => setDoctorSearchQuery(e.target.value)}
-                            className="bg-white/5 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-[#5E656E] border border-white/10 focus:outline-none focus:border-primary/40 mb-1"
-                        />
+                        <div className="flex flex-col gap-3 mb-1">
+                            <input
+                                type="text"
+                                placeholder="Search doctor..."
+                                value={doctorSearchQuery}
+                                onChange={(e) => setDoctorSearchQuery(e.target.value)}
+                                className="bg-white/5 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-[#5E656E] border border-white/10 focus:outline-none focus:border-primary/40"
+                            />
+                            <div className="flex items-center gap-2">
+                                {["All", "On-call", "Off-call"].map((tab) => (
+                                    <button
+                                        key={tab}
+                                        type="button"
+                                        className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-all ${doctorFilterTab === tab ? "bg-[#CCA166] text-black border-transparent" : "border border-[#4A4A5A] text-[#A0A0A0] bg-transparent hover:bg-white/5"}`}
+                                        onClick={() => setDoctorFilterTab(tab)}
+                                    >
+                                        {tab}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
                         {/* Doctor List */}
                         <div className="flex flex-col gap-2 max-h-44 overflow-y-auto pr-1">
                             {/* None option */}
                             <button
                                 type="button"
-                                onClick={() => setSelectedDoctor(null)}
-                                className={`flex items-center gap-3 px-3 py-2 rounded-xl text-left transition-all ${!selectedDoctor
-                                        ? 'bg-[#2CD155]/10 border border-[#2CD155]'
-                                        : 'border border-transparent hover:bg-white/5'
+                                onClick={() => setSelectedDoctors([])}
+                                className={`flex items-center gap-3 px-3 py-2 rounded-xl text-left transition-all ${selectedDoctors.length === 0
+                                    ? 'bg-[#2CD155]/10 border border-[#2CD155]'
+                                    : 'border border-transparent hover:bg-white/5'
                                     }`}
                             >
                                 <div className="size-9 rounded-full bg-[#3F3F41] flex items-center justify-center flex-shrink-0">
@@ -254,42 +282,73 @@ export default function DoctorReview({ onClick, patientDetails = {}, userId }) {
                                 </div>
                             ) : filteredDoctors.length === 0 ? (
                                 <div className="text-sm text-[#A0A0A0] px-3 py-2">
-                                    {doctorSearchQuery ? `No results for "${doctorSearchQuery}"` : 'No doctors available'}
+                                    {doctorSearchQuery || doctorFilterTab !== "All" ? `No results for matching criteria` : 'No doctors available'}
                                 </div>
                             ) : (
-                                filteredDoctors.map((doc) => (
+                                filteredDoctors.map((doc) => {
+                                    const isSelected = selectedDoctors.some(d => d.id === doc.id);
+                                    return (
                                     <button
                                         key={doc.id}
                                         type="button"
-                                        onClick={() => setSelectedDoctor(doc)}
-                                        className={`flex items-center gap-3 px-3 py-2 rounded-xl text-left transition-all ${selectedDoctor?.id === doc.id
-                                                ? 'bg-[#2CD155]/10 border border-[#2CD155]'
-                                                : 'border border-transparent hover:bg-white/5'
+                                        onClick={() => {
+                                            if (isSelected) {
+                                                setSelectedDoctors(prev => prev.filter(d => d.id !== doc.id));
+                                            } else {
+                                                setSelectedDoctors(prev => [...prev, doc]);
+                                            }
+                                        }}
+                                        className={`flex items-center justify-between gap-3 px-3 py-2 rounded-xl text-left transition-all ${isSelected
+                                            ? 'bg-[#2CD155]/10 border border-[#2CD155]'
+                                            : 'border border-transparent hover:bg-white/5'
                                             }`}
                                     >
-                                        <div className="size-9 rounded-full bg-gradient-to-br from-[#3a3a4a] to-[#4a4a5a] flex items-center justify-center flex-shrink-0">
-                                            <span className="text-white text-xs font-semibold">
-                                                {doc.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-                                            </span>
+                                        <div className="flex items-center gap-3">
+                                            <div className={`size-5 rounded flex items-center justify-center shrink-0 transition-colors ${isSelected ? "bg-[#2CD155] border-[#2CD155]" : "border border-[#A0A0A0]"}`}>
+                                                {isSelected && (
+                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#27272B" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                                        <polyline points="20 6 9 17 4 12"></polyline>
+                                                    </svg>
+                                                )}
+                                            </div>
+                                            <div className="size-9 rounded-full bg-gradient-to-br from-[#3a3a4a] to-[#4a4a5a] flex items-center justify-center flex-shrink-0">
+                                                <span className="text-white text-xs font-semibold">
+                                                    {doc.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                                                </span>
+                                            </div>
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="text-sm text-white leading-tight truncate">{doc.full_name}</span>
+                                                <span className="text-xs text-[#A0A0A0]">{doc.employee_id || 'Doctor'}</span>
+                                            </div>
                                         </div>
-                                        <div className="flex flex-col min-w-0">
-                                            <span className="text-sm text-white leading-tight truncate">{doc.full_name}</span>
-                                            <span className="text-xs text-[#A0A0A0]">{doc.employee_id || 'Doctor'}</span>
+                                        <div className={`flex items-center gap-1.5 text-[11px] ${doc.is_on_call ? 'text-[#2CD155]' : 'text-[#A0A0A0]'}`}>
+                                            {doc.is_on_call ? (
+                                                <svg width="12" height="12" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                    <circle cx="9" cy="9" r="8" stroke="#2CD155" strokeWidth="1.5" />
+                                                    <circle cx="9" cy="9" r="4" fill="#2CD155" />
+                                                </svg>
+                                            ) : (
+                                                <svg width="12" height="12" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                    <circle cx="9" cy="9" r="8" stroke="#A0A0A0" strokeWidth="1.5" />
+                                                </svg>
+                                            )}
+                                            <span>{doc.is_on_call ? 'On-call' : 'Off-call'}</span>
                                         </div>
                                     </button>
-                                ))
+                                    );
+                                })
                             )}
                         </div>
                     </div>
-                    {selectedDoctor && (
+                    {selectedDoctors.length > 0 && (
                         <p className="mt-2 text-xs text-[#2CD155]">
-                            ✓ Assigning to {selectedDoctor.full_name}
+                            ✓ Assigning to {selectedDoctors.map(d => d.full_name).join(', ')}
                         </p>
                     )}
                 </div>
 
                 <div className="flex flex-col relative z-1">
-                    <label htmlFor="" className='text-sm lg:text-base mb-3 lg:mb-5 text-white block '>New Entry</label>
+                    <label htmlFor="" className='text-sm lg:text-base mb-3 lg:mb-5 text-white block '>Clinical Notes</label>
                     <textarea
                         value={finalText + interimText}
                         onChange={(e) => setFinalText(e.target.value)}
