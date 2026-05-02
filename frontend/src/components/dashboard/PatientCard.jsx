@@ -207,7 +207,7 @@ const PatientCard = memo(({
                             <div className="bg-[#2F2F31] rounded-[20px] p-2.5 flex flex-col justify-between items-start overflow-hidden relative shadow-[0px_0px_50px_0px_rgba(0,0,0,0.08)] z-2 min-h-[140px]">
                                 <div className="w-full relative z-10">
                                     <div className="flex items-center gap-2 mb-2">
-                                        <div className="size-8 rounded-full flex items-center justify-center shrink-0 bg-white/10">
+                                        <div className="size-8 rounded-full flex items-center justify-center shrink-0 bg-yellow">
                                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                 <path d="M4 7C4 5.34315 5.34315 4 7 4H17C18.6569 4 20 5.34315 20 7V17C20 18.6569 18.6569 20 17 20H7C5.34315 20 4 18.6569 4 17V7Z" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
                                                 <path d="M12 16V16.01" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
