@@ -583,7 +583,7 @@ export default function Home() {
         ],
         alerts: mapAssessmentsToAlerts(finalAssessments),
         deviceBattery: live.battery_percent !== undefined ? `${live.battery_percent}%` : (latestHistoryVitals?.battery_percent !== undefined ? `${latestHistoryVitals.battery_percent}%` : (p.device_battery || "80%")),
-        isConnected: live.is_connected ?? latestHistoryVitals?.is_connected ?? true,
+        isConnected: live.is_connected ?? latestHistoryVitals?.is_connected ?? (p.vitals_history && p.vitals_history.length > 0 ? true : false),
       };
     });
   }, [rawPatients, liveVitals]);
