@@ -27,9 +27,15 @@ export const patientService = {
   async getActivePatients(params = {}) {
     try {
       const response = await apiClient.get('/api/v1/patients/assigned', { params });
+      const patients = response.data || [];
+      patients.forEach(p => {
+        if (p.vitals_history && Array.isArray(p.vitals_history)) {
+          p.vitals_history.reverse();
+        }
+      });
       return {
         success: true,
-        data: response.data || [],
+        data: patients,
         message: "Success",
       };
     } catch (error) {
@@ -100,6 +106,10 @@ export const patientService = {
         p.id?.toString() === identifier?.toString()
       );
 
+      if (patient && patient.vitals_history && Array.isArray(patient.vitals_history)) {
+        patient.vitals_history.reverse();
+      }
+
       if (!patient) {
         return {
           success: false,
@@ -164,10 +174,16 @@ export const patientService = {
   async getOrganizationVitals(params = {}) {
     try {
       const response = await apiClient.get('/api/v1/patients/assigned', { params });
+      const patients = response.data || [];
+      patients.forEach(p => {
+        if (p.vitals_history && Array.isArray(p.vitals_history)) {
+          p.vitals_history.reverse();
+        }
+      });
       return {
         success: true,
-        data: response.data || [],
-        count: (response.data || []).length,
+        data: patients,
+        count: patients.length,
         message: "Success",
       };
     } catch (error) {
