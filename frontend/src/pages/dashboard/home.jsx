@@ -484,6 +484,7 @@ export default function Home() {
 
       // Merge with live stream data if available
       const live = liveVitals[p.id] || {};
+      const isRemoved = live.is_removed === true;
 
       const vitals = {
         heartRate: {
@@ -567,6 +568,11 @@ export default function Home() {
         status = "Warning";
       }
 
+      // If watch is removed, suppress critical status so it doesn't trigger false alarms locally
+      if (isRemoved) {
+          status = "Stable";
+      }
+
       return {
         status: status,
         id: p.id,
@@ -581,7 +587,7 @@ export default function Home() {
           { icon: <Bp />, title: "BP Trend", bp: `${vitals.bloodPressure?.systolic || '--'}/${vitals.bloodPressure?.diastolic || '--'}`, historyData: p.vitals_history || [] },
           { icon: <Temp />, title: "Temp", temp: vitals.temperature?.value ? formatTemperature(vitals.temperature?.value) : '--', historyData: p.vitals_history || [] },
         ],
-        alerts: mapAssessmentsToAlerts(finalAssessments),
+        alerts: isRemoved ? [] : mapAssessmentsToAlerts(finalAssessments),
         deviceBattery: live.battery_percent !== undefined ? `${live.battery_percent}%` : (latestHistoryVitals?.battery_percent !== undefined ? `${latestHistoryVitals.battery_percent}%` : (p.device_battery || "80%")),
         isConnected: live.is_connected ?? latestHistoryVitals?.is_connected ?? (p.vitals_history && p.vitals_history.length > 0 ? true : false),
       };
@@ -769,10 +775,32 @@ export default function Home() {
     const criticals = cardData.filter(p => p.status?.toLowerCase() === "critical");
     criticals.forEach(p => {
       if (!previousCriticalPatients.current.has(p.userId)) {
+        const currentAlarm = useDashboardStore.getState().criticalAlarmData;
+        
+        // If an alarm for this user is already active (e.g. just fired by SSE in usePatients),
+        // we skip overwriting it to preserve the rich alert payload with triggered_value.
+        if (currentAlarm && currentAlarm.userId === p.userId) {
+          return;
+        }
+
+        const hrVital = p.vitals?.find(v => v.title === "Heart Rate");
+        const spo2Vital = p.vitals?.find(v => v.title === "SpO2");
+        const bpVital = p.vitals?.find(v => v.title === "BP Trend");
+        const tempVital = p.vitals?.find(v => v.title === "Temp");
+
+        const vitalsSnapshot = {
+          heartRate: hrVital?.heartRate !== '--' ? hrVital?.heartRate : undefined,
+          spo2: spo2Vital?.spo2 !== '--' ? spo2Vital?.spo2 : undefined,
+          bloodPressure: bpVital?.bp && String(bpVital.bp).includes('/') && bpVital.bp !== '--/--'
+            ? { systolic: String(bpVital.bp).split('/')[0], diastolic: String(bpVital.bp).split('/')[1] } 
+            : undefined,
+          temperature: tempVital?.temp !== '--' ? tempVital?.temp : undefined,
+        };
+
         setCriticalAlarmData({
           name: p.name,
           userId: p.userId,
-          vitals: p.vitals || {},
+          vitals: vitalsSnapshot,
           source: 'home',
         });
       }

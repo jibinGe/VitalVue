@@ -226,7 +226,7 @@ const PatientCard = memo(({
                                     <div className="flex flex-col gap-2 w-full">
                                         <div className="flex items-center gap-1.5 w-full justify-between xl:justify-start">
                                             <span className="font-lufga font-medium text-[13px] xl:text-[14px] text-white">Status</span>
-                                            <div className={`px-2 py-[2px] flex items-center justify-center font-lufga font-normal rounded-full text-[11px] xl:text-[12px] whitespace-nowrap mt-0.5 ${item.isConnected ? getStatusBadgeClass(item.status) : 'text-[#E54D4D] bg-[#E54D4D]/20'}`}>
+                                            <div className={`px-2 py-[2px] flex items-center justify-center font-lufga font-normal rounded-full text-[11px] xl:text-[12px] whitespace-nowrap mt-0.5 ${item.isConnected ? 'text-[#4DE573] bg-[#4DE573]/10' : 'text-[#E54D4D] bg-[#E54D4D]/20'}`}>
                                                 {item.isConnected ? 'Connected' : 'Disconnected'}
                                             </div>
                                         </div>

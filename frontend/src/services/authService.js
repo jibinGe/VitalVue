@@ -1,4 +1,7 @@
+import axios from 'axios';
 import apiClient from '../config/apiClient';
+
+const API_BASE_URL = 'https://vitalvue-api.genesysailabs.com';
 
 export const authService = {
   /**
@@ -114,14 +117,13 @@ export const authService = {
 
   /**
    * Check and refresh token if needed
+   * NOTE: Actual token refresh is handled reactively by the apiClient
+   * response interceptor when a 401 is returned. This method only
+   * validates that a token exists locally.
    */
   async checkAndRefreshToken() {
-    // Simple check for existence of token
     const token = localStorage.getItem('accessToken');
-    if (!token) return false;
-    
-    // We could add JWT expiry decoding here if needed
-    return true;
+    return !!token;
   },
 
   /**

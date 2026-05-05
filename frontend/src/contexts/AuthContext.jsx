@@ -27,33 +27,19 @@ export const AuthProvider = ({ children }) => {
     }
   }, [])
 
-  // Proactive token refresh - check every 5 minutes
+  // Listen for unauthorized events from apiClient (e.g. refresh token failed)
   useEffect(() => {
-    if (!isAuthenticated) return;
-
-    const checkAndRefresh = async () => {
-      try {
-        const isValid = await authService.checkAndRefreshToken();
-        if (!isValid) {
-          console.log('Token refresh failed, logging out');
-          handleLogout();
-        }
-      } catch (error) {
-        console.error('Error checking token:', error);
-        handleLogout();
-      }
+    const handleUnauthorized = () => {
+      console.warn('Unauthorized event received, logging out user.');
+      handleLogout();
     };
 
-    // Check immediately
-    checkAndRefresh();
-
-    // Then check every 5 minutes
-    const intervalId = setInterval(checkAndRefresh, 5 * 60 * 1000);
-
+    window.addEventListener('auth:unauthorized', handleUnauthorized);
+    
     return () => {
-      clearInterval(intervalId);
+      window.removeEventListener('auth:unauthorized', handleUnauthorized);
     };
-  }, [isAuthenticated, handleLogout]);
+  }, [handleLogout]);
 
   // Initialize auth state from localStorage
   useEffect(() => {

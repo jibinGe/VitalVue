@@ -177,11 +177,20 @@ export default function CriticalAlarmModal({
                         {alert?.vital_type ?? vitals?._alertVitalType}
                       </p>
                       <p className="text-sm font-bold" style={{ color: "#E54D4D" }}>
-                        {alert?.triggered_value != null
-                          ? isNaN(parseFloat(alert.triggered_value)) ? alert.triggered_value : Math.round(parseFloat(alert.triggered_value))
-                          : vitals?._alertTriggeredVal != null
-                            ? isNaN(parseFloat(vitals._alertTriggeredVal)) ? vitals._alertTriggeredVal : Math.round(parseFloat(vitals._alertTriggeredVal))
-                            : "—"}
+                        {(() => {
+                          const val = alert?.triggered_value ?? vitals?._alertTriggeredVal;
+                          if (val == null) return "—";
+                          if (typeof val === 'number') return Math.round(val);
+                          const strVal = String(val);
+                          const match = strVal.match(/^([-+]?[0-9]*\.?[0-9]+)\s*(.*)$/);
+                          if (match) {
+                            const num = parseFloat(match[1]);
+                            const unit = match[2];
+                            const rounded = Number.isInteger(num) ? num : Number(num.toFixed(1));
+                            return `${rounded}${unit ? ' ' + unit : ''}`.trim();
+                          }
+                          return strVal;
+                        })()}
                       </p>
                     </div>
                   </motion.div>
