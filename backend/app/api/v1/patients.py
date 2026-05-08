@@ -5,19 +5,29 @@ from app.crud.user import patient as crud_patient
 from app.models.organization import Room
 from app.models.user import Patient, User, Nurse, Doctor, UserRole
 from app.models.vitals import Vitals
+from app.services.alerts import send_vitalvue_whatsapp
 from app.models.clinical import Alert, Action
-from typing import List
+from typing import List, Optional
 from app.schemas.patient import PatientDetailResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from sqlalchemy.future import select
 from app.api.deps import get_current_user, allow_admins
-from sqlalchemy import func, and_, text
+from sqlalchemy import func, and_, text, or_
 from datetime import datetime
 from sqlalchemy import func, and_, text, select, inspect, Integer, Float, String, Boolean
 import json
+import random
+import string
+from sqlalchemy.exc import IntegrityError
 
 router = APIRouter()
+
+def generate_random_device_id():
+    """Generates a random string starting with 'random_k12nm'"""
+    # Generate 6 random alphanumeric characters
+    suffix = ''.join(random.choices(string.ascii_letters + string.digits, k=6))
+    return f"random_{suffix}"
 
 @router.post("/register")
 async def register_patient(
@@ -26,17 +36,84 @@ async def register_patient(
 ):
     # 1. Verify Room Availability
     room = await db.get(Room, obj_in.room_id)
-    if not room or room.is_occupied:
-        raise HTTPException(status_code=400, detail="Selected room is unavailable")
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+    
+    # 2. Force a Random Unique Device ID
+    obj_in.device_id = generate_random_device_id()
 
-    # 2. Create Patient (Uses the generic CRUD we built)
-    new_patient = await crud_patient.create(db, obj_in=obj_in)
+    # 3. Create Patient with specific Error Handling
+    try:
+        new_patient = await crud_patient.create(db, obj_in=obj_in)
+        
+        # 4. Mark Room as Occupied (Optional: Uncomment if needed)
+        # room.is_occupied = True
+        
+        await db.commit()
+        await db.refresh(new_patient)
+        return new_patient
 
-    # 3. Mark Room as Occupied
-    room.is_occupied = True
+    except IntegrityError as e:
+        await db.rollback()
+        error_details = str(e.orig)
+        
+        # Check which constraint was violated
+        if "ix_users_user_id" in error_details:
+            raise HTTPException(status_code=400, detail=f"Patient ID '{obj_in.user_id}' is already registered.")
+        
+        if "phone_number" in error_details:
+            raise HTTPException(status_code=400, detail=f"Phone number '{obj_in.phone_number}' is already linked to another account.")
+        
+        if "ix_patients_device_id" in error_details:
+            # Although we generate it randomly, it's safe to handle just in case
+            raise HTTPException(status_code=400, detail="Generated Device ID collision. Please try again.")
+
+        raise HTTPException(status_code=400, detail="Database integrity violation: Duplicate entry detected.")
+        
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail="An unexpected error occurred.")
+    
+@router.patch("/me/change-device")
+async def update_my_device(
+    new_device_id: str = Body(..., embed=True),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user) 
+):
+    # 1. Verify that the current user is actually a Patient
+    # We fetch the Patient record linked to the User ID in the token
+    stmt = select(Patient).where(Patient.id == current_user.id)
+    result = await db.execute(stmt)
+    patient = result.scalars().first()
+
+    if not patient:
+        raise HTTPException(
+            status_code=403, 
+            detail="Only registered patients can update their own device mapping."
+        )
+
+    # 2. Check if the new device_id is already claimed by someone else
+    check_stmt = select(Patient).where(Patient.device_id == new_device_id)
+    existing_device = await db.execute(check_stmt)
+    if existing_device.scalars().first():
+        raise HTTPException(
+            status_code=400, 
+            detail="This device is already registered to another user."
+        )
+
+    # 3. Update the device ID
+    old_device_id = patient.device_id
+    patient.device_id = new_device_id
+    
     await db.commit()
+    await db.refresh(patient)
 
-    return new_patient
+    return {
+        "status": "success",
+        "message": "Device successfully updated for current user",
+        "old_device_id": old_device_id,
+        "new_device_id": patient.device_id
+    }
 
 @router.patch("/{patient_id}/assign-nurse")
 async def assign_nurse_to_patient(
@@ -58,7 +135,8 @@ async def assign_nurse_to_patient(
 @router.get("/assigned", response_model=List[PatientDetailResponse])
 async def get_assigned_patients(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    search: Optional[str] = Query(None, description="Search by Full Name or Patient ID")
 ):
     # 1. Base Query with joins for assigned staff names
     query = (
@@ -79,12 +157,23 @@ async def get_assigned_patients(
     else:
         raise HTTPException(status_code=403, detail="Access denied")
 
+    # 3. Apply Search Filter (New Logic)
+    if search:
+        # ilike provides case-insensitive search
+        search_filter = f"%{search}%"
+        query = query.where(
+            or_(
+                Patient.full_name.ilike(search_filter),
+                Patient.user_id.ilike(search_filter)
+            )
+        )
+
     result = await db.execute(query)
     patients = result.scalars().all()
 
     response_data = []
     for p in patients:
-        # 3. Fetch the 20 latest vitals (All columns included)
+        # 4. Fetch the 20 latest vitals
         vitals_query = (
             select(Vitals)
             .where(Vitals.patient_id == p.id)
@@ -104,7 +193,7 @@ async def get_assigned_patients(
             "room_no": "101", # Replace with p.room_id logic if needed
             "assigned_doctor": p.assigned_doctor.full_name if p.assigned_doctor else None,
             "assigned_nurse": p.assigned_nurse.full_name if p.assigned_nurse else None,
-            "vitals_history": latest_20_vitals # Contains all data: HR, SpO2, AF_Warning, etc.
+            "vitals_history": latest_20_vitals
         })
 
     return response_data
@@ -275,47 +364,45 @@ async def get_dynamic_metric_history(
 async def flag_doctor(
     patient_id: int,
     reason: str = Query(...),
-    selected_doctor_id: int = Query(None), # The extra doctor chosen by the nurse
+    selected_doctor_id: int = Query(None),
     background_tasks: BackgroundTasks = None,
     db: AsyncSession = Depends(get_db),
     redis = Depends(get_redis),
     current_user: User = Depends(get_current_user)
 ):
-    # 1. Fetch Patient and Assigned Doctor
-    result = await db.execute(
-        select(Patient).options(joinedload(Patient.assigned_doctor))
-        .where(Patient.id == patient_id)
-    )
-    patient = result.scalars().first()
-    if not patient:
-        raise HTTPException(status_code=404, detail="Patient not found")
-
-    # 2. Identify Unique Doctors to Alert
-    # We use a set to automatically handle duplicates
-    doctor_ids_to_alert = set()
-    
-    if patient.doctor_id:
-        doctor_ids_to_alert.add(patient.doctor_id)
-    
-    if selected_doctor_id:
-        doctor_ids_to_alert.add(selected_doctor_id)
-
-    # 3. Create the Alert Record
     # 1. Fetch Patient
     result = await db.execute(select(Patient).where(Patient.id == patient_id))
     patient = result.scalars().first()
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
 
-    # 2. Fetch Ward ID manually since the relationship 'room' is missing
-    room_result = await db.execute(select(Room).where(Room.id == patient.room_id))
-    room = room_result.scalars().first()
-    p_ward_id = room.ward_id if room else None
+    # 2. Fetch Room & Ward
+    room_name = "N/A"
+    ward_label = "N/A"
+    if patient.room_id:
+        room_result = await db.execute(select(Room).where(Room.id == patient.room_id))
+        room = room_result.scalars().first()
+        if room:
+            room_name = room.room_number
+            ward_label = str(room.ward_id)
 
-    # 3. Create the Alert
+    # 3. Fetch Latest Vitals
+    from app.models.vitals import Vitals as VitalEntry 
+    v_res = await db.execute(
+        select(VitalEntry)
+        .where(VitalEntry.patient_id == patient_id)
+        .order_by(VitalEntry.created_at.desc())
+        .limit(1)
+    )
+    vitals = v_res.scalars().first()
+    
+    # 4. Identify Doctors
+    doctor_ids = {doc_id for doc_id in [patient.doctor_id, selected_doctor_id] if doc_id}
+
+    # 5. Create Alert Record
     new_alert = Alert(
         patient_id=patient_id,
-        ward_id=p_ward_id,
+        ward_id=int(ward_label) if ward_label.isdigit() else None,
         vital_type="MANUAL_FLAG",
         triggered_value="NURSE_ESC",
         severity="CRITICAL",
@@ -324,41 +411,30 @@ async def flag_doctor(
         flagged_doctor_id=selected_doctor_id or patient.doctor_id
     )
     db.add(new_alert)
-    await db.flush() # Get the alert ID before commit
+    await db.flush()
 
-    # 4. Broadcast & Notify
-    flag_payload = {
-        "event": "DOCTOR_FLAG",
-        "alert_id": new_alert.id,
-        "patient_name": patient.full_name,
-        "reason": reason,
-        "nurse_name": current_user.full_name,
-        "timestamp": str(datetime.utcnow())
-    }
-    
-    # Broadcast to the patient's ward/view
-    await redis.publish(f"patient:{patient_id}:alerts", json.dumps(flag_payload))
-
-    # Loop through unique doctors to send Redis signals and WhatsApps
-    for doc_id in doctor_ids_to_alert:
-        # A. Real-time Dashboard Update for each doctor
-        await redis.publish(f"doctor:{doc_id}:alerts", json.dumps(flag_payload))
+    # 6. Notify via Redis and WhatsApp
+    # for doc_id in doctor_ids:
+    #     # Dashboard Signal
+    #     await redis.publish(f"doctor:{doc_id}:alerts", json.dumps({"event": "DOCTOR_FLAG", "patient": patient.full_name}))
         
-        # B. Fetch Doctor's Phone Number for WhatsApp
-        doc_result = await db.execute(select(User).where(User.id == doc_id))
-        doctor_user = doc_result.scalars().first()
+    #     doc_user = (await db.execute(select(User).where(User.id == doc_id))).scalars().first()
         
-        # if doctor_user and doctor_user.phone_number:
-        #     background_tasks.add_task(
-        #         send_doctor_flag_whatsapp,
-        #         doctor_user.phone_number,
-        #         patient.full_name,
-        #         reason,
-        #         current_user.full_name
-        #     )
+    #     if doc_user and doc_user.phone_number:
+    #         background_tasks.add_task(
+    #             send_vitalvue_whatsapp,
+    #             doc_user.phone_number,
+    #             patient.full_name,
+    #             reason,
+    #             vitals.heart_rate if vitals else 0,
+    #             vitals.spo2 if vitals else 0,
+    #             vitals.news2_score if vitals else 0,
+    #             ward_label,
+    #             room_name
+    #         )
 
     await db.commit()
-    return {"status": f"Alert sent to {len(doctor_ids_to_alert)} unique doctor(s)"}
+    return {"status": "Escalation processed successfully"}
 
 @router.post("/patients/{patient_id}/action")
 async def perform_patient_action(

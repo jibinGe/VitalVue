@@ -51,6 +51,7 @@ async def get_wards(dept_id: int, db: AsyncSession = Depends(get_db)):
 async def get_rooms(ward_id: int, db: AsyncSession = Depends(get_db)):
     # Only return rooms that are NOT occupied
     result = await db.execute(
-        select(Room).where(Room.ward_id == ward_id, Room.is_occupied == False)
+        # select(Room).where(Room.ward_id == ward_id, Room.is_occupied == False)
+        select(Room).where(Room.ward_id == ward_id)
     )
     return result.scalars().all()

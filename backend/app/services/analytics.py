@@ -21,9 +21,12 @@ def calculate_risks(vitals):
 
 def check_baseline_deviations(vitals):
     """
-    Returns a list of alerts if vitals are out of bounds.
+    Returns a list of alerts. 
+    REMOVED 'message' to prevent Backend TypeError.
     """
     alerts = []
+    
+    # SpO2 Critical Alert
     if vitals.spo2 < 90:
         alerts.append({
             "patient_id": vitals.patient_id,
@@ -31,4 +34,35 @@ def check_baseline_deviations(vitals):
             "triggered_value": f"{vitals.spo2}%",
             "severity": "critical"
         })
+
+    # Heart Rate Critical Alert
+    if vitals.heart_rate > 140 or vitals.heart_rate < 40:
+        alerts.append({
+            "patient_id": vitals.patient_id,
+            "vital_type": "Heart Rate",
+            "triggered_value": f"{vitals.heart_rate} bpm",
+            "severity": "critical"
+        })
+
+    # Blood Pressure Critical Alert
+    if vitals.bp_systolic > 190 or vitals.bp_systolic < 80:
+        alerts.append({
+            "patient_id": vitals.patient_id,
+            "vital_type": "Blood Pressure",
+            "triggered_value": f"{vitals.bp_systolic}/{vitals.bp_diastolic}",
+            "severity": "critical"
+        })
+
+    # Temperature Critical Alert
+    if vitals.temp > 40.0 or vitals.temp < 35.0:
+        alerts.append({
+            "patient_id": vitals.patient_id,
+            "vital_type": "Temperature",
+            "triggered_value": f"{vitals.temp}°C",
+            "severity": "critical"
+        })
+
     return alerts
+
+
+

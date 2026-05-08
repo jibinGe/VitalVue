@@ -4,6 +4,7 @@ from jose import jwt, JWTError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from typing import Optional, List
+from sqlalchemy.orm import with_polymorphic
 
 from app.database import get_db
 from app.models.user import User, UserRole
@@ -20,11 +21,11 @@ async def get_current_user(
     # 1. Try to get token from Query Parameters (For SSE)
     token = request.query_params.get("token")
 
-    # 2. Try to get token from Cookie (Primary for your Frontend/SSE if using cookies)
+    # 2. Try to get token from Cookie
     if not token:
         token = request.cookies.get("access_token")
     
-    # 3. Fallback to Header (Primary for Swagger UI and Band Simulator)
+    # 3. Fallback to Header
     if not token:
         token = token_from_header
 
@@ -44,8 +45,16 @@ async def get_current_user(
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token signature or format")
 
-    result = await db.execute(select(User).where(User.user_id == user_id))
+    # --- MODIFICATION START ---
+    # Define a polymorphic selector for User and all its subclasses (* means all)
+    poly_user = with_polymorphic(User, "*")
+
+    # Query using the polymorphic selector to Eager Load all sub-table data
+    result = await db.execute(
+        select(poly_user).where(poly_user.user_id == user_id)
+    )
     user = result.scalars().first()
+    # --- MODIFICATION END ---
     
     if not user:
         raise HTTPException(status_code=404, detail="User not found")

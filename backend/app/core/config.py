@@ -1,4 +1,8 @@
+import os
+from dotenv import load_dotenv
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+load_dotenv(interpolate=True)
 
 class Settings(BaseSettings):
     # DB & Redis
@@ -21,6 +25,7 @@ class Settings(BaseSettings):
     TWILIO_AUTH_TOKEN: str
     TWILIO_WHATSAPP_NUMBER: str
     
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    # model_config = SettingsConfigDict(env_file=".env", extra="ignore", env_file_encoding='utf-8')
+    model_config = SettingsConfigDict(extra="ignore")
 
 settings = Settings()
