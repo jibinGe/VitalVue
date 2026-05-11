@@ -9,7 +9,7 @@ export const useVitalsStream = (patientId) => {
   const [criticalAlert, setCriticalAlert] = useState(null);
   
   const latestVitalsRef = useRef(null);
-  const alertSentStatusRef = useRef({ removed: false, disconnected: false });
+  const alertSentStatusRef = useRef({ removed: false, disconnected: false, battery: false });
 
   useEffect(() => {
     if (!patientId) return;
@@ -44,7 +44,7 @@ export const useVitalsStream = (patientId) => {
               patient_id: data.patient_id || vitals.patient_id,
               vital_type: 'Device Status',
               triggered_value: 'Watch has been removed',
-              severity: 'Critical',
+              severity: 'Warning',
               _ts: Date.now()
             });
             alertSentStatusRef.current.removed = true;
@@ -59,13 +59,29 @@ export const useVitalsStream = (patientId) => {
                  patient_id: data.patient_id || vitals.patient_id,
                  vital_type: 'Device Status',
                  triggered_value: 'Watch has disconnected with app',
-                 severity: 'Critical',
+                 severity: 'Warning',
                  _ts: Date.now()
                });
                alertSentStatusRef.current.disconnected = true;
            }
         } else {
            alertSentStatusRef.current.disconnected = false;
+        }
+
+        // Check for low battery
+        if (vitals.battery_percent < 30) {
+           if (!alertSentStatusRef.current.battery && !vitals.is_removed && vitals.is_connected !== false) {
+               setCriticalAlert({
+                 patient_id: data.patient_id || vitals.patient_id,
+                 vital_type: 'Battery Status',
+                 triggered_value: `Battery is low (${vitals.battery_percent}%)`,
+                 severity: 'Warning',
+                 _ts: Date.now()
+               });
+               alertSentStatusRef.current.battery = true;
+           }
+        } else {
+           alertSentStatusRef.current.battery = false;
         }
 
       } catch (err) {
@@ -82,12 +98,17 @@ export const useVitalsStream = (patientId) => {
     //   { patient_id, vital_type, triggered_value, ... }
     const handleCriticalAlert = (event) => {
       try {
-        // If the watch is removed, we want to suppress other alerts (like heart rate 0, etc.)
-        if (latestVitalsRef.current && latestVitalsRef.current.is_removed === true) {
-            return;
+        const data = JSON.parse(event.data);
+        
+        // If the watch is removed or disconnected, we want to suppress bogus critical alerts (like heart rate 0).
+        // However, we still allow 'warning' alerts to pass through if they are sent by the backend.
+        if (latestVitalsRef.current && (latestVitalsRef.current.is_removed === true || latestVitalsRef.current.is_connected === false)) {
+            if (data.severity?.toLowerCase() === 'critical') {
+                console.warn('[VitalsStream] Suppressing critical alert because device is removed/disconnected:', data);
+                return;
+            }
         }
 
-        const data = JSON.parse(event.data);
         console.warn('[VitalsStream] Critical alert received:', data);
         // Stamp with Date so repeated same-field alerts still trigger the
         // useEffect dependency in consumers (object identity changes).

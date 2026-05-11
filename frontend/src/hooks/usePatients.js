@@ -121,10 +121,32 @@ export const usePatients = (wardId = 'all', refreshTrigger = 0) => {
         );
 
         if (patient) {
+          const liveState = useDashboardStore.getState().liveVitals[data.patient_id];
           const latestHistoryVitals = patient.vitals_history && patient.vitals_history.length > 0
             ? patient.vitals_history[patient.vitals_history.length - 1]
             : null;
             
+          const isRemoved = liveState?.is_removed ?? latestHistoryVitals?.is_removed;
+          const isConnected = liveState?.is_connected ?? latestHistoryVitals?.is_connected ?? true;
+
+          if ((isRemoved === true || isConnected === false) && data.severity?.toLowerCase() === 'critical') {
+            console.warn('[usePatients] Suppressing critical alert because device is removed/disconnected:', data);
+            return;
+          }
+
+          // Check if an alarm is already active for this patient or if it was recently acknowledged
+          const currentAlarm = useDashboardStore.getState().criticalAlarmData;
+          if (currentAlarm && currentAlarm.userId === data.patient_id) {
+            return; // Don't overwrite the active modal
+          }
+
+          // Check cooldown (we will implement this in the store)
+          const canShow = useDashboardStore.getState().canShowAlarm;
+          if (canShow && !canShow(data.patient_id, data.severity)) {
+             console.warn('[usePatients] Suppressing alert due to cooldown:', data);
+             return;
+          }
+
           const vitalsSnapshot = {
             heartRate: latestHistoryVitals?.heart_rate ?? undefined,
             spo2: latestHistoryVitals?.spo2 ?? undefined,

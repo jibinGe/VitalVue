@@ -110,3 +110,21 @@ export function stopAlarm() {
     alarmInterval = null;
   }
 }
+
+/**
+ * Plays a short warning beep pattern
+ */
+function playWarningPattern() {
+  playBeep(600, 0.2, 0.6, "sine");
+  setTimeout(() => playBeep(600, 0.2, 0.6, "sine"), 300);
+}
+
+/**
+ * Start the repeating warning alarm sound (every 4 seconds).
+ */
+export function startWarningAlarm() {
+  stopAlarm(); // clear any existing interval first
+  playWarningPattern(); // play immediately
+  alarmInterval = setInterval(playWarningPattern, 4000);
+}
+

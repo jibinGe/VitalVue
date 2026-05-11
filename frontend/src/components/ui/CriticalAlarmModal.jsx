@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { startAlarm, stopAlarm } from "@/utilities/alarmSound";
+import { startAlarm, stopAlarm, startWarningAlarm } from "@/utilities/alarmSound";
 
 /**
  * CriticalAlarmModal
@@ -20,19 +20,27 @@ export default function CriticalAlarmModal({
   patientName,
   patientId,
   vitals = {},
-  alert = null,   // { vital_type, triggered_value, ... } from the SSE stream
+  alert = null,
   onDismiss,
   onViewPatient,
 }) {
+  const isWarning = alert?.severity?.toLowerCase() === 'warning';
+  const themeColor = isWarning ? '#E5A54D' : '#E54D4D';
+  const themeColorRgba = isWarning ? '229,165,77' : '229,77,77';
+
   // Start / stop alarm sound when modal opens/closes
   useEffect(() => {
     if (isOpen) {
-      startAlarm();
+      if (isWarning) {
+        startWarningAlarm();
+      } else {
+        startAlarm();
+      }
     } else {
       stopAlarm();
     }
     return () => stopAlarm();
-  }, [isOpen]);
+  }, [isOpen, isWarning]);
 
   const hr = vitals?.heartRate?.value != null ? Math.round(vitals.heartRate.value) : vitals?.heartRate != null && vitals.heartRate !== "—" ? Math.round(vitals.heartRate) : "—";
   const spo2 = vitals?.spo2?.value != null ? Math.round(vitals.spo2.value) : vitals?.spo2 != null && vitals.spo2 !== "—" ? Math.round(vitals.spo2) : "—";
@@ -68,20 +76,20 @@ export default function CriticalAlarmModal({
               className="relative w-full max-w-[480px] rounded-[28px] overflow-hidden"
               style={{
                 background: "linear-gradient(145deg, #1a0a0a, #1e1010)",
-                border: "1px solid rgba(229,77,77,0.4)",
+                border: `1px solid rgba(${themeColorRgba},0.4)`,
                 boxShadow:
-                  "0 0 0 1px rgba(229,77,77,0.15), 0 30px 80px rgba(0,0,0,0.7), 0 0 60px rgba(229,77,77,0.12)",
+                  `0 0 0 1px rgba(${themeColorRgba},0.15), 0 30px 80px rgba(0,0,0,0.7), 0 0 60px rgba(${themeColorRgba},0.12)`,
               }}
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Pulsing red glow top bar */}
+              {/* Pulsing red/orange glow top bar */}
               <motion.div
                 animate={{ opacity: [1, 0.4, 1] }}
                 transition={{ duration: 1, repeat: Infinity, ease: "easeInOut" }}
                 style={{
                   height: 4,
                   width: "100%",
-                  background: "linear-gradient(90deg, transparent, #E54D4D, transparent)",
+                  background: `linear-gradient(90deg, transparent, ${themeColor}, transparent)`,
                 }}
               />
 
@@ -94,27 +102,27 @@ export default function CriticalAlarmModal({
                   style={{
                     width: 72,
                     height: 72,
-                    background: "rgba(229,77,77,0.12)",
-                    border: "1.5px solid rgba(229,77,77,0.4)",
-                    boxShadow: "0 0 30px rgba(229,77,77,0.2)",
+                    background: `rgba(${themeColorRgba},0.12)`,
+                    border: `1.5px solid rgba(${themeColorRgba},0.4)`,
+                    boxShadow: `0 0 30px rgba(${themeColorRgba},0.2)`,
                   }}
                 >
                   <svg width="34" height="34" viewBox="0 0 24 24" fill="none">
                     <path
                       d="M12 8.12695V12.9072"
-                      stroke="#E54D4D"
+                      stroke={themeColor}
                       strokeWidth="1.8"
                       strokeLinecap="round"
                     />
                     <path
                       d="M11.9994 19.9904H5.93944C2.46944 19.9904 1.01944 17.6194 2.69944 14.7226L5.81944 9.34962L8.75944 4.30169C10.5394 1.23277 13.4594 1.23277 15.2394 4.30169L18.1794 9.35918L21.2994 14.7322C22.9794 17.629 21.5194 20 18.0594 20H11.9994V19.9904Z"
-                      stroke="#E54D4D"
+                      stroke={themeColor}
                       strokeWidth="1.8"
                       strokeLinecap="round"
                     />
                     <path
                       d="M11.9961 15.7754H12.0051"
-                      stroke="#E54D4D"
+                      stroke={themeColor}
                       strokeWidth="2.2"
                       strokeLinecap="round"
                     />
@@ -126,9 +134,9 @@ export default function CriticalAlarmModal({
                   animate={{ opacity: [1, 0.5, 1] }}
                   transition={{ duration: 1, repeat: Infinity }}
                   className="text-xs font-semibold tracking-[0.2em] uppercase mb-2"
-                  style={{ color: "#E54D4D" }}
+                  style={{ color: themeColor }}
                 >
-                  🚨 Critical Alarm
+                  {isWarning ? "⚠️ Warning Alert" : "🚨 Critical Alarm"}
                 </motion.p>
 
                 <h2 className="text-2xl font-bold text-white mb-1">
@@ -143,7 +151,7 @@ export default function CriticalAlarmModal({
                   className="w-full h-px mb-5"
                   style={{
                     background:
-                      "linear-gradient(90deg,transparent,rgba(229,77,77,0.3),transparent)",
+                      `linear-gradient(90deg,transparent,rgba(${themeColorRgba},0.3),transparent)`,
                   }}
                 />
 
@@ -154,8 +162,8 @@ export default function CriticalAlarmModal({
                     animate={{ opacity: 1, y: 0 }}
                     className="w-full rounded-xl px-4 py-3 mb-4 flex items-center justify-between"
                     style={{
-                      background: "rgba(229,77,77,0.1)",
-                      border: "1px solid rgba(229,77,77,0.35)",
+                      background: `rgba(${themeColorRgba},0.1)`,
+                      border: `1px solid rgba(${themeColorRgba},0.35)`,
                     }}
                   >
                     <div className="flex items-center gap-2">
@@ -164,11 +172,11 @@ export default function CriticalAlarmModal({
                         transition={{ duration: 0.8, repeat: Infinity }}
                         style={{
                           width: 8, height: 8, borderRadius: "50%",
-                          background: "#E54D4D",
+                          background: themeColor,
                           flexShrink: 0,
                         }}
                       />
-                      <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#E54D4D" }}>
+                      <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: themeColor }}>
                         Triggered Alert
                       </span>
                     </div>
@@ -176,7 +184,7 @@ export default function CriticalAlarmModal({
                       <p className="text-xs text-[#888] mb-0.5">
                         {alert?.vital_type ?? vitals?._alertVitalType}
                       </p>
-                      <p className="text-sm font-bold" style={{ color: "#E54D4D" }}>
+                      <p className="text-sm font-bold" style={{ color: themeColor }}>
                         {(() => {
                           const val = alert?.triggered_value ?? vitals?._alertTriggeredVal;
                           if (val == null) return "—";
@@ -212,15 +220,15 @@ export default function CriticalAlarmModal({
                       className="rounded-xl px-3 py-2.5 text-left"
                       style={{
                         background: critical
-                          ? "rgba(229,77,77,0.08)"
+                          ? `rgba(${themeColorRgba},0.08)`
                           : "rgba(255,255,255,0.04)",
-                        border: `1px solid ${critical ? "rgba(229,77,77,0.3)" : "rgba(255,255,255,0.06)"}`,
+                        border: `1px solid ${critical ? `rgba(${themeColorRgba},0.3)` : "rgba(255,255,255,0.06)"}`,
                       }}
                     >
                       <p className="text-[10px] text-[#888] mb-1">{label}</p>
                       <p
                         className="text-base font-semibold"
-                        style={{ color: critical ? "#E54D4D" : "#fff" }}
+                        style={{ color: critical ? themeColor : "#fff" }}
                       >
                         {value}
                       </p>
@@ -248,9 +256,10 @@ export default function CriticalAlarmModal({
                     }}
                     className="flex-1 py-3 rounded-2xl text-sm font-semibold transition-all"
                     style={{
-                      background:
-                        "linear-gradient(135deg, #E54D4D, #c0392b)",
-                      boxShadow: "0 4px 20px rgba(229,77,77,0.35)",
+                      background: isWarning
+                        ? `linear-gradient(135deg, ${themeColor}, #c0852b)`
+                        : "linear-gradient(135deg, #E54D4D, #c0392b)",
+                      boxShadow: `0 4px 20px rgba(${themeColorRgba},0.35)`,
                       color: "#fff",
                     }}
                   >

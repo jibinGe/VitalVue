@@ -430,6 +430,20 @@ export default function Overview() {
   useEffect(() => {
     if (!criticalAlert) return;
 
+    const currentAlarm = useDashboardStore.getState().criticalAlarmData;
+    if (currentAlarm && currentAlarm.alert?._ts === criticalAlert._ts) {
+      return;
+    }
+    if (currentAlarm && currentAlarm.source === 'overview') {
+       return; // Do not overwrite active modal with same source until acknowledged
+    }
+
+    const canShow = useDashboardStore.getState().canShowAlarm;
+    if (canShow && !canShow(userId, criticalAlert.severity)) {
+       console.warn('[Overview] Suppressing alert due to cooldown:', criticalAlert);
+       return;
+    }
+
     // Build a vitals snapshot for the modal. Merge stream vitals + alert info.
     const vitalsSnapshot = {
       // Current live vitals (may be populated from prior patient_vital_update events)
@@ -445,7 +459,7 @@ export default function Overview() {
       _alertTriggeredVal: criticalAlert.triggered_value,
     };
 
-    setCriticalAlarmData({ vitals: vitalsSnapshot, alert: criticalAlert, source: 'overview' });
+    setCriticalAlarmData({ vitals: vitalsSnapshot, alert: criticalAlert, source: 'overview', userId });
   }, [criticalAlert]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // (Removed: fallback polling alarm from clinical_risks — the SSE-based
