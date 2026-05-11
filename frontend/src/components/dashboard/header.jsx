@@ -13,6 +13,7 @@ import Notifactions from './notifactions';
 import { LogOut, Settings, User } from 'lucide-react';
 import { patientService } from '@/services/patientService';
 import { useWard } from '../../contexts/WardContext';
+import { useDashboardStore } from '../../store/useDashboardStore';
 
 export default function Header() {
   const navigate = useNavigate()
@@ -56,6 +57,7 @@ export default function Header() {
   // Fetch wards
   const [wards, setWards] = useState([]);
   const { selectedWard, setSelectedWard } = useWard();
+  const { searchQuery, setSearchQuery } = useDashboardStore();
 
   useEffect(() => {
     const fetchWards = async () => {
@@ -115,6 +117,8 @@ export default function Header() {
             leftIconClass="left-0!"
             placeholder="Search patient or ID..."
             inputClass="h-10 border-none! placeholder:text-white! text-white! w-full bg-transparent! ring-0!"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
 

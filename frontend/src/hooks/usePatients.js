@@ -7,9 +7,9 @@ import { useDashboardStore } from '@/store/useDashboardStore';
  * Hook to fetch patient data and stream live vitals via Server-Sent Events.
  * Fully replaces the manual polling logic.
  */
-export const usePatients = (wardId = 'all', refreshTrigger = 0) => {
+export const usePatients = (wardId = 'all', refreshTrigger = 0, searchQuery = "") => {
   const queryClient = useQueryClient();
-  const queryKey = ['patients', wardId, refreshTrigger];
+  const queryKey = ['patients', wardId, refreshTrigger, searchQuery];
   
   const { setCriticalAlarmData, updateLiveVitals } = useDashboardStore();
 
@@ -19,6 +19,9 @@ export const usePatients = (wardId = 'all', refreshTrigger = 0) => {
       const params = {};
       if (wardId && wardId !== "all") {
         params.ward = wardId;
+      }
+      if (searchQuery && searchQuery.trim() !== "") {
+        params.search = searchQuery.trim();
       }
       const response = await patientService.getOrganizationVitals(params);
 

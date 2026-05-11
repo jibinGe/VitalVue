@@ -42,6 +42,10 @@ export const useDashboardStore = create((set) => ({
   selectedUserName: null,
   setSelectedUserName: (name) => set({ selectedUserName: name }),
 
+  // Global Search
+  searchQuery: "",
+  setSearchQuery: (query) => set({ searchQuery: query }),
+
   // Live Vitals Cache (keyed by patientId)
   liveVitals: {},
   updateLiveVitals: (patientId, vitals) => set((state) => ({

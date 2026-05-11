@@ -34,6 +34,7 @@ export default function Home() {
     selectedUserName,
     setSelectedUserName,
     liveVitals,
+    searchQuery: globalSearchQuery,
   } = useDashboardStore();
 
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -41,7 +42,16 @@ export default function Home() {
 
 
   // --- Fetch Data via Hooks ---
-  const { data: rawPatients = [], isLoading: loading } = usePatients(selectedWard?.id, refreshTrigger);
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchQuery(globalSearchQuery);
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [globalSearchQuery]);
+
+  const { data: rawPatients = [], isLoading: loading } = usePatients(selectedWard?.id, refreshTrigger, debouncedSearchQuery);
   const { data: doctors = [], isLoading: doctorsLoading } = useDoctors();
 
   // --- Static Data for UI ---
@@ -219,7 +229,6 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [doctorFilterTab, setDoctorFilterTab] = useState("All");
   const [toast, setToast] = useState({ visible: false, message: "" });
-  const [patientSearchQuery, setPatientSearchQuery] = useState("");
 
   const card_ref = useRef(null);
   const [cardMenu, setCardMenu] = useState(null);
@@ -611,7 +620,6 @@ export default function Home() {
               <h4 className="text-xl lg:text-2xl text-white">
                 Patient Details Cards
               </h4>
-
             </div>
             <div className="bg-[#27272b] border-[#0f0f0f] border-y-[1.2px] flex flex-col md:flex-row items-center justify-between p-5 mb-8 rounded-[12px] shadow-[0_0_50px_rgba(0,0,0,0.08)] gap-4">
               {loading ? (
@@ -669,15 +677,6 @@ export default function Home() {
               <AnimatePresence mode="popLayout">
                 {(() => {
                   const displayData = (triageFilter !== "All" ? cardData.filter(item => item.status === triageFilter) : cardData)
-                    .filter(item => {
-                      if (!patientSearchQuery.trim()) return true;
-                      const q = patientSearchQuery.toLowerCase();
-                      return (
-                        (item.name && item.name.toLowerCase().includes(q)) ||
-                        (item.patientId && String(item.patientId).toLowerCase().includes(q)) ||
-                        (item.room && String(item.room).toLowerCase().includes(q))
-                      );
-                    })
                     .slice()
                     .sort((a, b) => getStatusPriority(a.status) - getStatusPriority(b.status));
 

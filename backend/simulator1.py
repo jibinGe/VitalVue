@@ -19,7 +19,7 @@ def generate_vitals(p_id, d_id):
         "patient_id": p_id,
         "device_id": d_id,
         "heart_rate": random.randint(70, 145),
-        "spo2": round(random.uniform(88.0, 99.0), 1),
+        "spo2": round(random.uniform(99.0, 99.0), 1),
         "temp": round(random.uniform(20, 39.0), 1),
         "bp_systolic": random.randint(110, 175),
         "bp_diastolic": random.randint(70, 110),
