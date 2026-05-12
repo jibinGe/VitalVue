@@ -67,7 +67,7 @@ const PatientCard = memo(({
                 const parts = vital.bp ? vital.bp.split('/') : [];
                 return parts[0] === '0' || parts[0] === '--' || !vital.bp;
             }
-            if (title === "Temp") return vital.temp === "0.0" || vital.temp === 0 || !vital.temp;
+            if (title === "Skin Temp") return vital.temp === "0.0" || vital.temp === 0 || !vital.temp;
             return false;
         };
 
@@ -84,7 +84,7 @@ const PatientCard = memo(({
         if (vital.title === "BP Trend") {
             return <BPTrend className="h-8 scale-130 -mb-2" historyData={vital.historyData} />;
         }
-        if (vital.title === "Temp") {
+        if (vital.title === "Skin Temp") {
             return <TempWave className="h-11 -ml-3 w-[calc(100%+24px)]! -mb-2" historyData={vital.historyData} />;
         }
         return null;
@@ -94,7 +94,7 @@ const PatientCard = memo(({
         "Heart Rate": <Hart />,
         "SpO2": <Spo />,
         "BP Trend": <Bp />,
-        "Temp": <Temp />
+        "Skin Temp": <Temp />
     };
 
     const getBatteryColor = (percent) => {
@@ -133,7 +133,7 @@ const PatientCard = memo(({
                             <div className="flex items-center justify-between">
                                 <span className="text-white font-lufga font-medium text-[18px]">{item.name}</span>
                                 <button onClick={(e) => { e.stopPropagation(); setCardMenu(cardMenu === index + 1 ? null : index + 1) }} className="relative z-20 hover:bg-white/10 p-1.5 rounded-full transition-colors cursor-pointer">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-white opacity-80"><circle cx="12" cy="5" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="19" r="1.5" fill="currentColor"/></svg>
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-white opacity-80"><circle cx="12" cy="5" r="1.5" fill="currentColor" /><circle cx="12" cy="12" r="1.5" fill="currentColor" /><circle cx="12" cy="19" r="1.5" fill="currentColor" /></svg>
                                 </button>
                                 <AnimatePresence>
                                     {cardMenu === index + 1 && (
@@ -142,19 +142,19 @@ const PatientCard = memo(({
                                                 const isAction = menuItem.text === "End Monitoring";
                                                 const text = (isAction && !item.isConnected) ? "Start Monitoring" : menuItem.text;
                                                 return (
-                                                <button key={menuIndex} onClick={(e) => { 
-                                                    e.stopPropagation(); 
-                                                    if (isAction) { 
-                                                        setSelectedUserId(item.id); 
-                                                        setSelectedUserName(item.name); 
-                                                        setEndMonitoring(true); 
-                                                    } else if (menuItem.text === "View Details") {
-                                                        navigate(`/dashboard/overview/${item.id}`, { state: { patientName: item.name, patientId: item.patientId || item.userId, room: item.room } });
-                                                    }
-                                                    setCardMenu(null); 
-                                                }} className={`flex items-center hover:bg-white/5 gap-3 font-normal py-3.5 px-4 text-[15px] relative z-1 w-full text-nowrap transition-colors ${isAction ? "text-[#E86363] hover:bg-[#E86363]/10" : "text-white"}`}>
-                                                    {menuItem.icon} {text} {menuIndex !== CardMenu.length - 1 && <span className="absolute bottom-0 left-0 w-full bg-[linear-gradient(90deg,rgba(255,255,255,0)_0%,rgba(255,255,255,0.1)_50%,rgba(255,255,255,0)_100%)] h-[1px]" />}
-                                                </button>
+                                                    <button key={menuIndex} onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        if (isAction) {
+                                                            setSelectedUserId(item.id);
+                                                            setSelectedUserName(item.name);
+                                                            setEndMonitoring(true);
+                                                        } else if (menuItem.text === "View Details") {
+                                                            navigate(`/dashboard/overview/${item.id}`, { state: { patientName: item.name, patientId: item.patientId || item.userId, room: item.room } });
+                                                        }
+                                                        setCardMenu(null);
+                                                    }} className={`flex items-center hover:bg-white/5 gap-3 font-normal py-3.5 px-4 text-[15px] relative z-1 w-full text-nowrap transition-colors ${isAction ? "text-[#E86363] hover:bg-[#E86363]/10" : "text-white"}`}>
+                                                        {menuItem.icon} {text} {menuIndex !== CardMenu.length - 1 && <span className="absolute bottom-0 left-0 w-full bg-[linear-gradient(90deg,rgba(255,255,255,0)_0%,rgba(255,255,255,0.1)_50%,rgba(255,255,255,0)_100%)] h-[1px]" />}
+                                                    </button>
                                                 )
                                             })}
                                         </motion.div>
@@ -166,8 +166,8 @@ const PatientCard = memo(({
                                 <span className="text-white font-lufga font-medium text-[18px]">{item.patientId || item.userId?.toString().slice(0, 5)}</span>
                             </div>
                             <div className="flex items-center gap-1.5">
-                                <span className="text-white font-lufga font-medium text-[18px] whitespace-nowrap">R.No:</span>
-                                <span className="text-white font-lufga font-medium text-[18px]">{item.room}</span>
+                                <span className="text-white font-lufga font-medium text-[22px] whitespace-nowrap">R.No:</span>
+                                <span className="text-white font-lufga font-medium text-[22px]">{item.room}</span>
                             </div>
                         </div>
                     </div>
@@ -209,16 +209,16 @@ const PatientCard = memo(({
                                     <div className="flex items-center gap-2 mb-2">
                                         <div className="size-8 rounded-full flex items-center justify-center shrink-0 bg-yellow">
                                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                <path d="M4 7C4 5.34315 5.34315 4 7 4H17C18.6569 4 20 5.34315 20 7V17C20 18.6569 18.6569 20 17 20H7C5.34315 20 4 18.6569 4 17V7Z" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
-                                                <path d="M12 16V16.01" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
-                                                <path d="M8 4V2" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
-                                                <path d="M16 4V2" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
-                                                <path d="M8 22V20" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
-                                                <path d="M16 22V20" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
-                                                <path d="M4 8H2" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
-                                                <path d="M4 16H2" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
-                                                <path d="M22 8H20" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
-                                                <path d="M22 16H20" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                <path d="M4 7C4 5.34315 5.34315 4 7 4H17C18.6569 4 20 5.34315 20 7V17C20 18.6569 18.6569 20 17 20H7C5.34315 20 4 18.6569 4 17V7Z" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                                                <path d="M12 16V16.01" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                                                <path d="M8 4V2" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                                                <path d="M16 4V2" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                                                <path d="M8 22V20" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                                                <path d="M16 22V20" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                                                <path d="M4 8H2" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                                                <path d="M4 16H2" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                                                <path d="M22 8H20" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                                                <path d="M22 16H20" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
                                             </svg>
                                         </div>
                                         <span className="text-xs text-white font-medium">Device</span>

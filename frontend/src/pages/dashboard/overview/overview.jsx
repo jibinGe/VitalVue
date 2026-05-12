@@ -373,7 +373,7 @@ export default function Overview() {
       {
         icon: <Temp />,
         iconBg: "bg-blue",
-        title: "Temperature",
+        title: "Skin Temperature",
         value: tempVal ? formatTemperature(tempVal) : '--',
         extension: "°C",
         img: (tempVal === 0 || tempVal === '0' || !tempVal) ? noGraphPlaceholder : <TempWave historyData={historyData} />,
@@ -843,6 +843,8 @@ export default function Overview() {
         isOpen={!!criticalAlarmData && criticalAlarmData?.source !== 'home'}
         patientName={patientData?.name || patientData?.fullName}
         patientId={userId}
+        room={statePatient.room || patientData?.room || currentVitals?.room || patientData?.bed || currentVitals?.bed}
+        ward={patientData?.ward || currentVitals?.ward}
         vitals={criticalAlarmData?.vitals}
         alert={criticalAlarmData?.alert}
         onDismiss={() => clearCriticalAlarm()}

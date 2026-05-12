@@ -52,7 +52,7 @@ const BaselineDeviationModal = ({
         'Blood Pressure (Systolic)',
         'Blood Pressure (Diastolic)',
         'SpO2',
-        'Temperature',
+        'Skin Temperature',
         'Respiratory Rate',
         'HRV Score',
         'Other'

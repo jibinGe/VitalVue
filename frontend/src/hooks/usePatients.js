@@ -132,8 +132,10 @@ export const usePatients = (wardId = 'all', refreshTrigger = 0, searchQuery = ""
           const isRemoved = liveState?.is_removed ?? latestHistoryVitals?.is_removed;
           const isConnected = liveState?.is_connected ?? latestHistoryVitals?.is_connected ?? true;
 
-          if ((isRemoved === true || isConnected === false) && data.severity?.toLowerCase() === 'critical') {
-            console.warn('[usePatients] Suppressing critical alert because device is removed/disconnected:', data);
+          const isDeviceAlert = data.vital_type === "Band Status" || data.vital_type === "Connectivity";
+
+          if (!isDeviceAlert && (isRemoved === true || isConnected === false) && data.severity?.toLowerCase() === 'critical') {
+            console.warn('[usePatients] Suppressing critical vitals alert because device is removed/disconnected:', data);
             return;
           }
 
@@ -164,6 +166,8 @@ export const usePatients = (wardId = 'all', refreshTrigger = 0, searchQuery = ""
           setCriticalAlarmData({
             name: patient.full_name || patient.name || "Unknown Patient",
             userId: data.patient_id,
+            room: patient.room_no || "General",
+            ward: patient.ward_name || patient.ward || patient.ward_no,
             vitals: vitalsSnapshot,
             alert: data,
             source: 'home'

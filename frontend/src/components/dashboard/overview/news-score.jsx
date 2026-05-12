@@ -92,7 +92,7 @@ export default function NewsScore({ userId }) {
                 color: 'bg-yellow-500'
             },
             {
-                name: 'Temperature',
+                name: 'Skin Temperature',
                 value: `${components.temperature?.value ? parseFloat(components.temperature.value).toFixed(1) : 'N/A'}°C`,
                 score: components.temperature?.score || 0,
                 color: 'bg-green-500'

@@ -11,7 +11,7 @@ import { useDashboardStore } from '@/store/useDashboardStore';
  *   patientId   : number  — the integer patient ID for the stream endpoint
  *   patientName : string  — displayed in the CriticalAlarmModal title
  */
-export default function PatientStreamWatcher({ patientId, patientName }) {
+export default function PatientStreamWatcher({ patientId, patientName, room, ward }) {
   const { criticalAlert, streamData } = useVitalsStream(patientId);
   const { setCriticalAlarmData, updateLiveVitals } = useDashboardStore();
 
@@ -40,6 +40,8 @@ export default function PatientStreamWatcher({ patientId, patientName }) {
     setCriticalAlarmData({
       name:    patientName,
       userId:  patientId,
+      room,
+      ward,
       vitals:  vitalsSnapshot,
       alert:   criticalAlert,   // { vital_type, triggered_value, severity, ... }
       source:  'home',          // prevents overview from showing home-page alarms

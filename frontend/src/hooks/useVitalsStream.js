@@ -37,52 +37,7 @@ export const useVitalsStream = (patientId) => {
         setStreamData(vitals);
         latestVitalsRef.current = vitals;
 
-        // Check for device removal or disconnection and show an alert with status only once per transition
-        if (vitals.is_removed === true) {
-          if (!alertSentStatusRef.current.removed) {
-            setCriticalAlert({
-              patient_id: data.patient_id || vitals.patient_id,
-              vital_type: 'Device Status',
-              triggered_value: 'Watch has been removed',
-              severity: 'Warning',
-              _ts: Date.now()
-            });
-            alertSentStatusRef.current.removed = true;
-          }
-        } else {
-          alertSentStatusRef.current.removed = false;
-        }
 
-        if (vitals.is_connected === false) {
-           if (!alertSentStatusRef.current.disconnected && !vitals.is_removed) {
-               setCriticalAlert({
-                 patient_id: data.patient_id || vitals.patient_id,
-                 vital_type: 'Device Status',
-                 triggered_value: 'Watch has disconnected with app',
-                 severity: 'Warning',
-                 _ts: Date.now()
-               });
-               alertSentStatusRef.current.disconnected = true;
-           }
-        } else {
-           alertSentStatusRef.current.disconnected = false;
-        }
-
-        // Check for low battery
-        if (vitals.battery_percent < 30) {
-           if (!alertSentStatusRef.current.battery && !vitals.is_removed && vitals.is_connected !== false) {
-               setCriticalAlert({
-                 patient_id: data.patient_id || vitals.patient_id,
-                 vital_type: 'Battery Status',
-                 triggered_value: `Battery is low (${vitals.battery_percent}%)`,
-                 severity: 'Warning',
-                 _ts: Date.now()
-               });
-               alertSentStatusRef.current.battery = true;
-           }
-        } else {
-           alertSentStatusRef.current.battery = false;
-        }
 
       } catch (err) {
         console.error('Error parsing stream data:', err);
@@ -102,9 +57,29 @@ export const useVitalsStream = (patientId) => {
         
         // If the watch is removed or disconnected, we want to suppress bogus critical alerts (like heart rate 0).
         // However, we still allow 'warning' alerts to pass through if they are sent by the backend.
-        if (latestVitalsRef.current && (latestVitalsRef.current.is_removed === true || latestVitalsRef.current.is_connected === false)) {
-            if (data.severity?.toLowerCase() === 'critical') {
-                console.warn('[VitalsStream] Suppressing critical alert because device is removed/disconnected:', data);
+        const isDeviceAlert = data.vital_type === "Band Status" || data.vital_type === "Connectivity" || data.vital_type === "Device Status";
+        const isCritical = data.severity?.toLowerCase() === 'critical';
+
+        if (!isDeviceAlert && !isCritical) {
+            console.warn('[VitalsStream] Ignoring non-critical, non-device alert:', data);
+            return;
+        }
+
+        // If the watch is removed or disconnected, we want to suppress bogus critical alerts (like heart rate 0).
+        const isRemoved = latestVitalsRef.current ? latestVitalsRef.current.is_removed === true : false;
+        const isDisconnected = latestVitalsRef.current ? latestVitalsRef.current.is_connected === false : false;
+
+        // Bogus vitals usually have triggered_value of 0, '0', or are missing.
+        const valNum = parseFloat(data.triggered_value);
+        const isBogusValue = data.triggered_value === 0 || data.triggered_value === '0' || (!isNaN(valNum) && valNum <= 0) || !data.triggered_value;
+
+        // If we don't have vitals yet (initial load), assume it might be a stale/bogus alert if the value is bogus.
+        // Even better, if we don't have vitals at all, it's safer to suppress non-device critical alerts until we know the connection state.
+        const isUnknownState = !latestVitalsRef.current;
+
+        if (!isDeviceAlert && (isRemoved || isDisconnected || (isUnknownState && isBogusValue))) {
+            if (isCritical) {
+                console.warn('[VitalsStream] Suppressing critical vitals alert because device is removed/disconnected or state is unknown with bogus value:', data);
                 return;
             }
         }

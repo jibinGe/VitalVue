@@ -88,7 +88,7 @@ export default function Temperature() {
 
       ),
       iconBg: "bg-bluesky",
-      title: "Current Temperature",
+      title: "Current Skin Temperature",
       value: `${currentTemp.toFixed(1)}°C`,
       progressValue: currentTemp > 37.5 ? 75 : currentTemp > 37 ? 50 : 25,
       des: currentTemp > 37.5 ? "Fever detected" : currentTemp > 37 ? "Elevated temperature" : "Normal temperature",
@@ -115,11 +115,11 @@ export default function Temperature() {
       </svg>
       ),
       iconBg: "bg-green",
-      title: "Temperature Stability",
+      title: "Skin Temperature Stability",
       value: `${Math.round(calculateStability())}%`,
       progressValue: calculateStability(),
       progressStatus: ["Stable", "Fluctuating", "Unstable"],
-      des: "Temperature variability over time",
+      des: "Skin Temperature variability over time",
       type: "normal",
     },
     {
@@ -129,7 +129,7 @@ export default function Temperature() {
       </svg>
       ),
       iconBg: "bg-yellow",
-      title: "Average Temperature",
+      title: "Average Skin Temperature",
       value: statistics?.average !== undefined && statistics?.average !== null
         ? `${statistics.average.toFixed(1)}°C`
         : `${currentTemp.toFixed(1)}°C`,
@@ -159,7 +159,7 @@ export default function Temperature() {
     },
     {
       title: "36.4°C",
-      des: "Lowest temperature",
+      des: "Lowest skin temperature",
       subdes: "Below baseline: −0.6°C",
       para: "Recorded at 23:45",
       component: <Baseline />
@@ -181,7 +181,7 @@ export default function Temperature() {
     return (
       <Mainbody>
         <div className="flex items-center justify-center min-h-96">
-          <p className="text-white">Loading temperature data...</p>
+          <p className="text-white">Loading skin temperature data...</p>
         </div>
       </Mainbody>
     );
@@ -190,14 +190,14 @@ export default function Temperature() {
   if (hasNoData) {
     return (
       <Mainbody>
-        <TopTitle title="Temperature" />
+        <TopTitle title="Skin Temperature" />
         <div className="flex items-center justify-center min-h-96">
           <div className="text-center">
             <svg className="mx-auto mb-4 w-16 h-16 text-[#9CA3AF]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            <h3 className="text-xl font-medium text-white mb-2">No Temperature Data Available</h3>
-            <p className="text-[#9CA3AF] text-sm">No temperature data found for the selected time range.</p>
+            <h3 className="text-xl font-medium text-white mb-2">No Skin Temperature Data Available</h3>
+            <p className="text-[#9CA3AF] text-sm">No skin temperature data found for the selected time range.</p>
             <p className="text-[#9CA3AF] text-xs mt-1">Please try selecting a different time period.</p>
           </div>
         </div>
@@ -208,7 +208,7 @@ export default function Temperature() {
   return (
     <>
       <Mainbody>
-        <TopTitle title="Temperature" />
+        <TopTitle title="Skin Temperature" />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5 xl:gap-6 mb-4 lg:mb-5 xl:mb-6">
           {bpTrend?.map((item, idx) => (
             <div className="bg-[#2F2F31] rounded-3xl overflow-hidden min-h-52  flex flex-col justify-between" key={idx}>
@@ -239,7 +239,7 @@ export default function Temperature() {
         </div>
         <div className="p-4 lg:p-5 bg-[#2F2F31] rounded-2xl lg:rounded-3xl xl:rounded-[30px] mb-4 lg:mb-5 xl:mb-6">
           <ChartTitle
-            title="Temperature Trend"
+            title="Skin Temperature Trend"
             des={`${filterTab === '1h' ? '1-hour' : filterTab === '6h' ? '6-hour' : filterTab === '24h' ? '24-hour' : '7-day'} monitoring view`}
             filter_items={filter}
             set_active_filter={filter.indexOf(filterTab)}

@@ -348,6 +348,8 @@ export default function Home() {
         strokeRisk === "Medium" ||
         seizureRisk === "Medium";
 
+      const isConnected = live.is_connected ?? latestHistoryVitals?.is_connected ?? (p.vitals_history && p.vitals_history.length > 0 ? true : false);
+
       let status = "Stable";
       if (hasNoVitals || hasCriticalVital || hasCriticalScore || hasCriticalRisk) {
         status = "Critical";
@@ -355,9 +357,10 @@ export default function Home() {
         status = "Warning";
       }
 
-      // If watch is removed, suppress critical status so it doesn't trigger false alarms locally
-      if (isRemoved) {
-          status = "Stable";
+      // If watch is removed AND disconnected, suppress critical status to avoid false alarms.
+      // If it is ONLY removed or ONLY disconnected, we keep the status to alert the staff.
+      if (isRemoved && isConnected === false) {
+        status = "Stable";
       }
 
       return {
@@ -367,16 +370,18 @@ export default function Home() {
         patientId: p.user_id, // For UI display
         name: p.full_name || "Unknown Patient",
         room: p.room_no || "General",
+        ward: p.ward_name || p.ward || p.ward_no,
         lastSync: live.recorded_at || latestHistoryVitals?.recorded_at || new Date().toISOString(),
         vitals: [
           { icon: <Hart />, title: "Heart Rate", heartRate: vitals.heartRate?.value || 0, historyData: p.vitals_history || [] },
           { icon: <Spo />, title: "SpO2", spo2: vitals.spo2?.value ? Math.round(vitals.spo2.value) : 0, historyData: p.vitals_history || [] },
           { icon: <Bp />, title: "BP Trend", bp: `${vitals.bloodPressure?.systolic || '--'}/${vitals.bloodPressure?.diastolic || '--'}`, historyData: p.vitals_history || [] },
-          { icon: <Temp />, title: "Temp", temp: vitals.temperature?.value ? formatTemperature(vitals.temperature?.value) : '--', historyData: p.vitals_history || [] },
+          { icon: <Temp />, title: "Skin Temp", temp: vitals.temperature?.value ? formatTemperature(vitals.temperature?.value) : '--', historyData: p.vitals_history || [] },
         ],
         alerts: [],
         deviceBattery: live.battery_percent !== undefined ? `${live.battery_percent}%` : (latestHistoryVitals?.battery_percent !== undefined ? `${latestHistoryVitals.battery_percent}%` : (p.device_battery || "80%")),
-        isConnected: live.is_connected ?? latestHistoryVitals?.is_connected ?? (p.vitals_history && p.vitals_history.length > 0 ? true : false),
+        isConnected: isConnected,
+        isRemoved: isRemoved,
       };
     });
   }, [rawPatients, liveVitals]);
@@ -563,7 +568,7 @@ export default function Home() {
     criticals.forEach(p => {
       if (!previousCriticalPatients.current.has(p.userId)) {
         const currentAlarm = useDashboardStore.getState().criticalAlarmData;
-        
+
         // If an alarm for this user is already active (e.g. just fired by SSE in usePatients),
         // we skip overwriting it to preserve the rich alert payload with triggered_value.
         if (currentAlarm && currentAlarm.userId === p.userId) {
@@ -579,7 +584,7 @@ export default function Home() {
           heartRate: hrVital?.heartRate !== '--' ? hrVital?.heartRate : undefined,
           spo2: spo2Vital?.spo2 !== '--' ? spo2Vital?.spo2 : undefined,
           bloodPressure: bpVital?.bp && String(bpVital.bp).includes('/') && bpVital.bp !== '--/--'
-            ? { systolic: String(bpVital.bp).split('/')[0], diastolic: String(bpVital.bp).split('/')[1] } 
+            ? { systolic: String(bpVital.bp).split('/')[0], diastolic: String(bpVital.bp).split('/')[1] }
             : undefined,
           temperature: tempVital?.temp !== '--' ? tempVital?.temp : undefined,
         };
@@ -587,7 +592,11 @@ export default function Home() {
         setCriticalAlarmData({
           name: p.name,
           userId: p.userId,
+          room: p.room,
+          ward: p.ward,
           vitals: vitalsSnapshot,
+          isConnected: p.isConnected,
+          isRemoved: p.isRemoved,
           source: 'home',
         });
       }
@@ -979,58 +988,58 @@ export default function Home() {
               return filteredDoctors.map((item) => {
                 const isSelected = selectedDoctors.some(d => d.id === item.id);
                 return (
-                <div
-                  key={item.id}
-                  onClick={() => {
-                    if (isSelected) {
-                      setSelectedDoctors(prev => prev.filter(d => d.id !== item.id));
-                    } else {
-                      setSelectedDoctors(prev => [...prev, item]);
-                    }
-                  }}
-                  className={`bg-[#323234] rounded-[20px] py-4.5 px-5 flex items-center justify-between cursor-pointer border transition-all ${isSelected
-                    ? "border-[#CCA166] bg-[#CCA166]/10"
-                    : "border-transparent hover:border-[#4A4A5A]"
-                    }`}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className={`size-5 rounded flex items-center justify-center shrink-0 transition-colors ${isSelected ? "bg-[#CCA166] border-[#CCA166]" : "border border-[#A0A0A0]"}`}>
-                      {isSelected && (
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#27272B" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="20 6 9 17 4 12"></polyline>
+                  <div
+                    key={item.id}
+                    onClick={() => {
+                      if (isSelected) {
+                        setSelectedDoctors(prev => prev.filter(d => d.id !== item.id));
+                      } else {
+                        setSelectedDoctors(prev => [...prev, item]);
+                      }
+                    }}
+                    className={`bg-[#323234] rounded-[20px] py-4.5 px-5 flex items-center justify-between cursor-pointer border transition-all ${isSelected
+                      ? "border-[#CCA166] bg-[#CCA166]/10"
+                      : "border-transparent hover:border-[#4A4A5A]"
+                      }`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className={`size-5 rounded flex items-center justify-center shrink-0 transition-colors ${isSelected ? "bg-[#CCA166] border-[#CCA166]" : "border border-[#A0A0A0]"}`}>
+                        {isSelected && (
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#27272B" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                          </svg>
+                        )}
+                      </div>
+                      <div className="size-12 overflow-hidden bg-gradient-to-br from-[#e0e0e0] to-[#b0b0b0] rounded-full flex items-center justify-center flex-shrink-0">
+                        <span className="text-[#323234] font-bold text-lg">
+                          {item.full_name
+                            .split(' ')
+                            .map((n) => n[0])
+                            .join('')
+                            .toUpperCase()
+                            .slice(0, 2)}
+                        </span>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <h6 className="text-[15px] font-medium text-white tracking-wide">{item.full_name}</h6>
+                        <p className="text-[13px] text-[#A0A0A0]">{item.employee_id || 'Specialist'}</p>
+                      </div>
+                    </div>
+                    <div className={`flex items-center gap-2 text-[13px] ${item.is_on_call ? 'text-[#2CD155]' : 'text-[#A0A0A0]'}`}>
+                      {item.is_on_call ? (
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <circle cx="9" cy="9" r="8" stroke="#2CD155" strokeWidth="1.5" />
+                          <circle cx="9" cy="9" r="4" fill="#2CD155" />
+                        </svg>
+                      ) : (
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <circle cx="9" cy="9" r="8" stroke="#A0A0A0" strokeWidth="1.5" />
                         </svg>
                       )}
-                    </div>
-                    <div className="size-12 overflow-hidden bg-gradient-to-br from-[#e0e0e0] to-[#b0b0b0] rounded-full flex items-center justify-center flex-shrink-0">
-                      <span className="text-[#323234] font-bold text-lg">
-                        {item.full_name
-                          .split(' ')
-                          .map((n) => n[0])
-                          .join('')
-                          .toUpperCase()
-                          .slice(0, 2)}
-                      </span>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <h6 className="text-[15px] font-medium text-white tracking-wide">{item.full_name}</h6>
-                      <p className="text-[13px] text-[#A0A0A0]">{item.employee_id || 'Specialist'}</p>
+                      <span>{item.is_on_call ? 'On-call' : 'Off-call'}</span>
                     </div>
                   </div>
-                  <div className={`flex items-center gap-2 text-[13px] ${item.is_on_call ? 'text-[#2CD155]' : 'text-[#A0A0A0]'}`}>
-                    {item.is_on_call ? (
-                      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="9" cy="9" r="8" stroke="#2CD155" strokeWidth="1.5" />
-                        <circle cx="9" cy="9" r="4" fill="#2CD155" />
-                      </svg>
-                    ) : (
-                      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="9" cy="9" r="8" stroke="#A0A0A0" strokeWidth="1.5" />
-                      </svg>
-                    )}
-                    <span>{item.is_on_call ? 'On-call' : 'Off-call'}</span>
-                  </div>
-                </div>
-              );
+                );
               });
             })()}
           </div>
@@ -1183,8 +1192,12 @@ export default function Home() {
         isOpen={!!criticalAlarmData && criticalAlarmData?.source !== 'overview'}
         patientName={criticalAlarmData?.name}
         patientId={criticalAlarmData?.userId}
+        room={criticalAlarmData?.room}
+        ward={criticalAlarmData?.ward}
         vitals={criticalAlarmData?.vitals}
         alert={criticalAlarmData?.alert}
+        isConnected={criticalAlarmData?.isConnected}
+        isRemoved={criticalAlarmData?.isRemoved}
         onDismiss={() => clearCriticalAlarm()}
         onViewPatient={() => {
           if (criticalAlarmData?.userId) {

@@ -113,7 +113,7 @@ export default function TemperatureTrendChart({ temperatureData = [] }) {
                         <Tooltip
                             contentStyle={{ backgroundColor: '#2F2F31', border: '1px solid #555555', borderRadius: '8px' }}
                             labelStyle={{ color: '#9CA3AF' }}
-                            formatter={(value) => [`${value}°C`, 'Temperature']}
+                            formatter={(value) => [`${value}°C`, 'Skin Temperature']}
                         />
                         <ReferenceLine
                             y={37.5}
