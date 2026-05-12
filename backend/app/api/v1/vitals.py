@@ -21,11 +21,10 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/auth/verify-otp")
 @router.post("/ingest")
 async def ingest_vitals(
     payload: VitalIngestSchema, 
-    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db), 
-    redis = Depends(get_redis),
+    redis = Depends(get_redis)
 ):
-    # 1. Fetch Patient & Ward context
+    # 1. Fetch Patient and Ward Context
     result = await db.execute(
         select(Patient, Room.ward_id)
         .join(Room, Patient.room_id == Room.id)
@@ -33,58 +32,68 @@ async def ingest_vitals(
     )
     row = result.first()
     if not row:
-        raise HTTPException(status_code=404, detail="Patient or Room assignment not found")
-    
+        raise HTTPException(status_code=404, detail="Patient or Room not found")
     patient, ward_id = row
 
-    # 2. Calculate Advanced Metrics
-    calculated_data = calculate_risks(payload)
+    # 2. Apply Temperature Offset (+2.2) and Calculate Risks
+    vital_dict = payload.dict()
+    vital_dict["temp"] = round(vital_dict["temp"] + 0, 1)
     
-    # 3. Prepare & Save Vitals Record
-    new_vitals = Vitals(**payload.dict(), **calculated_data)
+    # We use a simple object for the risk functions
+    from argparse import Namespace
+    vitals_obj = Namespace(**vital_dict)
+    calculated_data = calculate_risks(vitals_obj)
+    
+    # 3. Save Vitals to DB
+    new_vitals = Vitals(**vital_dict, **calculated_data)
     db.add(new_vitals)
+
+    # 4. Handle Alert Deduplication (Send Only Once)
+    detected_alerts = check_baseline_deviations(new_vitals)
     
-    # 4. Prepare Unified Payload for Real-time
-    full_data_payload = {
+    # Define lock keys for hardware states
+    conn_lock = f"alert_lock:{payload.patient_id}:Connectivity"
+    rem_lock = f"alert_lock:{payload.patient_id}:Band Status"
+
+    if detected_alerts:
+        for alert_data in detected_alerts:
+            v_type = alert_data["vital_type"]
+            lock_key = f"alert_lock:{payload.patient_id}:{v_type}"
+            
+            # Check if this specific alert is already "Locked" in Redis
+            is_locked = await redis.get(lock_key)
+            
+            if not is_locked:
+                # FIRST TIME: Save to DB and Publish
+                new_alert = Alert(
+                    patient_id=payload.patient_id,
+                    ward_id=ward_id,
+                    vital_type=v_type,
+                    triggered_value=alert_data["triggered_value"],
+                    severity=alert_data["severity"]
+                )
+                db.add(new_alert)
+                
+                # Set the lock in Redis (No expiry, stays until reconnected)
+                await redis.set(lock_key, "active")
+                
+                # Publish to Frontend via SSE channel
+                alert_payload = json.dumps({**alert_data, "ward_id": ward_id})
+                await redis.publish(f"patient:{payload.patient_id}:alerts", alert_payload)
+
+    # 5. RESET LOGIC: If device is back to normal, clear the hardware locks
+    if payload.is_connected and not payload.is_removed:
+        await redis.delete(conn_lock)
+        await redis.delete(rem_lock)
+
+    # 6. Always Broadcast Vital Stream Update (Real-time graph)
+    stream_payload = json.dumps({
         "patient_id": payload.patient_id,
-        "patient_name": patient.user_id,
-        "ward_id": ward_id,
-        "vitals": {**payload.dict(), **calculated_data},
-        "timestamp": str(new_vitals.created_at)
-    }
-    vital_json = json.dumps(full_data_payload, default=str)
-
-    # 5. Baseline Deviation & Alert Logic
-    alerts = check_baseline_deviations(new_vitals)
-    if alerts:
-        # Get your Alert Model's valid columns to avoid the TypeError
-        valid_alert_columns = Alert.__table__.columns.keys()
-
-        for alert_data in alerts:
-            # Create a copy for the database
-            # We filter out any keys (like 'message' or 'ward_id') 
-            # that aren't actual columns in your Alert table
-            db_alert_data = {
-                k: v for k, v in alert_data.items() 
-                if k in valid_alert_columns
-            }
-            
-            # Save to DB
-            new_alert = Alert(**db_alert_data)
-            db.add(new_alert)
-            
-            # Prepare the rich payload for Redis (which CAN include 'message' for the frontend)
-            rich_alert_data = {**alert_data, "ward_id": ward_id, "patient_id": payload.patient_id}
-            alert_json = json.dumps(rich_alert_data, default=str)
-            
-            # Publish to Redis
-            await redis.publish(f"ward:{ward_id}:alerts", alert_json)
-            await redis.publish(f"patient:{payload.patient_id}:alerts", alert_json)
-
-    # 6. Broadcast Vital Update
-    await redis.publish(f"ward:{ward_id}:stream", vital_json)
-    await redis.publish(f"patient:{payload.patient_id}:stream", vital_json)
+        "vitals": {**vital_dict, **calculated_data},
+        "ward_id": ward_id
+    }, default=str)
+    await redis.publish(f"patient:{payload.patient_id}:stream", stream_payload)
 
     await db.commit()
-    return {"status": "success", "news2": calculated_data.get("news2_score")}
+    return {"status": "success"}
 

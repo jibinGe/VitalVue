@@ -20,6 +20,8 @@ import json
 import random
 import string
 from sqlalchemy.exc import IntegrityError
+import secrets
+import string
 
 router = APIRouter()
 
@@ -80,8 +82,7 @@ async def update_my_device(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user) 
 ):
-    # 1. Verify that the current user is actually a Patient
-    # We fetch the Patient record linked to the User ID in the token
+    # 1. Verify Patient Record
     stmt = select(Patient).where(Patient.id == current_user.id)
     result = await db.execute(stmt)
     patient = result.scalars().first()
@@ -92,13 +93,22 @@ async def update_my_device(
             detail="Only registered patients can update their own device mapping."
         )
 
-    # 2. Check if the new device_id is already claimed by someone else
+    # --- MODIFICATION: Handle Empty Device ID ---
+    # If the payload is {"new_device_id": ""}, generate the unassigned prefix
+    if not new_device_id or new_device_id.strip() == "":
+        random_suffix = ''.join(secrets.choice(string.ascii_lowercase + string.digits) for _ in range(6))
+        new_device_id = f"unasigned_{random_suffix}"
+    # --------------------------------------------
+
+    # 2. Check for Duplicate Mapping
+    # Note: This check still works; it ensures two people don't accidentally 
+    # get the same 'unasigned_' string, though the random suffix makes that rare.
     check_stmt = select(Patient).where(Patient.device_id == new_device_id)
     existing_device = await db.execute(check_stmt)
     if existing_device.scalars().first():
         raise HTTPException(
             status_code=400, 
-            detail="This device is already registered to another user."
+            detail="This device ID (or generated placeholder) is already in use."
         )
 
     # 3. Update the device ID
@@ -110,7 +120,7 @@ async def update_my_device(
 
     return {
         "status": "success",
-        "message": "Device successfully updated for current user",
+        "message": "Device successfully updated",
         "old_device_id": old_device_id,
         "new_device_id": patient.device_id
     }
@@ -138,7 +148,8 @@ async def get_assigned_patients(
     current_user: User = Depends(get_current_user),
     search: Optional[str] = Query(None, description="Search by Full Name or Patient ID")
 ):
-    # 1. Base Query with joins for assigned staff names
+    # 1. Base Query: Do NOT manually join User. 
+    # SQLAlchemy handles the Patient->User join automatically via inheritance.
     query = (
         select(Patient)
         .options(
@@ -147,19 +158,24 @@ async def get_assigned_patients(
         )
     )
 
+    # --- MODIFICATION: Filter by User.is_active directly ---
+    # Since Patient inherits from User, referencing User.is_active here works perfectly.
+    query = query.where(User.is_active == True)
+    # -------------------------------------------------------
+
     # 2. Role-Based Filtering
     if current_user.role == UserRole.NURSE:
         query = query.where(Patient.nurse_id == current_user.id)
     elif current_user.role == UserRole.DOCTOR:
         query = query.where(Patient.doctor_id == current_user.id)
     elif current_user.role in [UserRole.ORG_ADMIN, UserRole.MASTER_ADMIN]:
-        query = query.where(Patient.organization_id == current_user.organization_id)
+        # Filter by Org ID (also found on the User table part of the Patient)
+        query = query.where(User.organization_id == current_user.organization_id)
     else:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    # 3. Apply Search Filter (New Logic)
+    # 3. Apply Search Filter
     if search:
-        # ilike provides case-insensitive search
         search_filter = f"%{search}%"
         query = query.where(
             or_(
@@ -168,6 +184,7 @@ async def get_assigned_patients(
             )
         )
 
+    # This will now execute without the DuplicateAliasError
     result = await db.execute(query)
     patients = result.scalars().all()
 
@@ -367,7 +384,6 @@ async def flag_doctor(
     selected_doctor_id: int = Query(None),
     background_tasks: BackgroundTasks = None,
     db: AsyncSession = Depends(get_db),
-    redis = Depends(get_redis),
     current_user: User = Depends(get_current_user)
 ):
     # 1. Fetch Patient
@@ -386,18 +402,19 @@ async def flag_doctor(
             room_name = room.room_number
             ward_label = str(room.ward_id)
 
-    # 3. Fetch Latest Vitals
-    from app.models.vitals import Vitals as VitalEntry 
+    # 3. Fetch Latest Vitals (to fill WhatsApp template placeholders)
     v_res = await db.execute(
-        select(VitalEntry)
-        .where(VitalEntry.patient_id == patient_id)
-        .order_by(VitalEntry.created_at.desc())
+        select(Vitals)
+        .where(Vitals.patient_id == patient_id)
+        .order_by(Vitals.created_at.desc())
         .limit(1)
     )
     vitals = v_res.scalars().first()
     
-    # 4. Identify Doctors
-    doctor_ids = {doc_id for doc_id in [patient.doctor_id, selected_doctor_id] if doc_id}
+    # 4. Identify Doctor to Notify
+    doc_id = selected_doctor_id or patient.doctor_id
+    if not doc_id:
+        raise HTTPException(status_code=400, detail="No doctor assigned to this patient")
 
     # 5. Create Alert Record
     new_alert = Alert(
@@ -406,32 +423,25 @@ async def flag_doctor(
         vital_type="MANUAL_FLAG",
         triggered_value="NURSE_ESC",
         severity="CRITICAL",
-        status="active",
-        is_flagged=True,
-        flagged_doctor_id=selected_doctor_id or patient.doctor_id
+        status="active"
     )
     db.add(new_alert)
-    await db.flush()
 
-    # 6. Notify via Redis and WhatsApp
-    # for doc_id in doctor_ids:
-    #     # Dashboard Signal
-    #     await redis.publish(f"doctor:{doc_id}:alerts", json.dumps({"event": "DOCTOR_FLAG", "patient": patient.full_name}))
-        
-    #     doc_user = (await db.execute(select(User).where(User.id == doc_id))).scalars().first()
-        
-    #     if doc_user and doc_user.phone_number:
-    #         background_tasks.add_task(
-    #             send_vitalvue_whatsapp,
-    #             doc_user.phone_number,
-    #             patient.full_name,
-    #             reason,
-    #             vitals.heart_rate if vitals else 0,
-    #             vitals.spo2 if vitals else 0,
-    #             vitals.news2_score if vitals else 0,
-    #             ward_label,
-    #             room_name
-    #         )
+    # 6. Notify via WhatsApp ONLY
+    doc_user = (await db.execute(select(User).where(User.id == doc_id))).scalars().first()
+    
+    if doc_user and doc_user.phone_number:
+        background_tasks.add_task(
+            send_vitalvue_whatsapp,
+            doc_user.phone_number,         # doctor_phone
+            patient.full_name,             # patient_name
+            reason,                        # reason (6)
+            vitals.heart_rate if vitals else "0", # hr (3)
+            vitals.spo2 if vitals else "0",       # spo2 (4)
+            vitals.news2_score if vitals else "0",# news2 (5)
+            ward_label,                    # ward_name
+            room_name                      # room_name (7)
+        )
 
     await db.commit()
     return {"status": "Escalation processed successfully"}

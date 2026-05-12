@@ -1,7 +1,18 @@
 def calculate_risks(vitals):
     """
-    Advanced Business logic for NEWS2 and clinical Risk Scores.
+    Business logic for NEWS2 and clinical Risk Scores.
+    Suppresses scores if the device is removed or disconnected to prevent false alarms.
     """
+    # 1. Hardware Guard: If device is off-body or disconnected, return neutral risks
+    # This prevents a 'Heart Rate: 0' (from a disconnect) from being treated as Cardiac Arrest.
+    if getattr(vitals, 'is_removed', False) or not getattr(vitals, 'is_connected', True):
+        return {
+            "news2_score": 0,
+            "stroke_risk": "N/A",
+            "af_warning": "N/A",
+            "seizure_risk": "N/A"
+        }
+
     news2 = 0
     
     # --- NEWS2: Heart Rate ---
@@ -19,26 +30,22 @@ def calculate_risks(vitals):
     elif vitals.bp_systolic <= 100: news2 += 2
     elif vitals.bp_systolic <= 110: news2 += 1
 
-    # --- NEWS2: Temperature ---
+    # --- NEWS2: Temperature (Using the +2.2 Adjusted Value) ---
+    # Standard NEWS2 thresholds applied to the calibrated temp
     if vitals.temp <= 35.0: news2 += 3
     elif vitals.temp >= 39.1: news2 += 2
     elif vitals.temp <= 36.0 or vitals.temp >= 38.1: news2 += 1
 
-    # --- Stroke Risk Logic ---
-    # High BP + High HR + Low HRV is a strong indicator
+    # --- Advanced Risk Logic ---
     stroke_risk = "Low"
     if vitals.bp_systolic > 160 and vitals.heart_rate > 110:
         stroke_risk = "High"
     elif vitals.bp_systolic > 140:
         stroke_risk = "Moderate"
 
-    # --- Seizure Risk Logic ---
-    # Sudden spikes in movement + High HR + Temperature instability
     seizure_risk = "Low"
     if vitals.movement > 8 and vitals.heart_rate > 120:
         seizure_risk = "High"
-    elif vitals.temp > 39.0:
-        seizure_risk = "Moderate"
 
     return {
         "news2_score": news2,
@@ -47,86 +54,124 @@ def calculate_risks(vitals):
         "seizure_risk": seizure_risk
     }
 
+# def check_baseline_deviations(vitals):
+#     """
+#     Triggers critical alerts for dashboard broadcast.
+#     Removed 'message' to maintain Backend Model integrity.
+#     """
+#     alerts = []
+    
+#     # 1. SpO2 Critical (Hypoxia)
+#     if vitals.spo2 < 90:
+#         alerts.append({
+#             "patient_id": vitals.patient_id,
+#             "vital_type": "SpO2",
+#             "triggered_value": f"{vitals.spo2}%",
+#             "severity": "critical"
+#         })
+
+#     # 2. Heart Rate (Tachycardia/Bradycardia)
+#     if vitals.heart_rate > 140 or vitals.heart_rate < 40:
+#         alerts.append({
+#             "patient_id": vitals.patient_id,
+#             "vital_type": "Heart Rate",
+#             "triggered_value": f"{vitals.heart_rate} bpm",
+#             "severity": "critical"
+#         })
+
+#     # 3. Blood Pressure (Hypertensive Crisis / Shock)
+#     if vitals.bp_systolic > 200 or vitals.bp_systolic < 80:
+#         alerts.append({
+#             "patient_id": vitals.patient_id,
+#             "vital_type": "Blood Pressure",
+#             "triggered_value": f"{vitals.bp_systolic}/{vitals.bp_diastolic}",
+#             "severity": "critical"
+#         })
+
+#     # 4. Temperature (Hyperpyrexia)
+#     # if vitals.temp > 40.0 or vitals.temp < 35.0:
+#     #     alerts.append({
+#     #         "patient_id": vitals.patient_id,
+#     #         "vital_type": "Temperature",
+#     #         "triggered_value": f"{vitals.temp}°C",
+#     #         "severity": "critical"
+#     #     })
+
+#     # 5. High NEWS2 Alert
+#     # Using the result from the previous function if possible, or re-calculating
+#     # For standalone use, we check the HR/SpO2 combination
+#     if vitals.heart_rate > 120 and vitals.spo2 < 92:
+#         alerts.append({
+#             "patient_id": vitals.patient_id,
+#             "vital_type": "NEWS2 Status",
+#             "triggered_value": "Critical Elevation",
+#             "severity": "critical"
+#         })
+
+#     # 1. Battery Critical Alert (< 20%)
+#     if vitals.battery_percent < 20:
+#         alerts.append({
+#             "patient_id": vitals.patient_id,
+#             "vital_type": "Device Battery",
+#             "triggered_value": f"{vitals.battery_percent}%",
+#             "severity": "warning"
+#         })
+
+#     # 2. Connection Lost Alert
+#     if vitals.is_connected is False:
+#         alerts.append({
+#             "patient_id": vitals.patient_id,
+#             "vital_type": "Connectivity",
+#             "triggered_value": "Disconnected",
+#             "severity": "critical"
+#         })
+
+#     # 3. Band Removal Alert (Tamper Detection)
+#     if vitals.is_removed is True:
+#         alerts.append({
+#             "patient_id": vitals.patient_id,
+#             "vital_type": "Band Status",
+#             "triggered_value": "Removed",
+#             "severity": "critical"
+#         })
+
+#     return alerts
+
+
 def check_baseline_deviations(vitals):
     """
-    Triggers critical alerts for dashboard broadcast.
-    Removed 'message' to maintain Backend Model integrity.
+    Identifies clinical and hardware deviations.
+    Logic: If disconnected/removed, we return only that status.
+    If connected, we run clinical checks.
     """
     alerts = []
     
-    # 1. SpO2 Critical (Hypoxia)
-    if vitals.spo2 < 90:
-        alerts.append({
-            "patient_id": vitals.patient_id,
-            "vital_type": "SpO2",
-            "triggered_value": f"{vitals.spo2}%",
-            "severity": "critical"
-        })
-
-    # 2. Heart Rate (Tachycardia/Bradycardia)
-    if vitals.heart_rate > 140 or vitals.heart_rate < 40:
-        alerts.append({
-            "patient_id": vitals.patient_id,
-            "vital_type": "Heart Rate",
-            "triggered_value": f"{vitals.heart_rate} bpm",
-            "severity": "critical"
-        })
-
-    # 3. Blood Pressure (Hypertensive Crisis / Shock)
-    if vitals.bp_systolic > 200 or vitals.bp_systolic < 80:
-        alerts.append({
-            "patient_id": vitals.patient_id,
-            "vital_type": "Blood Pressure",
-            "triggered_value": f"{vitals.bp_systolic}/{vitals.bp_diastolic}",
-            "severity": "critical"
-        })
-
-    # 4. Temperature (Hyperpyrexia)
-    if vitals.temp > 40.0 or vitals.temp < 35.0:
-        alerts.append({
-            "patient_id": vitals.patient_id,
-            "vital_type": "Temperature",
-            "triggered_value": f"{vitals.temp}°C",
-            "severity": "critical"
-        })
-
-    # 5. High NEWS2 Alert
-    # Using the result from the previous function if possible, or re-calculating
-    # For standalone use, we check the HR/SpO2 combination
-    if vitals.heart_rate > 120 and vitals.spo2 < 92:
-        alerts.append({
-            "patient_id": vitals.patient_id,
-            "vital_type": "NEWS2 Status",
-            "triggered_value": "Critical Elevation",
-            "severity": "critical"
-        })
-
-    # 1. Battery Critical Alert (< 20%)
-    if vitals.battery_percent < 20:
-        alerts.append({
-            "patient_id": vitals.patient_id,
-            "vital_type": "Device Battery",
-            "triggered_value": f"{vitals.battery_percent}%",
-            "severity": "warning"
-        })
-
-    # 2. Connection Lost Alert
-    if vitals.is_connected is False:
-        alerts.append({
+    # 1. Hardware Status (High Priority)
+    if not getattr(vitals, 'is_connected', True):
+        return [{
             "patient_id": vitals.patient_id,
             "vital_type": "Connectivity",
             "triggered_value": "Disconnected",
             "severity": "critical"
-        })
+        }]
 
-    # 3. Band Removal Alert (Tamper Detection)
-    if vitals.is_removed is True:
-        alerts.append({
+    if getattr(vitals, 'is_removed', False):
+        return [{
             "patient_id": vitals.patient_id,
             "vital_type": "Band Status",
             "triggered_value": "Removed",
             "severity": "critical"
-        })
+        }]
+
+    # 2. Clinical Vital Checks (Only if hardware is OK)
+    if vitals.spo2 < 90:
+        alerts.append({"patient_id": vitals.patient_id, "vital_type": "SpO2", "triggered_value": f"{vitals.spo2}%", "severity": "critical"})
+
+    if vitals.heart_rate > 140 or vitals.heart_rate < 40:
+        alerts.append({"patient_id": vitals.patient_id, "vital_type": "Heart Rate", "triggered_value": f"{vitals.heart_rate} bpm", "severity": "critical"})
+
+    if vitals.bp_systolic > 200 or vitals.bp_systolic < 80:
+        alerts.append({"patient_id": vitals.patient_id, "vital_type": "Blood Pressure", "triggered_value": f"{vitals.bp_systolic}/{vitals.bp_diastolic}", "severity": "critical"})
 
     return alerts
 

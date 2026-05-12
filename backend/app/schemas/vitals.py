@@ -26,3 +26,7 @@ class VitalIngestSchema(BaseModel):
 
     class Config:
         from_attributes = True # Allows compatibility with SQLAlchemy models
+
+
+
+        

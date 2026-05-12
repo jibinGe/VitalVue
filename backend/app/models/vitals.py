@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Float, Boolean
 from datetime import datetime
 from app.database import Base
+from sqlalchemy import func
 
 class Vitals(Base):
     """
@@ -39,4 +40,26 @@ class Vitals(Base):
     
     # --- Chronological Data ---
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+class PatientCalibration(Base):
+    __tablename__ = "patient_calibrations"
+
+    id = Column(Integer, primary_key=True)
+    patient_id = Column(Integer, ForeignKey("patients.id"), unique=True)
+    
+    # Temperature Calibration
+    actual_temp = Column(Float)   # e.g. 98.6 (Measured by Nurse)
+    sensor_temp = Column(Float)   # e.g. 96.4 (Read from Band)
+    temp_offset = Column(Float)   # Calculated: 2.2
+    
+    # BP Calibration
+    actual_systolic = Column(Integer)
+    sensor_systolic = Column(Integer)
+    systolic_offset = Column(Integer)
+    
+    actual_diastolic = Column(Integer)
+    sensor_diastolic = Column(Integer)
+    diastolic_offset = Column(Integer)
+
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
