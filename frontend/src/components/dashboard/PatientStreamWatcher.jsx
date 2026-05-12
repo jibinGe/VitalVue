@@ -11,7 +11,7 @@ import { useDashboardStore } from '@/store/useDashboardStore';
  *   patientId   : number  — the integer patient ID for the stream endpoint
  *   patientName : string  — displayed in the CriticalAlarmModal title
  */
-export default function PatientStreamWatcher({ patientId, patientName, room, ward }) {
+export default function PatientStreamWatcher({ patientId, patientName, room, ward, phoneNumber }) {
   const { criticalAlert, streamData } = useVitalsStream(patientId);
   const { setCriticalAlarmData, updateLiveVitals } = useDashboardStore();
 
@@ -38,13 +38,14 @@ export default function PatientStreamWatcher({ patientId, patientName, room, war
     };
 
     setCriticalAlarmData({
-      name:    patientName,
-      userId:  patientId,
-      room,
-      ward,
-      vitals:  vitalsSnapshot,
-      alert:   criticalAlert,   // { vital_type, triggered_value, severity, ... }
-      source:  'home',          // prevents overview from showing home-page alarms
+      name:        patientName,
+      userId:      patientId,
+      room:        criticalAlert.room_name ?? room,
+      ward:        criticalAlert.ward_name ?? ward,
+      phoneNumber: criticalAlert.phone_number ?? phoneNumber,
+      vitals:      vitalsSnapshot,
+      alert:       criticalAlert,   // { vital_type, triggered_value, severity, ... }
+      source:      'home',          // prevents overview from showing home-page alarms
     });
   }, [criticalAlert]); // eslint-disable-line react-hooks/exhaustive-deps
 

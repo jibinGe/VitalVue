@@ -28,15 +28,19 @@
             margin-top: 8px;
             background-color: rgba($color: $white, $alpha: .10);
             border-radius: 10px;
+
             &--previous {
                 left: 8px;
-                & span{
+
+                & span {
                     right: 0;
                 }
             }
+
             &--next {
                 right: 8px;
-                & span{
+
+                & span {
                     left: 0;
                 }
             }

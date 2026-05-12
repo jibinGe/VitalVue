@@ -164,13 +164,14 @@ export const usePatients = (wardId = 'all', refreshTrigger = 0, searchQuery = ""
           };
 
           setCriticalAlarmData({
-            name: patient.full_name || patient.name || "Unknown Patient",
-            userId: data.patient_id,
-            room: patient.room_no || "General",
-            ward: patient.ward_name || patient.ward || patient.ward_no,
-            vitals: vitalsSnapshot,
-            alert: data,
-            source: 'home'
+            name:        patient.full_name || patient.name || "Unknown Patient",
+            userId:      data.patient_id,
+            room:        data.room_name ?? patient.room_no ?? "General",
+            ward:        data.ward_name ?? patient.ward_name ?? patient.ward ?? patient.ward_no,
+            phoneNumber: data.phone_number ?? patient.phone_number ?? patient.phone,
+            vitals:      vitalsSnapshot,
+            alert:       data,
+            source:      'home'
           });
         }
       } catch (err) {

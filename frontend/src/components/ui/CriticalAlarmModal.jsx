@@ -10,6 +10,9 @@ import { startAlarm, stopAlarm, startWarningAlarm } from "@/utilities/alarmSound
  *  - isOpen        : boolean
  *  - patientName   : string
  *  - patientId     : string
+ *  - room          : string
+ *  - ward          : string | number
+ *  - phoneNumber   : string  (patient contact number)
  *  - vitals        : object  (latest vitals snapshot)
  *  - alert         : object  (SSE alert payload)
  *  - isConnected   : boolean (device connection state)
@@ -23,6 +26,7 @@ export default function CriticalAlarmModal({
   patientId,
   room,
   ward,
+  phoneNumber,
   vitals = {},
   alert = null,
   isConnected = true,
@@ -158,14 +162,14 @@ export default function CriticalAlarmModal({
                   <motion.p
                     animate={{ opacity: [1, 0.5, 1] }}
                     transition={{ duration: 1, repeat: Infinity }}
-                    className="text-xs font-semibold tracking-[0.2em] uppercase"
+                    className="text-lg font-semibold tracking-[0.2em] uppercase"
                     style={{ color: themeColor }}
                   >
                     {isDeviceAlarm
-                      ? "🔔 Device Alarm"
+                      ? "🔔 Device Alert"
                       : isWarning
                         ? "⚠️ Warning Alert"
-                        : "🚨 Critical Alarm"}
+                        : "🚨 Vital Alert"}
                   </motion.p>
 
                   {/* Band Removed badge — only on device alarms AND if NOT a bluetooth disconnection */}
@@ -190,7 +194,7 @@ export default function CriticalAlarmModal({
                   {patientName || "Patient"}
                 </h2>
                 {(room || ward) && (
-                  <div className="flex items-center justify-center gap-2 mb-5">
+                  <div className="flex items-center justify-center gap-2 mb-2">
                     {room && (
                       <div
                         className="flex items-center gap-1.5 px-3 py-1 rounded-full"
@@ -225,6 +229,25 @@ export default function CriticalAlarmModal({
                     )}
                   </div>
                 )}
+                {/* Phone Number */}
+                {phoneNumber && (
+                  <div className="flex items-center justify-center gap-1.5 mb-2">
+                    <div
+                      className="flex items-center gap-1.5 px-3 py-1 rounded-full"
+                      style={{
+                        background: `rgba(${themeColorRgba},0.08)`,
+                        border: `1px solid rgba(${themeColorRgba},0.25)`,
+                      }}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                        <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 014.52 12 19.79 19.79 0 011.47 3.42 2 2 0 013.44 1h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L7.91 8.42A16 16 0 0015.57 16.08l.78-.78a2 2 0 012.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0122 16.92z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      <span className="text-xl font-semibold" >{phoneNumber}</span>
+                    </div>
+                  </div>
+                )}
+                {/* Spacer when neither phone nor ward/room shown */}
+                {!phoneNumber && !(room || ward) && <div className="mb-5" />}
 
                 {/* Divider */}
                 <div
@@ -310,18 +333,18 @@ export default function CriticalAlarmModal({
                       </svg>
                     ) : (
                       <svg width="38" height="38" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <rect x="7" y="5" width="10" height="14" rx="3" stroke="#F8FD1E" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                        <path d="M9 5V3H15V5M9 19V21H15V19" stroke="#F8FD1E" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                        <circle cx="12" cy="12" r="2" stroke="#F8FD1E" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        <rect x="7" y="5" width="10" height="14" rx="3" stroke="#F8FD1E" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        <path d="M9 5V3H15V5M9 19V21H15V19" stroke="#F8FD1E" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        <circle cx="12" cy="12" r="2" stroke="#F8FD1E" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                     )}
                     <p className="text-sm font-bold" style={{ color: '#F8FD1E' }}>
                       {currentIsConnected === false ? "Bluetooth Disconnected" : "Band Removed"}
                     </p>
                     <p className="text-lg text-[#aaa] leading-relaxed">
-                      {currentIsConnected === false 
-                        ? "Please check the internet connection and ensure the device is within range."
-                        : "Please ensure the device is properly placed on the patient."}
+                      {currentIsConnected === false
+                        ? "Please check the Bluetooth connection and ensure the device is within range."
+                        : "Please ensure the band is properly placed on the patient."}
                     </p>
                   </motion.div>
                 ) : (

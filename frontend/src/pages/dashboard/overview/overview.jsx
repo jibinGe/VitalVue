@@ -459,7 +459,11 @@ export default function Overview() {
       _alertTriggeredVal: criticalAlert.triggered_value,
     };
 
-    setCriticalAlarmData({ vitals: vitalsSnapshot, alert: criticalAlert, source: 'overview', userId });
+    setCriticalAlarmData({ vitals: vitalsSnapshot, alert: criticalAlert, source: 'overview', userId,
+      phoneNumber: criticalAlert.phone_number ?? currentVitals?.phone_number,
+      ward: criticalAlert.ward_name ?? patientData?.ward ?? currentVitals?.ward,
+      room: criticalAlert.room_name ?? patientData?.room ?? currentVitals?.room ?? patientData?.bed ?? currentVitals?.bed,
+    });
   }, [criticalAlert]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // (Removed: fallback polling alarm from clinical_risks — the SSE-based
@@ -843,8 +847,9 @@ export default function Overview() {
         isOpen={!!criticalAlarmData && criticalAlarmData?.source !== 'home'}
         patientName={patientData?.name || patientData?.fullName}
         patientId={userId}
-        room={statePatient.room || patientData?.room || currentVitals?.room || patientData?.bed || currentVitals?.bed}
-        ward={patientData?.ward || currentVitals?.ward}
+        room={criticalAlarmData?.room || statePatient.room || patientData?.room || currentVitals?.room || patientData?.bed || currentVitals?.bed}
+        ward={criticalAlarmData?.ward || patientData?.ward || currentVitals?.ward}
+        phoneNumber={criticalAlarmData?.phoneNumber}
         vitals={criticalAlarmData?.vitals}
         alert={criticalAlarmData?.alert}
         onDismiss={() => clearCriticalAlarm()}

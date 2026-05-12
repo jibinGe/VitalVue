@@ -40,13 +40,13 @@ const PatientCard = memo(({
     const getCardGlowClass = (status) => {
         const s = status.toLowerCase();
         if (s === "critical") {
-            return "border-2 border-[#E54D4D] shadow-[0_0_20px_4px_rgba(229,77,77,0.2)]";
+            return "border-4 border-[#E54D4D] shadow-[0_0_20px_4px_rgba(229,77,77,0.2)]";
         }
         if (s === "warning") {
-            return "border-2 border-[#E5DB4C] shadow-[0_0_20px_4px_rgba(229,219,76,0.2)]";
+            return "border-4 border-[#E5DB4C] shadow-[0_0_20px_4px_rgba(229,219,76,0.2)]";
         }
         if (s === "stable") {
-            return "border-2 border-[#2CD155] shadow-[0_0_20px_4px_rgba(44,209,85,0.15)]";
+            return "border-4 border-[#2CD155] shadow-[0_0_20px_4px_rgba(44,209,85,0.15)]";
         }
         return "";
     };
@@ -261,7 +261,7 @@ const PatientCard = memo(({
                             <div className="h-[1px] w-full mt-4 bg-[linear-gradient(90deg,rgba(102,102,102,0)_0%,#CCA166_49.52%,rgba(102,102,102,0)_100%)]"></div>
 
                             {/* Aligned Row: Flag Doctor | Alerts | Take Action */}
-                            <div className="flex flex-col xl:flex-row items-center gap-4 xl:gap-12 mt-4 pb-1">
+                            <div className="flex flex-col xl:flex-row items-center gap-4 xl:gap-12 mt-8 pb-1">
                                 {/* Flag Doctor (aligned with Name/ID/Room) */}
                                 <div className="w-full xl:w-[270px] shrink-0">
                                     <button
@@ -273,9 +273,9 @@ const PatientCard = memo(({
                                 </div>
 
                                 {/* Alerts Grid + Take Action (aligned with Vitals Grid) */}
-                                <div className="flex-1 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 w-full h-full">
+                                <div className="flex-1 grid grid-cols-2 xl:grid-cols-3 gap-4 w-full h-full">
                                     {item.alerts.map((alert, aIndex) => (
-                                        <div key={aIndex} className="rounded-xl flex items-center justify-between overflow-hidden bg-white/5 border-r border-r-[2px] px-3.5 py-2.5 relative z-1 min-h-[58px]" style={{ borderColor: alert.color }}>
+                                        <div key={aIndex} className="rounded-xl flex items-center justify-between overflow-hidden bg-white/5 border-r border-r-[px] px-3.5 py-2.5 relative z-1 min-h-[58px]" style={{ borderColor: alert.color }}>
                                             <div className="">
                                                 <p className="text-xs font-medium mb-1 text-para">{alert.type} </p>
                                                 <p className="text-xs font-medium mb-1 text-para" style={{ color: alert.color }}>{alert.status} </p>
@@ -286,7 +286,7 @@ const PatientCard = memo(({
                                     ))}
 
                                     {/* Spacers to keep Take Action on far right */}
-                                    {Array.from({ length: Math.max(0, 4 - item.alerts.length) }).map((_, i) => (
+                                    {Array.from({ length: Math.max(0, 2 - item.alerts.length) }).map((_, i) => (
                                         <div key={`empty-${i}`} className="hidden xl:block"></div>
                                     ))}
 

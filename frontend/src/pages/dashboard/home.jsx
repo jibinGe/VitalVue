@@ -25,7 +25,6 @@ export default function Home() {
   const { selectedWard } = useWard();
   const {
     criticalAlarmData,
-    setCriticalAlarmData,
     clearCriticalAlarm,
     triageFilter,
     setTriageFilter,
@@ -38,7 +37,6 @@ export default function Home() {
   } = useDashboardStore();
 
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const previousCriticalPatients = useRef(new Set());
 
 
   // --- Fetch Data via Hooks ---
@@ -378,7 +376,55 @@ export default function Home() {
           { icon: <Bp />, title: "BP Trend", bp: `${vitals.bloodPressure?.systolic || '--'}/${vitals.bloodPressure?.diastolic || '--'}`, historyData: p.vitals_history || [] },
           { icon: <Temp />, title: "Skin Temp", temp: vitals.temperature?.value ? formatTemperature(vitals.temperature?.value) : '--', historyData: p.vitals_history || [] },
         ],
-        alerts: [],
+        alerts: (() => {
+          const alertsList = [];
+
+          // NEWS2 Score
+          const news2Val = p.news2_score ?? finalAssessments?.news2_score ?? finalAssessments?.news2?.score;
+          if (news2Val !== undefined && news2Val !== null) {
+            const score = Number(news2Val);
+            let color, statusLabel;
+            if (score >= 7) {
+              color = "#E54D4D"; statusLabel = `${score} · High Risk`;
+            } else if (score >= 5) {
+              color = "#E5DB4C"; statusLabel = `${score} · Medium`;
+            } else if (score >= 1) {
+              color = "#4DE573"; statusLabel = `${score} · Low`;
+            } else {
+              color = "#4DE573"; statusLabel = `${score} · Normal`;
+            }
+            alertsList.push({
+              type: "NEWS2 Score",
+              status: statusLabel,
+              color,
+              icon: (
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M9 12h6M9 16h4M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" stroke={color} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M13 2v7h7" stroke={color} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              ),
+            });
+          }
+
+          // AF Warning
+          const afVal = p.af_warning ?? finalAssessments?.af_warning;
+          if (afVal !== undefined && afVal !== null) {
+            const isNormal = afVal === "Normal" || afVal === false || afVal === 0 || afVal === "normal";
+            const color = isNormal ? "#4DE573" : "#E54D4D";
+            alertsList.push({
+              type: "AF Warning",
+              status: isNormal ? "Normal" : String(afVal),
+              color,
+              icon: (
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M22 12h-4l-3 9L9 3l-3 9H2" stroke={color} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              ),
+            });
+          }
+
+          return alertsList;
+        })(),
         deviceBattery: live.battery_percent !== undefined ? `${live.battery_percent}%` : (latestHistoryVitals?.battery_percent !== undefined ? `${latestHistoryVitals.battery_percent}%` : (p.device_battery || "80%")),
         isConnected: isConnected,
         isRemoved: isRemoved,
@@ -561,48 +607,6 @@ export default function Home() {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Handle Critical Alarm logic — tag with source:'home' so the
-  // Overview page's modal ignores alarms raised here.
-  useEffect(() => {
-    const criticals = cardData.filter(p => p.status?.toLowerCase() === "critical");
-    criticals.forEach(p => {
-      if (!previousCriticalPatients.current.has(p.userId)) {
-        const currentAlarm = useDashboardStore.getState().criticalAlarmData;
-
-        // If an alarm for this user is already active (e.g. just fired by SSE in usePatients),
-        // we skip overwriting it to preserve the rich alert payload with triggered_value.
-        if (currentAlarm && currentAlarm.userId === p.userId) {
-          return;
-        }
-
-        const hrVital = p.vitals?.find(v => v.title === "Heart Rate");
-        const spo2Vital = p.vitals?.find(v => v.title === "SpO2");
-        const bpVital = p.vitals?.find(v => v.title === "BP Trend");
-        const tempVital = p.vitals?.find(v => v.title === "Temp");
-
-        const vitalsSnapshot = {
-          heartRate: hrVital?.heartRate !== '--' ? hrVital?.heartRate : undefined,
-          spo2: spo2Vital?.spo2 !== '--' ? spo2Vital?.spo2 : undefined,
-          bloodPressure: bpVital?.bp && String(bpVital.bp).includes('/') && bpVital.bp !== '--/--'
-            ? { systolic: String(bpVital.bp).split('/')[0], diastolic: String(bpVital.bp).split('/')[1] }
-            : undefined,
-          temperature: tempVital?.temp !== '--' ? tempVital?.temp : undefined,
-        };
-
-        setCriticalAlarmData({
-          name: p.name,
-          userId: p.userId,
-          room: p.room,
-          ward: p.ward,
-          vitals: vitalsSnapshot,
-          isConnected: p.isConnected,
-          isRemoved: p.isRemoved,
-          source: 'home',
-        });
-      }
-    });
-    previousCriticalPatients.current = new Set(criticals.map(p => p.userId));
-  }, [cardData, setCriticalAlarmData]);
 
   // click outside to close card menu
   useEffect(() => {
@@ -621,7 +625,7 @@ export default function Home() {
   return (
     <>
       <div className="flex flex-wrap gap-0 h-[calc(100vh-160px)]">
-        <div className="flex flex-col gap-8 w-full h-[calc(100vh-160px)] px-5 py-8 overflow-y-auto">
+        <div className="flex flex-col  w-full h-[calc(100vh-160px)] px-5 py-8 overflow-y-auto">
           {/* --- TOP SECTION: Triage Status Panel (Horizontal) --- */}
           {/* --- TOP SECTION: Triage Status Panel (Horizontal) --- */}
           <div className="w-full">
@@ -1194,6 +1198,7 @@ export default function Home() {
         patientId={criticalAlarmData?.userId}
         room={criticalAlarmData?.room}
         ward={criticalAlarmData?.ward}
+        phoneNumber={criticalAlarmData?.phoneNumber}
         vitals={criticalAlarmData?.vitals}
         alert={criticalAlarmData?.alert}
         isConnected={criticalAlarmData?.isConnected}
