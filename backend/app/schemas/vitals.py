@@ -27,6 +27,12 @@ class VitalIngestSchema(BaseModel):
     class Config:
         from_attributes = True # Allows compatibility with SQLAlchemy models
 
-
+class CalibrationRequest(BaseModel):
+    actual_temp: Optional[float] = None
+    sensor_temp: Optional[float] = None
+    actual_systolic: Optional[int] = None
+    sensor_systolic: Optional[int] = None
+    actual_diastolic: Optional[int] = None
+    sensor_diastolic: Optional[int] = None
 
         

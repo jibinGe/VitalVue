@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+
 def calculate_risks(vitals):
     """
     Business logic for NEWS2 and clinical Risk Scores.
@@ -138,41 +140,82 @@ def calculate_risks(vitals):
 #     return alerts
 
 
-def check_baseline_deviations(vitals):
-    """
-    Identifies clinical and hardware deviations.
-    Logic: If disconnected/removed, we return only that status.
-    If connected, we run clinical checks.
-    """
-    alerts = []
+# def check_baseline_deviations(vitals):
+#     """
+#     Identifies clinical and hardware deviations.
+#     Logic: If disconnected/removed, we return only that status.
+#     If connected, we run clinical checks.
+#     """
+#     alerts = []
     
-    # 1. Hardware Status (High Priority)
+#     # 1. Hardware Status (High Priority)
+#     if not getattr(vitals, 'is_connected', True):
+#         return [{
+#             "patient_id": vitals.patient_id,
+#             "vital_type": "Connectivity",
+#             "triggered_value": "Disconnected",
+#             "severity": "critical"
+#         }]
+
+#     if getattr(vitals, 'is_removed', False):
+#         return [{
+#             "patient_id": vitals.patient_id,
+#             "vital_type": "Band Status",
+#             "triggered_value": "Removed",
+#             "severity": "critical"
+#         }]
+
+#     # 2. Clinical Vital Checks (Only if hardware is OK)
+#     if vitals.spo2 < 90:
+#         alerts.append({"patient_id": vitals.patient_id, "vital_type": "SpO2", "triggered_value": f"{vitals.spo2}%", "severity": "critical"})
+
+#     if vitals.heart_rate > 140 or vitals.heart_rate < 40:
+#         alerts.append({"patient_id": vitals.patient_id, "vital_type": "Heart Rate", "triggered_value": f"{vitals.heart_rate} bpm", "severity": "critical"})
+
+#     if vitals.bp_systolic > 200 or vitals.bp_systolic < 80:
+#         alerts.append({"patient_id": vitals.patient_id, "vital_type": "Blood Pressure", "triggered_value": f"{vitals.bp_systolic}/{vitals.bp_diastolic}", "severity": "critical"})
+
+#     return alerts
+
+
+
+def check_baseline_deviations(vitals, user_created_at, ward_name, room_number, phone_number, last_failure_at=None):
+    """
+    Logic: Includes Ward Name, Room Number, and Phone Number.
+    Clinical alerts are MUTED for 15 mins during stabilization/new registration.
+    """
+    now = datetime.utcnow()
+    
+    meta = {
+        "patient_id": vitals.patient_id,
+        "ward_name": ward_name,
+        "room_number": room_number,
+        "phone_number": phone_number,
+        "severity": "critical"
+    }
+
+    # 1. Hardware Status
     if not getattr(vitals, 'is_connected', True):
-        return [{
-            "patient_id": vitals.patient_id,
-            "vital_type": "Connectivity",
-            "triggered_value": "Disconnected",
-            "severity": "critical"
-        }]
+        return [{**meta, "vital_type": "Connectivity", "triggered_value": "Disconnected"}]
 
     if getattr(vitals, 'is_removed', False):
-        return [{
-            "patient_id": vitals.patient_id,
-            "vital_type": "Band Status",
-            "triggered_value": "Removed",
-            "severity": "critical"
-        }]
+        return [{**meta, "vital_type": "Band Status", "triggered_value": "Removed"}]
 
-    # 2. Clinical Vital Checks (Only if hardware is OK)
+    # 2. Mute Logic
+    if (now - user_created_at) < timedelta(minutes=15) or \
+       (last_failure_at and (now - last_failure_at) < timedelta(minutes=15)):
+        return []
+
+    # 3. Clinical Checks
+    alerts = []
     if vitals.spo2 < 90:
-        alerts.append({"patient_id": vitals.patient_id, "vital_type": "SpO2", "triggered_value": f"{vitals.spo2}%", "severity": "critical"})
-
+        alerts.append({**meta, "vital_type": "SpO2", "triggered_value": f"{vitals.spo2}%"})
     if vitals.heart_rate > 140 or vitals.heart_rate < 40:
-        alerts.append({"patient_id": vitals.patient_id, "vital_type": "Heart Rate", "triggered_value": f"{vitals.heart_rate} bpm", "severity": "critical"})
-
+        alerts.append({**meta, "vital_type": "Heart Rate", "triggered_value": f"{vitals.heart_rate} bpm"})
     if vitals.bp_systolic > 200 or vitals.bp_systolic < 80:
-        alerts.append({"patient_id": vitals.patient_id, "vital_type": "Blood Pressure", "triggered_value": f"{vitals.bp_systolic}/{vitals.bp_diastolic}", "severity": "critical"})
+        alerts.append({**meta, "vital_type": "Blood Pressure", "triggered_value": f"{vitals.bp_systolic}/{vitals.bp_diastolic}"})
 
     return alerts
+
 
 

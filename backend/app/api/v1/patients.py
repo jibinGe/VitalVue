@@ -200,6 +200,8 @@ async def get_assigned_patients(
         vitals_result = await db.execute(vitals_query)
         latest_20_vitals = vitals_result.scalars().all()
 
+        latest = latest_20_vitals[0] if latest_20_vitals else None
+
         response_data.append({
             "id": p.id,
             "user_id": p.user_id,
@@ -210,7 +212,14 @@ async def get_assigned_patients(
             "room_no": "101", # Replace with p.room_id logic if needed
             "assigned_doctor": p.assigned_doctor.full_name if p.assigned_doctor else None,
             "assigned_nurse": p.assigned_nurse.full_name if p.assigned_nurse else None,
-            "vitals_history": latest_20_vitals
+            "vitals_history": latest_20_vitals,
+
+            "news2_score": latest.news2_score if latest else 0,
+            "af_warning": latest.af_warning if latest else "Normal",
+            # "stroke_risk": latest.stroke_risk if latest else "Low",
+            # "seizure_risk": latest.seizure_risk if latest else "Low",
+            "is_connected": latest.is_connected if latest else False,
+            "is_removed": latest.is_removed if latest else False,
         })
 
     return response_data

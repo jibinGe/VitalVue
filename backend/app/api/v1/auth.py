@@ -7,11 +7,13 @@ from datetime import datetime, timedelta
 from jose import jwt
 from fastapi.security import OAuth2PasswordRequestForm
 from app.database import get_db, get_redis
-from app.models.user import User , Doctor, Patient, Nurse, OrgAdmin, MasterAdmin
+from app.models.user import User , Doctor, Patient, Nurse, OrgAdmin, MasterAdmin, UserRole
 from app.core.config import settings
 from app.schemas.auth import OTPRequest, OTPVerify
 from sqlalchemy import func # Import func for lower()
 from app.api.deps import get_current_user
+from app.models.organization import Room, Ward, Department
+from sqlalchemy.orm import joinedload
 
 router = APIRouter()
 
@@ -24,10 +26,13 @@ sns_client = boto3.client(
 )
 
 @router.get("/profile")
-async def get_profile(current_user: User = Depends(get_current_user)):
+async def get_profile(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
     """Get currently logged in user profile with role-specific details"""
     
-    # 1. Start with the current base response (Do not change)
+    # 1. Start with the base response (Common to all roles)
     response = {
         "id": current_user.id,
         "user_id": current_user.user_id,
@@ -37,40 +42,68 @@ async def get_profile(current_user: User = Depends(get_current_user)):
         "phone_number": current_user.phone_number
     }
 
-    # 2. Dynamically add sub-table details based on Role
-    if isinstance(current_user, Patient):
+    # 2. Handle Patient-Specific Details (Resolving Doctor and Location names)
+    if current_user.role == UserRole.PATIENT:
+        # Re-fetch with relationships
+        # Ensure 'room' matches the relationship name in your Patient model
+        stmt = (
+            select(Patient)
+            .options(
+                joinedload(Patient.assigned_doctor),
+                joinedload(Patient.room).joinedload(Room.ward).joinedload(Ward.department)
+            )
+            .where(Patient.id == current_user.id)
+        )
+        result = await db.execute(stmt)
+        patient_full = result.scalars().first()
+
+        if not patient_full:
+            raise HTTPException(status_code=404, detail="Patient profile not found")
+
         response.update({
-            "age": current_user.age,
-            "gender": current_user.gender,
-            "height": current_user.height,
-            "weight": current_user.weight,
-            "blood_group": current_user.blood_group,
-            "alt_phone": current_user.alt_phone,
-            "device_id": current_user.device_id,
-            "doctor_id": current_user.doctor_id,
-            "nurse_id": current_user.nurse_id,
-            "room_id": current_user.room_id
-        })
-    
-    elif isinstance(current_user, Doctor):
-        response.update({
-            "specialization": current_user.specialization,
-            "is_on_call": current_user.is_on_call
+            "age": patient_full.age,
+            "gender": patient_full.gender,
+            "height": patient_full.height,
+            "weight": patient_full.weight,
+            "blood_group": patient_full.blood_group,
+            "alt_phone": patient_full.alt_phone,
+            "device_id": patient_full.device_id,
+            "nurse_id": patient_full.nurse_id,
+            
+            # Resolved Names
+            "doctor_name": patient_full.assigned_doctor.full_name if patient_full.assigned_doctor else None,
+            "room_number": patient_full.room.room_number if patient_full.room else None,
+            "ward_name": patient_full.room.ward.name if (patient_full.room and patient_full.room.ward) else None,
+            "department_name": patient_full.room.ward.department.name if (patient_full.room and patient_full.room.ward and patient_full.room.ward.department) else None
         })
         
-    elif isinstance(current_user, Nurse):
+    # 3. Handle Doctor-Specific Details
+    elif current_user.role == UserRole.DOCTOR:
+        # Cast to Doctor to access specialization
+        doctor = await db.get(Doctor, current_user.id)
         response.update({
-            "license_no": current_user.license_no
+            "specialization": doctor.specialization if doctor else None,
+            "is_on_call": doctor.is_on_call if doctor else False
         })
         
-    elif isinstance(current_user, OrgAdmin):
+    # 4. Handle Nurse-Specific Details
+    elif current_user.role == UserRole.NURSE:
+        nurse = await db.get(Nurse, current_user.id)
         response.update({
-            "organization_name": current_user.organization_name
+            "license_no": nurse.license_no if nurse else None
         })
         
-    elif isinstance(current_user, MasterAdmin):
+    # 5. Handle Admin-Specific Details
+    elif current_user.role == UserRole.ORG_ADMIN:
+        admin = await db.get(OrgAdmin, current_user.id)
         response.update({
-            "super_level": current_user.super_level
+            "organization_name": admin.organization_name if admin else None
+        })
+        
+    elif current_user.role == UserRole.MASTER_ADMIN:
+        m_admin = await db.get(MasterAdmin, current_user.id)
+        response.update({
+            "super_level": m_admin.super_level if m_admin else None
         })
 
     return response

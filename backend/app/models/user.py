@@ -59,6 +59,7 @@ class Patient(User):
     nurse_id: Mapped[Optional[int]] = mapped_column(ForeignKey("nurses.id"), nullable=True)
     room_id: Mapped[int] = mapped_column(ForeignKey("rooms.id"))
 
+    room: Mapped["Room"] = relationship("Room")
     assigned_nurse: Mapped[Optional["Nurse"]] = relationship("Nurse", foreign_keys=[nurse_id])
     assigned_doctor: Mapped[Optional["Doctor"]] = relationship("Doctor", foreign_keys=[doctor_id])
 
