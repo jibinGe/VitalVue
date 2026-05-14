@@ -356,9 +356,11 @@ export default function Home() {
       }
 
       // If watch is removed AND disconnected, suppress critical status to avoid false alarms.
-      // If it is ONLY removed or ONLY disconnected, we keep the status to alert the staff.
+      // If it is ONLY disconnected (not removed), escalate to Critical to alert staff.
       if (isRemoved && isConnected === false) {
         status = "Stable";
+      } else if (isConnected === false) {
+        status = "Critical";
       }
 
       return {
