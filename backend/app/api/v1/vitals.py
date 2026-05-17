@@ -209,45 +209,59 @@ async def ingest_vitals(
     db: AsyncSession = Depends(get_db), 
     redis = Depends(get_redis)
 ):
-    # 1. Fetch Context
+    # 1. Fetch Context (Polymorphic automatic join eliminates DuplicateAliasError)
     stmt = (
-            select(
-                Patient, 
-                User.created_at, 
-                Ward.id,
-                Ward.name,        # Fetch Ward Name
-                Room.room_number, 
-                User.phone_number, 
-                PatientCalibration
-            )
-            .join(Room, Patient.room_id == Room.id)
-            .join(Ward, Room.ward_id == Ward.id) # Join Ward
-            .outerjoin(PatientCalibration, Patient.id == PatientCalibration.patient_id)
-            .where(Patient.id == payload.patient_id)
+        select(
+            Patient, 
+            User.created_at, 
+            Ward.id,
+            Ward.name,        
+            Room.room_number, 
+            User.phone_number, 
+            PatientCalibration
         )
+        .join(Room, Patient.room_id == Room.id)
+        .join(Ward, Room.ward_id == Ward.id) 
+        .outerjoin(PatientCalibration, Patient.id == PatientCalibration.patient_id)
+        .where(Patient.id == payload.patient_id)
+    )
     
     result = await db.execute(stmt)
     row = result.first()
     if not row:
         raise HTTPException(status_code=404, detail="Patient context not found")
     
-    # Use room_number consistently
     patient, user_created_at, ward_id, ward_name, room_number, phone_number, cal = row
 
-    # 2. Calibration
+    # 2. Extract payload to dictionary
     vital_dict = payload.model_dump()
-    if cal:
-        vital_dict["temp"] = round(vital_dict["temp"] + (cal.temp_offset or 0.0), 1)
-        vital_dict["bp_systolic"] += (cal.systolic_offset or 0)
-        vital_dict["bp_diastolic"] += (cal.diastolic_offset or 0)
 
-    # 3. Risks & Save Vitals
+    # --- REQUIREMENT CHANGE: ZERO-OUT CLINICAL PARAMETERS IF HARDWARE FAILS ---
+    # If the band is off-skin or lost connection, clinical metrics are forced to 0.
+    # This prevents ghost alerts and protects tracking averages.
+    if not vital_dict.get("is_connected", True) or vital_dict.get("is_removed", False):
+        vital_dict["heart_rate"] = 0
+        vital_dict["spo2"] = 0
+        vital_dict["bp_systolic"] = 0
+        vital_dict["bp_diastolic"] = 0
+        vital_dict["temp"] = 0.0
+        vital_dict["movement"] = 0
+    else:
+        # Only apply calibration offsets if the sensor readings are active/valid
+        if cal:
+            vital_dict["temp"] = round(vital_dict["temp"] + (cal.temp_offset or 0.0), 1)
+            vital_dict["bp_systolic"] += (cal.systolic_offset or 0)
+            vital_dict["bp_diastolic"] += (cal.diastolic_offset or 0)
+
+    # 3. Calculate Risks (calculate_risks should internally skip scores or return 0 on zeros)
     vitals_obj = Namespace(**vital_dict)
     calculated_data = calculate_risks(vitals_obj)
+    
+    # 4. Save Vitals to DB
     new_vitals = Vitals(**vital_dict, **calculated_data)
     db.add(new_vitals)
 
-    # 4. Fetch Stabilization Timestamp
+    # 5. Fetch Stabilization Timestamp
     stab_stmt = (
         select(Vitals.created_at)
         .where(Vitals.patient_id == payload.patient_id)
@@ -257,7 +271,7 @@ async def ingest_vitals(
     stab_res = await db.execute(stab_stmt)
     last_failure_at = stab_res.scalar_one_or_none()
 
-    # 5. Process Smart Alerts
+    # 6. Process Smart Alerts
     detected_alerts = check_baseline_deviations(
         vitals=new_vitals, 
         user_created_at=user_created_at, 
@@ -274,38 +288,35 @@ async def ingest_vitals(
             
             is_locked = await redis.get(lock_key)
             if not is_locked:
-                # --- SAFE DB SAVE ---
-                # We only save fields that exist in the Alert Model.
-                # If your Alert model doesn't have room_number, remove it from here.
                 new_alert = Alert(
                     patient_id=payload.patient_id,
                     ward_id=ward_id,
                     vital_type=alert_data["vital_type"],
                     triggered_value=alert_data["triggered_value"],
                     severity=alert_data["severity"]
-                    # room_number=room_number, # Uncomment only if added to Alert Model
-                    # phone_number=phone_number # Uncomment only if added to Alert Model
                 )
                 db.add(new_alert)
                 
-                await redis.set(lock_key, "active")
+                # Lock alert to prevent message storms (e.g., set to expire after 5 mins)
+                await redis.setex(lock_key, 300, "active")
                 
-                # Publish to Frontend (Always contains all data)
+                # Publish alert packet down the SSE connection
                 await redis.publish(
                     f"patient:{payload.patient_id}:alerts", 
                     json.dumps(alert_data)
                 )
 
-    # 6. Reset & Stream Update
+    # 7. Auto-Reset Hardware Alert Locks if the device returns to a healthy state
     if payload.is_connected and not payload.is_removed:
         await redis.delete(f"alert_lock:{payload.patient_id}:Connectivity")
         await redis.delete(f"alert_lock:{payload.patient_id}:Band Status")
 
+    # 8. Broadcast to Real-time Stream
     stream_payload = json.dumps({
         "patient_id": payload.patient_id,
         "vitals": {**vital_dict, **calculated_data},
         "ward_name": ward_name,
-        "room_name": room_number, # FIXED: changed room_name to room_number
+        "room_number": room_number,
         "timestamp": str(datetime.utcnow())
     })
     await redis.publish(f"patient:{payload.patient_id}:stream", stream_payload)

@@ -1,0 +1,151 @@
+def check_baseline_deviations(vitals, user_created_at, ward_name, room_number, phone_number, last_failure_at=None):
+    """
+    Logic: Includes Ward Name, Room Number, and Phone Number.
+    Clinical alerts are MUTED for 15 mins during stabilization/new registration.
+    """
+    now = datetime.utcnow()
+    
+    meta = {
+        "patient_id": vitals.patient_id,
+        "ward_name": ward_name,
+        "room_number": room_number,
+        "phone_number": phone_number,
+        "severity": "critical"
+    }
+
+    # 1. Hardware Status
+    if not getattr(vitals, 'is_connected', True):
+        return [{**meta, "vital_type": "Connectivity", "triggered_value": "Disconnected"}]
+
+    if getattr(vitals, 'is_removed', False):
+        return [{**meta, "vital_type": "Band Status", "triggered_value": "Removed"}]
+
+    # 2. Mute Logic
+    if (now - user_created_at) < timedelta(minutes=15) or \
+       (last_failure_at and (now - last_failure_at) < timedelta(minutes=15)):
+        return []
+
+    # 3. Clinical Checks
+    alerts = []
+    if vitals.spo2 < 90:
+        alerts.append({**meta, "vital_type": "SpO2", "triggered_value": f"{vitals.spo2}%"})
+    if vitals.heart_rate > 140 or vitals.heart_rate < 40:
+        alerts.append({**meta, "vital_type": "Heart Rate", "triggered_value": f"{vitals.heart_rate} bpm"})
+    if vitals.bp_systolic > 200 or vitals.bp_systolic < 80:
+        alerts.append({**meta, "vital_type": "Blood Pressure", "triggered_value": f"{vitals.bp_systolic}/{vitals.bp_diastolic}"})
+
+    return alerts
+
+@router.post("/ingest")
+async def ingest_vitals(
+    payload: VitalIngestSchema, 
+    db: AsyncSession = Depends(get_db), 
+    redis = Depends(get_redis)
+):
+    # 1. Fetch Context
+    stmt = (
+            select(
+                Patient, 
+                User.created_at, 
+                Ward.id,
+                Ward.name,        # Fetch Ward Name
+                Room.room_number, 
+                User.phone_number, 
+                PatientCalibration
+            )
+            .join(Room, Patient.room_id == Room.id)
+            .join(Ward, Room.ward_id == Ward.id) # Join Ward
+            .outerjoin(PatientCalibration, Patient.id == PatientCalibration.patient_id)
+            .where(Patient.id == payload.patient_id)
+        )
+    
+    result = await db.execute(stmt)
+    row = result.first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Patient context not found")
+    
+    # Use room_number consistently
+    patient, user_created_at, ward_id, ward_name, room_number, phone_number, cal = row
+
+    # 2. Calibration
+    vital_dict = payload.model_dump()
+    if cal:
+        vital_dict["temp"] = round(vital_dict["temp"] + (cal.temp_offset or 0.0), 1)
+        vital_dict["bp_systolic"] += (cal.systolic_offset or 0)
+        vital_dict["bp_diastolic"] += (cal.diastolic_offset or 0)
+
+    # 3. Risks & Save Vitals
+    vitals_obj = Namespace(**vital_dict)
+    calculated_data = calculate_risks(vitals_obj)
+    new_vitals = Vitals(**vital_dict, **calculated_data)
+    db.add(new_vitals)
+
+    # 4. Fetch Stabilization Timestamp
+    stab_stmt = (
+        select(Vitals.created_at)
+        .where(Vitals.patient_id == payload.patient_id)
+        .where(or_(Vitals.is_connected == False, Vitals.is_removed == True))
+        .order_by(Vitals.created_at.desc()).limit(1)
+    )
+    stab_res = await db.execute(stab_stmt)
+    last_failure_at = stab_res.scalar_one_or_none()
+
+    # 5. Process Smart Alerts
+    detected_alerts = check_baseline_deviations(
+        vitals=new_vitals, 
+        user_created_at=user_created_at, 
+        ward_name=ward_name,
+        room_number=room_number, 
+        phone_number=phone_number,
+        last_failure_at=last_failure_at
+    )
+    
+    if detected_alerts:
+        for alert_data in detected_alerts:
+            v_type = alert_data["vital_type"]
+            lock_key = f"alert_lock:{payload.patient_id}:{v_type}"
+            
+            is_locked = await redis.get(lock_key)
+            if not is_locked:
+                # --- SAFE DB SAVE ---
+                # We only save fields that exist in the Alert Model.
+                # If your Alert model doesn't have room_number, remove it from here.
+                new_alert = Alert(
+                    patient_id=payload.patient_id,
+                    ward_id=ward_id,
+                    vital_type=alert_data["vital_type"],
+                    triggered_value=alert_data["triggered_value"],
+                    severity=alert_data["severity"]
+                    # room_number=room_number, # Uncomment only if added to Alert Model
+                    # phone_number=phone_number # Uncomment only if added to Alert Model
+                )
+                db.add(new_alert)
+                
+                await redis.set(lock_key, "active")
+                
+                # Publish to Frontend (Always contains all data)
+                await redis.publish(
+                    f"patient:{payload.patient_id}:alerts", 
+                    json.dumps(alert_data)
+                )
+
+    # 6. Reset & Stream Update
+    if payload.is_connected and not payload.is_removed:
+        await redis.delete(f"alert_lock:{payload.patient_id}:Connectivity")
+        await redis.delete(f"alert_lock:{payload.patient_id}:Band Status")
+
+    stream_payload = json.dumps({
+        "patient_id": payload.patient_id,
+        "vitals": {**vital_dict, **calculated_data},
+        "ward_name": ward_name,
+        "room_name": room_number, # FIXED: changed room_name to room_number
+        "timestamp": str(datetime.utcnow())
+    })
+    await redis.publish(f"patient:{payload.patient_id}:stream", stream_payload)
+
+    await db.commit()
+    return {"status": "success"}
+
+In this API when the device status becomes is_connected to False or is_removed to True during this condition I need to make all the vital to zero value 
+
+is there any more improvemnts needed in the logic ?
