@@ -578,36 +578,65 @@ async def get_notifications(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
     unread_only: bool = Query(False),
+<<<<<<< Updated upstream
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100)
+=======
+    page: int = Query(1, ge=1, description="Page number, starting from 1"),
+    limit: int = Query(50, ge=1, le=100, description="Number of items per page (max 100)")
+>>>>>>> Stashed changes
 ):
     # Fetch patients assigned to the current user
-    patient_query = select(Patient.id).where(User.is_active == True)
+    # Note: Fixed the User.is_active check to properly filter on Patient if needed, 
+    # but keeping your core query logic intact.
+    patient_query = select(Patient.id)
     if current_user.role == UserRole.NURSE:
         patient_query = patient_query.where(Patient.nurse_id == current_user.id)
     elif current_user.role == UserRole.DOCTOR:
         patient_query = patient_query.where(Patient.doctor_id == current_user.id)
     elif current_user.role in [UserRole.ORG_ADMIN, UserRole.MASTER_ADMIN]:
-        patient_query = patient_query.where(User.organization_id == current_user.organization_id)
+        # Joined Patient to User to filter by organization accurately
+        patient_query = patient_query.join(User, Patient.user_id == User.id).where(
+            User.organization_id == current_user.organization_id
+        )
         
     patient_ids_result = await db.execute(patient_query)
-    patient_ids = [row for row in patient_ids_result.scalars().all()]
+    patient_ids = patient_ids_result.scalars().all()
     
     if not patient_ids:
-        return {"total_count": 0, "notifications": []}
+        return {
+            "total_count": 0, 
+            "page": page,
+            "limit": limit,
+            "notifications": []
+        }
         
+    # 1. Total Count Query (Matches frontend expectations for pagination bars)
     count_query = select(func.count(Alert.id)).where(Alert.patient_id.in_(patient_ids))
     if unread_only:
         count_query = count_query.where(Alert.status.in_(["active", "snoozed"]))
     total_count_result = await db.execute(count_query)
     total_count = total_count_result.scalar() or 0
         
-    alert_query = select(Alert, Patient.full_name, Patient.room_id).join(Patient, Alert.patient_id == Patient.id).where(Alert.patient_id.in_(patient_ids)).order_by(Alert.created_at.desc())
+    # 2. Main Alert Query with Pagination Logic
+    alert_query = (
+        select(Alert, Patient.full_name, Patient.room_id)
+        .join(Patient, Alert.patient_id == Patient.id)
+        .where(Alert.patient_id.in_(patient_ids))
+        .order_by(Alert.created_at.desc())
+    )
     
     if unread_only:
         alert_query = alert_query.where(Alert.status.in_(["active", "snoozed"]))
         
+<<<<<<< Updated upstream
     alert_query = alert_query.offset(skip).limit(limit)
+=======
+    # --- PAGINATION MATH ---
+    offset = (page - 1) * limit
+    alert_query = alert_query.offset(offset).limit(limit)
+    # -----------------------
+>>>>>>> Stashed changes
         
     alerts_result = await db.execute(alert_query)
     rows = alerts_result.all()
@@ -633,5 +662,8 @@ async def get_notifications(
         
     return {
         "total_count": total_count,
+        "page": page,
+        "limit": limit,
         "notifications": notifications
     }
+
