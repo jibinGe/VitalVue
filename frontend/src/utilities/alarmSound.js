@@ -37,6 +37,21 @@ if (typeof document !== 'undefined') {
 }
 
 /**
+ * Eagerly initialise the AudioContext and resume it.
+ * Called at the moment an alarm is triggered — the alarm modal opening
+ * is always a result of user-driven data, so browsers allow this.
+ * Returns a Promise that resolves once the context is running.
+ */
+function ensureAudioReady() {
+  const ctx = getAudioContext();
+  isAudioInitialized = true; // mark ready even if no prior interaction event
+  if (ctx.state === "suspended") {
+    return ctx.resume().catch(() => {});
+  }
+  return Promise.resolve();
+}
+
+/**
  * Plays a single sharp medical beep tone.
  * @param {number} frequency - Hz of the tone
  * @param {number} duration  - Duration in seconds
@@ -44,14 +59,15 @@ if (typeof document !== 'undefined') {
  * @param {string} type      - Oscillator type ('sine', 'triangle', 'square', 'sawtooth')
  */
 function playBeep(frequency = 800, duration = 0.15, volume = 0.8, type = "triangle") {
-  // Prevent context creation/warnings before user interaction
-  if (!isAudioInitialized) return;
-
+  // NOTE: No longer gating on isAudioInitialized — ensureAudioReady() handles
+  // context state before the interval starts, so every burst is safe to play.
   try {
     const ctx = getAudioContext();
 
-    // Try to resume if it was somehow suspended
-    if (ctx.state === "suspended") ctx.resume().catch(() => {});
+    // Always try to resume — context can be suspended even after init
+    if (ctx.state === "suspended") {
+      ctx.resume().catch(() => {});
+    }
 
     const oscillator = ctx.createOscillator();
     const gainNode = ctx.createGain();
@@ -97,8 +113,10 @@ function playAlarmPattern() {
  */
 export function startAlarm() {
   stopAlarm(); // clear any existing interval first
-  playAlarmPattern(); // play immediately
-  alarmInterval = setInterval(playAlarmPattern, 2000);
+  ensureAudioReady().then(() => {
+    playAlarmPattern(); // play immediately once context is confirmed running
+    alarmInterval = setInterval(playAlarmPattern, 2000);
+  });
 }
 
 /**
@@ -124,7 +142,8 @@ function playWarningPattern() {
  */
 export function startWarningAlarm() {
   stopAlarm(); // clear any existing interval first
-  playWarningPattern(); // play immediately
-  alarmInterval = setInterval(playWarningPattern, 4000);
+  ensureAudioReady().then(() => {
+    playWarningPattern(); // play immediately once context is confirmed running
+    alarmInterval = setInterval(playWarningPattern, 4000);
+  });
 }
-
