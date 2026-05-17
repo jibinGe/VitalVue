@@ -592,12 +592,20 @@ async def get_notifications(
     patient_ids = [row for row in patient_ids_result.scalars().all()]
     
     if not patient_ids:
-        return []
+        return {"total_count": 0, "notifications": []}
+        
+    count_query = select(func.count(Alert.id)).where(Alert.patient_id.in_(patient_ids))
+    if unread_only:
+        count_query = count_query.where(Alert.status.in_(["active", "snoozed"]))
+    total_count_result = await db.execute(count_query)
+    total_count = total_count_result.scalar() or 0
         
     alert_query = select(Alert, Patient.full_name, Patient.room_id).join(Patient, Alert.patient_id == Patient.id).where(Alert.patient_id.in_(patient_ids)).order_by(Alert.created_at.desc())
     
     if unread_only:
         alert_query = alert_query.where(Alert.status.in_(["active", "snoozed"]))
+        
+    alert_query = alert_query.limit(50)
         
     alerts_result = await db.execute(alert_query)
     rows = alerts_result.all()
@@ -618,7 +626,10 @@ async def get_notifications(
             "snoozed_until": alert.snoozed_until.isoformat() if alert.snoozed_until else None,
             "is_resolved": alert.is_resolved,
             "resolved_at": alert.resolved_at.isoformat() if alert.resolved_at else None,
-            "created_at": alert.created_at.isoformat() if alert.created_at else None
+            "created_at": alert.created_at.isoformat() if alert.created_at else None,
         })
         
-    return notifications
+    return {
+        "total_count": total_count,
+        "notifications": notifications
+    }

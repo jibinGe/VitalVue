@@ -851,8 +851,8 @@ export const patientService = {
       });
       return {
         success: true,
-        data: response.data || [],
-        count: response.data?.length || 0,
+        data: response.data?.notifications || [],
+        count: response.data?.total_count || 0,
         message: "Success",
       };
     } catch (error) {
