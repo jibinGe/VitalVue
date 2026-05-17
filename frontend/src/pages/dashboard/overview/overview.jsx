@@ -853,6 +853,17 @@ export default function Overview() {
         vitals={criticalAlarmData?.vitals}
         alert={criticalAlarmData?.alert}
         onDismiss={() => clearCriticalAlarm()}
+        onSnooze={async () => {
+          const alertId = criticalAlarmData?.alert?.id || criticalAlarmData?.alert?.alert_id;
+          if (alertId && userId) {
+            try {
+              await patientService.snoozeAlert(userId, alertId);
+            } catch (e) {
+              console.error("Error snoozing alert:", e);
+            }
+          }
+          clearCriticalAlarm();
+        }}
         onViewPatient={() => {
           clearCriticalAlarm();
           // Already on the patient page, just scroll to top

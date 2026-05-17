@@ -296,6 +296,11 @@ async def ingest_vitals(
                     severity=alert_data["severity"]
                 )
                 db.add(new_alert)
+                await db.flush()
+                
+                # Add the generated alert ID to the payload
+                alert_data["id"] = new_alert.id
+                alert_data["alert_id"] = new_alert.id
                 
                 # Lock alert to prevent message storms (e.g., set to expire after 5 mins)
                 await redis.setex(lock_key, 300, "active")
