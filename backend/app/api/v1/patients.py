@@ -541,3 +541,84 @@ async def perform_patient_action(
         "action_id": new_action.id,
         "message": f"Action '{action_type}' recorded successfully"
     }
+
+@router.post("/patients/{patient_id}/alerts/{alert_id}/snooze")
+async def snooze_alert(
+    patient_id: int,
+    alert_id: int,
+    db: AsyncSession = Depends(get_db),
+    redis = Depends(get_redis),
+    current_user: User = Depends(get_current_user)
+):
+    alert_result = await db.execute(select(Alert).where(Alert.id == alert_id, Alert.patient_id == patient_id))
+    alert = alert_result.scalars().first()
+    
+    if not alert:
+        raise HTTPException(status_code=404, detail="Alert not found")
+        
+    from datetime import timedelta
+    alert.status = "snoozed"
+    alert.snoozed_until = datetime.utcnow() + timedelta(minutes=10)
+    
+    # Broadcast snooze signal
+    snooze_payload = {
+        "event": "ALERT_SNOOZED",
+        "alert_id": alert_id,
+        "patient_id": patient_id,
+        "snoozed_until": alert.snoozed_until.isoformat()
+    }
+    await redis.publish(f"patient:{patient_id}:alerts", json.dumps(snooze_payload))
+    await redis.publish("ward_vitals_stream", json.dumps(snooze_payload))
+    
+    await db.commit()
+    return {"status": "success", "message": "Alert snoozed for 10 minutes"}
+
+@router.get("/notifications")
+async def get_notifications(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    unread_only: bool = Query(False)
+):
+    # Fetch patients assigned to the current user
+    patient_query = select(Patient.id).where(User.is_active == True)
+    if current_user.role == UserRole.NURSE:
+        patient_query = patient_query.where(Patient.nurse_id == current_user.id)
+    elif current_user.role == UserRole.DOCTOR:
+        patient_query = patient_query.where(Patient.doctor_id == current_user.id)
+    elif current_user.role in [UserRole.ORG_ADMIN, UserRole.MASTER_ADMIN]:
+        patient_query = patient_query.where(User.organization_id == current_user.organization_id)
+        
+    patient_ids_result = await db.execute(patient_query)
+    patient_ids = [row for row in patient_ids_result.scalars().all()]
+    
+    if not patient_ids:
+        return []
+        
+    alert_query = select(Alert, Patient.full_name, Patient.room_id).join(Patient, Alert.patient_id == Patient.id).where(Alert.patient_id.in_(patient_ids)).order_by(Alert.created_at.desc())
+    
+    if unread_only:
+        alert_query = alert_query.where(Alert.status.in_(["active", "snoozed"]))
+        
+    alerts_result = await db.execute(alert_query)
+    rows = alerts_result.all()
+    
+    notifications = []
+    for alert, patient_name, room_id in rows:
+        notifications.append({
+            "id": alert.id,
+            "patient_id": alert.patient_id,
+            "patient_name": patient_name,
+            "room_id": room_id,
+            "ward_id": alert.ward_id,
+            "vital_type": alert.vital_type,
+            "triggered_value": alert.triggered_value,
+            "status": alert.status,
+            "severity": alert.severity,
+            "is_flagged": alert.is_flagged,
+            "snoozed_until": alert.snoozed_until.isoformat() if alert.snoozed_until else None,
+            "is_resolved": alert.is_resolved,
+            "resolved_at": alert.resolved_at.isoformat() if alert.resolved_at else None,
+            "created_at": alert.created_at.isoformat() if alert.created_at else None
+        })
+        
+    return notifications

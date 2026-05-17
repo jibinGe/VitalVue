@@ -222,6 +222,7 @@ export default function Home() {
   const [flagDoctor, setFlagDoctor] = useState(false);
   const [endMonitoring, setEndMonitoring] = useState(false);
   const [endingMonitoring, setEndingMonitoring] = useState(false);
+  const [takeActionAlertId, setTakeActionAlertId] = useState(null);
   // Doctor Flagging State
   const [selectedDoctors, setSelectedDoctors] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -890,7 +891,7 @@ export default function Home() {
                   const response = await patientService.captureAction({
                     patientId: selectedUserId,
                     actionType: activeAction.trim(),
-                    alertId: 0,
+                    alertId: takeActionAlertId || 0,
                     otherDetails,
                     actionTime: isoActionTime,
                   });
@@ -913,6 +914,7 @@ export default function Home() {
                   setIsLoggingEvent(false);
                   setTimeout(() => setToast({ visible: false, message: "" }), 3000);
                   setTakeAction(false);
+                  setTakeActionAlertId(null);
                   setClinicalNotes("");
                   setActiveAction(null);
                   setActionTime("");
@@ -1203,6 +1205,27 @@ export default function Home() {
         isConnected={criticalAlarmData?.isConnected}
         isRemoved={criticalAlarmData?.isRemoved}
         onDismiss={() => clearCriticalAlarm()}
+        onSnooze={async () => {
+          const alertId = criticalAlarmData?.alert?.id || criticalAlarmData?.alert?.alert_id;
+          if (alertId && criticalAlarmData?.userId) {
+            try {
+              await patientService.snoozeAlert(criticalAlarmData.userId, alertId);
+            } catch (e) {
+              console.error("Error snoozing alert:", e);
+            }
+          }
+          clearCriticalAlarm();
+        }}
+        onTakeAction={() => {
+          const alertId = criticalAlarmData?.alert?.id || criticalAlarmData?.alert?.alert_id;
+          if (alertId) {
+            setTakeActionAlertId(alertId);
+          }
+          setSelectedUserId(criticalAlarmData?.userId);
+          setSelectedUserName(criticalAlarmData?.name);
+          setTakeAction(true);
+          clearCriticalAlarm();
+        }}
         onViewPatient={() => {
           if (criticalAlarmData?.userId) {
             navigate(`/dashboard/overview/${criticalAlarmData.userId}`);

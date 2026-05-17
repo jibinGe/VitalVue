@@ -17,7 +17,9 @@ import { startAlarm, stopAlarm, startWarningAlarm } from "@/utilities/alarmSound
  *  - alert         : object  (SSE alert payload)
  *  - isConnected   : boolean (device connection state)
  *  - isRemoved     : boolean (band/watch removed state)
- *  - onDismiss     : fn()   — called when user acknowledges the alarm
+ *  - onDismiss     : fn()   — called when user dismisses the alarm
+ *  - onSnooze      : fn()   — called when user snoozes the alarm
+ *  - onTakeAction  : fn()   — called when user clicks take action
  *  - onViewPatient : fn()   — navigate to patient overview
  */
 export default function CriticalAlarmModal({
@@ -32,6 +34,8 @@ export default function CriticalAlarmModal({
   isConnected = true,
   isRemoved = false,
   onDismiss,
+  onSnooze,
+  onTakeAction,
   onViewPatient,
 }) {
   const isWarning = alert?.severity?.toLowerCase() === 'warning';
@@ -386,7 +390,7 @@ export default function CriticalAlarmModal({
                 {/* Actions */}
                 <div className="flex gap-3 w-full">
                   <button
-                    onClick={onDismiss}
+                    onClick={onSnooze || onDismiss}
                     className="flex-1 py-3 rounded-2xl text-sm font-medium transition-all"
                     style={{
                       background: "rgba(255,255,255,0.05)",
@@ -394,12 +398,28 @@ export default function CriticalAlarmModal({
                       color: "#aaa",
                       textTransform: "uppercase",
                       letterSpacing: "1px",
-                      fontSize: "18px",
+                      fontSize: "16px",
                       fontWeight: 600,
                       fontFamily: "Open Sans",
                     }}
                   >
-                    ACKNOWLEDGE
+                    SNOOZE
+                  </button>
+                  <button
+                    onClick={onTakeAction || onDismiss}
+                    className="flex-1 py-3 rounded-2xl text-sm font-medium transition-all"
+                    style={{
+                      background: `rgba(${themeColorRgba},0.2)`,
+                      border: `1px solid rgba(${themeColorRgba},0.4)`,
+                      color: themeColor,
+                      textTransform: "uppercase",
+                      letterSpacing: "1px",
+                      fontSize: "16px",
+                      fontWeight: 600,
+                      fontFamily: "Open Sans",
+                    }}
+                  >
+                    TAKE ACTION
                   </button>
                 </div>
               </div>

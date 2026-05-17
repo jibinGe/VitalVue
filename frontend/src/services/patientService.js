@@ -845,12 +845,46 @@ export const patientService = {
    * Get staff notifications
    */
   async getNotifications(unreadOnly = false) {
-    return {
-      success: true,
-      data: [],
-      count: 0,
-      message: "No notifications",
-    };
+    try {
+      const response = await apiClient.get('/api/v1/patients/notifications', {
+        params: { unread_only: unreadOnly }
+      });
+      return {
+        success: true,
+        data: response.data || [],
+        count: response.data?.length || 0,
+        message: "Success",
+      };
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+      return {
+        success: false,
+        data: [],
+        count: 0,
+        message: error.message || "Failed to fetch notifications",
+      };
+    }
+  },
+
+  /**
+   * Snooze an alert
+   */
+  async snoozeAlert(patientId, alertId) {
+    try {
+      const response = await apiClient.post(`/api/v1/patients/patients/${patientId}/alerts/${alertId}/snooze`);
+      return {
+        success: true,
+        data: response.data,
+        message: "Alert snoozed",
+      };
+    } catch (error) {
+      console.error('Error snoozing alert:', error);
+      return {
+        success: false,
+        data: null,
+        message: error.message || "Failed to snooze alert",
+      };
+    }
   },
 
   /**

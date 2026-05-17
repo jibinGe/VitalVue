@@ -18,6 +18,11 @@ class Alert(Base):
     is_flagged = Column(Boolean, default=False)
     flagged_doctor_id = Column(Integer, ForeignKey("doctors.id"), nullable=True)
     
+    snoozed_until = Column(DateTime, nullable=True)
+    is_resolved = Column(Boolean, default=False)
+    resolved_at = Column(DateTime, nullable=True)
+    resolved_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
 
 class Action(Base):

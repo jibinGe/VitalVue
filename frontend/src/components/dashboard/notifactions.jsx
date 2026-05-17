@@ -31,7 +31,7 @@ function groupByDate(notifications) {
     yesterday.setDate(yesterday.getDate() - 1);
 
     notifications.forEach((n) => {
-        const d = new Date(n.createdAt || n.timestamp || Date.now());
+        const d = new Date(n.created_at || n.createdAt || n.timestamp || Date.now());
         d.setHours(0, 0, 0, 0);
         let label;
         if (d.getTime() === today.getTime()) label = 'Today';
@@ -132,20 +132,23 @@ export default function Notifactions() {
                             </div>
                             <div className="flex flex-col">
                                 {group.items.map((notif, idx) => {
-                                    const alertId = notif._id || notif.id || notif.alertId;
-                                    const type = (notif.type || notif.priority || notif.notificationType || 'info').toLowerCase();
+                                    const alertId = notif.id || notif._id || notif.alertId;
+                                    const type = (notif.severity || notif.type || notif.priority || 'info').toLowerCase();
                                     const badgeClass = typeColorMap[type] || typeColorMap.info;
                                     const iconColor = iconColorMap[type] || iconColorMap.info;
-                                    const title = notif.title || notif.message || 'Notification';
-                                    const wardId = notif.wardId || notif.ward_id || '—';
-                                    const bedId = notif.bedId || notif.bed_id || '—';
-                                    const time = formatTime(notif.createdAt || notif.timestamp);
-                                    const isAcking = ackingId === alertId;
+                                    const title = notif.vital_type ? `${notif.patient_name}: ${notif.vital_type} (${notif.triggered_value})` : (notif.title || notif.message || 'Notification');
+                                    const wardId = notif.ward_id || notif.wardId || '—';
+                                    const bedId = notif.room_id || notif.bedId || '—';
+                                    const time = formatTime(notif.created_at || notif.createdAt || notif.timestamp);
+                                    
+                                    const status = notif.status || 'active';
+                                    const isResolved = notif.is_resolved || status === 'resolved';
+                                    const isSnoozed = status === 'snoozed';
 
                                     return (
                                         <div className="flex flex-col" key={alertId || idx}>
                                             {line_shape}
-                                            <div className={`flex flex-col gap-y-4 px-4 py-5 hover:bg-white/5 transition-colors duration-300 ${!notif.isRead ? 'border-l-2 border-primary' : ''}`}>
+                                            <div className={`flex flex-col gap-y-4 px-4 py-5 hover:bg-white/5 transition-colors duration-300 ${status === 'active' ? 'border-l-2 border-primary' : ''}`}>
                                                 <div className="flex items-center gap-4 md:gap-5">
                                                     <div><DefaultIcon color={iconColor} /></div>
                                                     <div className="flex-1 flex flex-col gap-y-1.5">
@@ -156,27 +159,29 @@ export default function Notifactions() {
                                                             </span>
                                                         </h6>
                                                         <div className="flex items-center gap-3 text-sm flex-wrap font-normal">
-                                                            <span className="text-[#F1F2F4]">Ward ID: <span className="text-white">{wardId}</span></span>
-                                                            <span className="text-[#F1F2F4]">Bed ID: <span className="text-white">{bedId}</span></span>
+                                                            <span className="text-[#F1F2F4]">Ward No: <span className="text-white">{wardId}</span></span>
+                                                            <span className="text-[#F1F2F4]">Room No: <span className="text-white">{bedId}</span></span>
                                                         </div>
                                                     </div>
                                                     <div className="ml-auto text-para font-normal text-sm mb-auto">{time}</div>
                                                 </div>
 
-                                                <div className="flex items-center gap-3">
-                                                    {type === 'critical' && (
-                                                        <Link to="/dashboard/home" className="btn btn-gradient flex-1 text-white min-h-9 text-sm">
-                                                            Take Action
-                                                        </Link>
-                                                    )}
-                                                    {alertId && (
-                                                        <button
-                                                            onClick={() => handleAcknowledge(alertId)}
-                                                            disabled={isAcking}
-                                                            className={`btn flex-1 min-h-9 text-sm rounded-xl border border-white/20 bg-white/5 hover:bg-white/10 transition-all ${isAcking ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                                        >
-                                                            {isAcking ? 'Acknowledging...' : 'Acknowledge'}
-                                                        </button>
+                                                <div className="flex items-center gap-3 text-sm">
+                                                    {isResolved ? (
+                                                        <span className="text-[#4DE573] flex items-center gap-2">
+                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                                                            Action Taken {notif.resolved_at ? `at ${formatTime(notif.resolved_at)}` : ''}
+                                                        </span>
+                                                    ) : isSnoozed ? (
+                                                        <span className="text-[#E5DB4C] flex items-center gap-2">
+                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                                                            Snoozed {notif.snoozed_until ? `until ${formatTime(notif.snoozed_until)}` : ''}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-[#E54D4D] flex items-center gap-2">
+                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                                                            Active Alert
+                                                        </span>
                                                     )}
                                                 </div>
                                             </div>
