@@ -118,7 +118,7 @@ export default function Notifactions() {
                 </button>
             </div>
 
-            <div className="max-h-150 overflow-y-auto">
+            <div className="max-h-[400px] overflow-y-auto">
                 {loading ? (
                     <div className="px-5 py-8 text-center text-para text-sm">Loading notifications...</div>
                 ) : grouped.length === 0 ? (
@@ -196,7 +196,7 @@ export default function Notifactions() {
 
             {line_shape}
             <div className="px-5 py-4 text-center">
-                <Link to="/dashboard/home" className="text-base text-white hover:text-primary/80">View all notifications</Link>
+                <Link to="/dashboard/notifications" className="text-base text-white hover:text-primary/80">View all notifications</Link>
             </div>
         </>
     );

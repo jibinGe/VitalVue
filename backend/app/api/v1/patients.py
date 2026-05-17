@@ -577,7 +577,9 @@ async def snooze_alert(
 async def get_notifications(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    unread_only: bool = Query(False)
+    unread_only: bool = Query(False),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100)
 ):
     # Fetch patients assigned to the current user
     patient_query = select(Patient.id).where(User.is_active == True)
@@ -605,7 +607,7 @@ async def get_notifications(
     if unread_only:
         alert_query = alert_query.where(Alert.status.in_(["active", "snoozed"]))
         
-    alert_query = alert_query.limit(50)
+    alert_query = alert_query.offset(skip).limit(limit)
         
     alerts_result = await db.execute(alert_query)
     rows = alerts_result.all()

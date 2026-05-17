@@ -844,10 +844,10 @@ export const patientService = {
   /**
    * Get staff notifications
    */
-  async getNotifications(unreadOnly = false) {
+  async getNotifications(unreadOnly = false, skip = 0, limit = 50) {
     try {
       const response = await apiClient.get('/api/v1/patients/notifications', {
-        params: { unread_only: unreadOnly }
+        params: { unread_only: unreadOnly, skip, limit }
       });
       return {
         success: true,

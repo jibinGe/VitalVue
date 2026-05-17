@@ -31,6 +31,7 @@ const Control = lazy(() => import('./pages/dashboard/control'))
 const Control2 = lazy(() => import('./pages/dashboard/control-2'))
 const Control3 = lazy(() => import('./pages/dashboard/control-3'))
 const Profile = lazy(() => import('./pages/dashboard/profile'))
+const NotificationsPage = lazy(() => import('./pages/dashboard/notifications'))
 
 // Minimal themed loading fallback shown between route navigations
 const PageLoader = () => (
@@ -133,6 +134,10 @@ const router = createBrowserRouter([
       {
         path: 'profile',
         element: <Suspense fallback={<PageLoader />}><Profile /></Suspense>,
+      },
+      {
+        path: 'notifications',
+        element: <Suspense fallback={<PageLoader />}><NotificationsPage /></Suspense>,
       },
     ]
   }
