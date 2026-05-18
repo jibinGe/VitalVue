@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { patientService } from '../../services/patientService';
 
 const DefaultIcon = ({ color = '#9855F7' }) => (
@@ -49,6 +50,7 @@ function formatTime(ts) {
 }
 
 export default function NotificationsPage() {
+    const navigate = useNavigate();
     const [allNotifs, setAllNotifs] = useState([]);
     const [grouped, setGrouped] = useState([]);
     const [totalCount, setTotalCount] = useState(0);
@@ -124,9 +126,17 @@ export default function NotificationsPage() {
         <div className="p-4 md:p-8 max-w-7xl mx-auto w-full">
             <div className="bg-[#222225] rounded-3xl border border-solid border-white/16 overflow-hidden flex flex-col h-[calc(100vh-120px)]">
                 <div className="flex items-center gap-4 justify-between p-6 border-b border-white/10 shrink-0">
-                    <div>
-                        <h2 className="text-2xl font-semibold text-white">Notifications</h2>
-                        <p className="text-para text-sm mt-1">You have {totalCount} total notifications</p>
+                    <div className="flex items-center gap-4">
+                        <button 
+                            onClick={() => navigate(-1)}
+                            className="flex items-center justify-center w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 text-white transition-colors"
+                        >
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5"></path><polyline points="12 19 5 12 12 5"></polyline></svg>
+                        </button>
+                        <div>
+                            <h2 className="text-2xl font-semibold text-white">Notifications</h2>
+                            <p className="text-para text-sm mt-1">You have {totalCount} total notifications</p>
+                        </div>
                     </div>
                     
                     <button
