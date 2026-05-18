@@ -310,6 +310,8 @@ async def ingest_vitals(
     if payload.is_connected and not payload.is_removed:
         await redis.delete(f"alert_lock:{payload.patient_id}:Connectivity")
         await redis.delete(f"alert_lock:{payload.patient_id}:Band Status")
+        # CLEAR HEARTBEAT DEAD LOCK: Allows future missing telemetry detections
+        await redis.delete(f"patient_dead_state:{payload.patient_id}")
 
     # 8. Broadcast to Real-time Stream
     stream_payload = json.dumps({
@@ -320,6 +322,7 @@ async def ingest_vitals(
         "timestamp": str(datetime.utcnow())
     })
     await redis.publish(f"patient:{payload.patient_id}:stream", stream_payload)
+    await redis.setex(f"patient_active:{payload.patient_id}", 180, "online")
 
     await db.commit()
     return {"status": "success"}

@@ -578,13 +578,8 @@ async def get_notifications(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
     unread_only: bool = Query(False),
-<<<<<<< Updated upstream
-    skip: int = Query(0, ge=0),
-    limit: int = Query(50, ge=1, le=100)
-=======
     page: int = Query(1, ge=1, description="Page number, starting from 1"),
     limit: int = Query(50, ge=1, le=100, description="Number of items per page (max 100)")
->>>>>>> Stashed changes
 ):
     # Fetch patients assigned to the current user
     # Note: Fixed the User.is_active check to properly filter on Patient if needed, 
@@ -629,14 +624,10 @@ async def get_notifications(
     if unread_only:
         alert_query = alert_query.where(Alert.status.in_(["active", "snoozed"]))
         
-<<<<<<< Updated upstream
-    alert_query = alert_query.offset(skip).limit(limit)
-=======
     # --- PAGINATION MATH ---
     offset = (page - 1) * limit
     alert_query = alert_query.offset(offset).limit(limit)
     # -----------------------
->>>>>>> Stashed changes
         
     alerts_result = await db.execute(alert_query)
     rows = alerts_result.all()
