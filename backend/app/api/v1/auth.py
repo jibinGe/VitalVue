@@ -207,12 +207,13 @@ async def verify_otp(
 
     # 6. Set HttpOnly Cookies
     response.set_cookie(
-        key="access_token",
-        value=access_token,
+        key="refresh_token",
+        value=refresh_token,
         httponly=True,
-        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        max_age=604800,
+        path="/api/v1/auth/refresh",
         samesite="lax",
-        secure=False 
+        secure=False
     )
     
     response.set_cookie(
@@ -220,7 +221,7 @@ async def verify_otp(
         value=refresh_token,
         httponly=True,
         max_age=604800,
-        path="/api/v1/auth/refresh",
+        path="/",  # <-- Change this from "/api/v1/auth/refresh" to "/"
         samesite="lax",
         secure=False 
     )
@@ -256,9 +257,11 @@ async def refresh_access_token(
 
         # 2. Check Redis to see if the token was revoked (Security check)
         stored_token = await redis_conn.get(f"refresh_token:{user_id}")
-        if not stored_token or stored_token.decode('utf-8') != refresh_token:
-            raise HTTPException(status_code=401, detail="Refresh token expired or revoked")
-
+        if not stored_token:
+            raise HTTPException(status_code=401, detail="Refresh token session has expired")
+        if stored_token.decode('utf-8') != refresh_token:
+            raise HTTPException(status_code=401, detail="Refresh token has been revoked")
+        
         # 3. Fetch User
         result = await db.execute(select(User).where(User.user_id == user_id))
         user = result.scalars().first()
@@ -277,6 +280,7 @@ async def refresh_access_token(
             key="access_token",
             value=new_access_token,
             httponly=True,
+            path="/",  # <-- Explicitly set to root
             samesite="lax"
         )
 
@@ -286,3 +290,5 @@ async def refresh_access_token(
         raise HTTPException(status_code=401, detail="Refresh token expired")
     except jwt.JWTError:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
+    
+

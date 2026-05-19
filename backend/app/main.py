@@ -2,16 +2,37 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import os
+import asyncio
 
 from app.api.v1 import auth, discovery, patients, vitals, stream
+from app.cron.heartbeat import monitor_device_heartbeats
+
+async def heartbeat_cron_worker():
+    """
+    An endless loop worker that executes the heartbeat checker 
+    exactly once every 60 seconds.
+    """
+    print("[CRON] Device heartbeat background worker started.")
+    while True:
+        try:
+            # Execute the heartbeat sweeping logic we built
+            await monitor_device_heartbeats()
+        except Exception as e:
+            # Safeguard: Log exceptions so a database crash doesn't kill the whole cron process
+            print(f"[CRON ERROR] Exception caught in heartbeat worker: {e}")
+        
+        # Sleep for 60 seconds before executing the sweep loop again
+        await asyncio.sleep(60)
 
 # 1. Lifespan context for startup/shutdown tasks
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup: Logic to run when server starts (e.g. verify Redis/DB connection)
     print("Vitalvue Backend starting up...")
+    cron_task = asyncio.create_task(heartbeat_cron_worker())
     yield
     # Shutdown: Logic to run when server stops
+    cron_task.cancel()
     print("Vitalvue Backend shutting down...")
 
 app = FastAPI(

@@ -3,24 +3,24 @@ from datetime import datetime
 from argparse import Namespace
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.database import get_db, get_redis
-from app.models.user import Patient, User, Room
-from app.models.organization import Ward
-from app.models.vitals import Vitals, Alert
+from app.models.user import Patient, User
+from app.models.organization import Ward, Room
+from app.models.vitals import Vitals
+from app.models.clinical import Alert
 from app.services.analytics import calculate_risks
 
 async def monitor_device_heartbeats():
     """
-    Sweeps all active patients. If a patient hasn't called the ingest API 
-    within the last 3 minutes, zero out their vitals and trigger a Disconnected alert.
+    Sweeps active patients. If a device misses its 3-minute ingest payload window,
+    programmatically sets is_connected to False, zeroes clinical metrics, skips
+    default hardware alarms, and explicitly triggers a "Network Disconnected" event.
     """
-    async for db in get_db(): # Yield db session context safely
+    async for db in get_db():
         redis = await get_redis()
         
-        # 1. Fetch all patients currently registered in system
-        # (Using selectinload or regular polymorphic query for properties)
+        # 1. Fetch active client registration layout
         stmt = (
             select(Patient, User.created_at, Ward.id, Ward.name, Room.room_number, User.phone_number)
             .join(Room, Patient.room_id == Room.id)
@@ -32,19 +32,24 @@ async def monitor_device_heartbeats():
         for row in active_patients:
             patient, user_created_at, ward_id, ward_name, room_number, phone_number = row
             
-            # 2. Check if device is tracking in Redis
             active_key = f"patient_active:{patient.id}"
             is_active = await redis.get(active_key)
             
             if not is_active:
-                # Device HAS NOT reported in over 3 minutes!
-                
-                # Check if we already registered a disconnected state to avoid duplicate entries
+                # Target dead state gate to prevent duplicate historical entries across runs
                 dead_lock_key = f"patient_dead_state:{patient.id}"
                 already_dead = await redis.get(dead_lock_key)
                 
                 if not already_dead:
-                    # A. Formulate a flat zeroed vital dictionary
+                    # Capture exact string isoformat for JSON payload delivery
+                    timestamp_str = datetime.utcnow().isoformat()
+                    
+                    # Resolve a safe device_id fallback string
+                    safe_device_str = getattr(patient, 'device_id', 'OFFLINE')
+                    if not safe_device_str:
+                        safe_device_str = "OFFLINE"
+                    
+                    # A. Force connection flag to False, drop metrics, and insert concrete Option B schemas
                     zero_vitals_dict = {
                         "patient_id": patient.id,
                         "heart_rate": 0,
@@ -53,20 +58,28 @@ async def monitor_device_heartbeats():
                         "bp_diastolic": 0,
                         "temp": 0.0,
                         "movement": 0,
-                        "is_connected": False,
+                        "is_connected": False,  
                         "is_removed": False,
-                        "created_at": datetime.utcnow()
+                        "created_at": datetime.utcnow(),
+                        
+                        # --- OPTION B: MANDATORY DATA CONSTRAINTS FOR SCHEMAS ---
+                        "device_id": safe_device_str,
+                        "hrv_score": 0,
+                        "stress_level": "N/A",
+                        "sleep_pattern": "N/A",
+                        "battery_percent": 0
+                        # --------------------------------------------------------
                     }
                     
-                    # B. Calculate risks using zeros
+                    # B. Standardize baseline risk parameters against structural zero inputs
                     vitals_obj = Namespace(**zero_vitals_dict)
                     calculated_data = calculate_risks(vitals_obj)
                     
-                    # C. Commit flat zero vital row to DB history to flatline charts
+                    # C. Insert zero-floor record into the database
                     stale_vitals = Vitals(**zero_vitals_dict, **calculated_data)
                     db.add(stale_vitals)
                     
-                    # D. Generate Critical Network Disconnect Alert
+                    # D. ENFORCE SPECIFIC ALERTER: Network Disconnected (Bypassing default checks)
                     alert_meta = {
                         "patient_id": patient.id,
                         "ward_name": ward_name,
@@ -74,10 +87,10 @@ async def monitor_device_heartbeats():
                         "phone_number": phone_number,
                         "severity": "critical",
                         "vital_type": "Connectivity",
-                        "triggered_value": "Network Disconnected"
+                        "triggered_value": "Network Disconnected",
+                        "timestamp": timestamp_str
                     }
                     
-                    # Save alert object to database tracking
                     new_alert = Alert(
                         patient_id=patient.id,
                         ward_id=ward_id,
@@ -86,21 +99,32 @@ async def monitor_device_heartbeats():
                         severity=alert_meta["severity"]
                     )
                     db.add(new_alert)
+                    await db.flush() # Generate ID for the alert before pub/sub
                     
-                    # Lock the dead state so it doesn't repeatedly write zero rows every execution loop
+                    alert_meta["id"] = new_alert.id
+                    alert_meta["alert_id"] = new_alert.id
+                    
+                    # Set network lock state to block duplicates and show correct view indicators
                     await redis.set(dead_lock_key, "offline")
+                    await redis.setex(f"alert_lock:{patient.id}:Network", 300, "active")
                     
-                    # E. Publish real-time notifications via Redis Pub/Sub channels
+                    # E. Sanitize nested datetime variables for clean JSON serialization
+                    serializable_vitals = {**zero_vitals_dict, **calculated_data}
+                    serializable_vitals["created_at"] = timestamp_str 
+                    
                     alert_channel = f"patient:{patient.id}:alerts"
                     stream_channel = f"patient:{patient.id}:stream"
                     
                     await redis.publish(alert_channel, json.dumps(alert_meta))
                     await redis.publish(stream_channel, json.dumps({
                         "patient_id": patient.id,
-                        "vitals": {**zero_vitals_dict, **calculated_data},
+                        "vitals": serializable_vitals,
                         "ward_name": ward_name,
                         "room_number": room_number,
-                        "timestamp": str(datetime.utcnow())
+                        "timestamp": timestamp_str
                     }))
                     
         await db.commit()
+        
+
+

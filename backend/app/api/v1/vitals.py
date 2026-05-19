@@ -209,7 +209,7 @@ async def ingest_vitals(
     db: AsyncSession = Depends(get_db), 
     redis = Depends(get_redis)
 ):
-    # 1. Fetch Context (Polymorphic automatic join eliminates DuplicateAliasError)
+    # 1. Fetch Context via Polymorphic Mapping (Prevents DuplicateAliasError)
     stmt = (
         select(
             Patient, 
@@ -236,9 +236,7 @@ async def ingest_vitals(
     # 2. Extract payload to dictionary
     vital_dict = payload.model_dump()
 
-    # --- REQUIREMENT CHANGE: ZERO-OUT CLINICAL PARAMETERS IF HARDWARE FAILS ---
-    # If the band is off-skin or lost connection, clinical metrics are forced to 0.
-    # This prevents ghost alerts and protects tracking averages.
+    # 3. Rule Enforcement: Zero-out Clinical Parameters if Hardware state fails
     if not vital_dict.get("is_connected", True) or vital_dict.get("is_removed", False):
         vital_dict["heart_rate"] = 0
         vital_dict["spo2"] = 0
@@ -247,21 +245,21 @@ async def ingest_vitals(
         vital_dict["temp"] = 0.0
         vital_dict["movement"] = 0
     else:
-        # Only apply calibration offsets if the sensor readings are active/valid
+        # Only apply calibration offsets if the sensor readings are active and valid
         if cal:
             vital_dict["temp"] = round(vital_dict["temp"] + (cal.temp_offset or 0.0), 1)
             vital_dict["bp_systolic"] += (cal.systolic_offset or 0)
             vital_dict["bp_diastolic"] += (cal.diastolic_offset or 0)
 
-    # 3. Calculate Risks (calculate_risks should internally skip scores or return 0 on zeros)
+    # 4. Calculate Early Warning Risks
     vitals_obj = Namespace(**vital_dict)
     calculated_data = calculate_risks(vitals_obj)
     
-    # 4. Save Vitals to DB
+    # 5. Save Telemetry Instance to Database
     new_vitals = Vitals(**vital_dict, **calculated_data)
     db.add(new_vitals)
 
-    # 5. Fetch Stabilization Timestamp
+    # 6. Fetch Most Recent Hardware Interruption for Stabilization Filtering
     stab_stmt = (
         select(Vitals.created_at)
         .where(Vitals.patient_id == payload.patient_id)
@@ -271,7 +269,7 @@ async def ingest_vitals(
     stab_res = await db.execute(stab_stmt)
     last_failure_at = stab_res.scalar_one_or_none()
 
-    # 6. Process Smart Alerts
+    # 7. Evaluate Explicit Deviations (Triggers clinical alarms if windows are clear)
     detected_alerts = check_baseline_deviations(
         vitals=new_vitals, 
         user_created_at=user_created_at, 
@@ -296,37 +294,47 @@ async def ingest_vitals(
                     severity=alert_data["severity"]
                 )
                 db.add(new_alert)
-                await db.flush()
+                await db.flush() # Flush to generate autoincrement ID
                 
-                # Add the generated alert ID to the payload
+                # Attach unique DB ID to event strings
                 alert_data["id"] = new_alert.id
                 alert_data["alert_id"] = new_alert.id
                 
-                # Lock alert to prevent message storms (e.g., set to expire after 5 mins)
+                # Mute duplicate entries for 5 minutes
                 await redis.setex(lock_key, 300, "active")
                 
-                # Publish alert packet down the SSE connection
+                # Publish event via Server-Sent Events channel
                 await redis.publish(
                     f"patient:{payload.patient_id}:alerts", 
                     json.dumps(alert_data)
                 )
 
-    # 7. Auto-Reset Hardware Alert Locks if the device returns to a healthy state
+    # 8. Reset Asymmetric State Transitions
+    # ANY active API ingest ping drops the background task's dead lock
+    await redis.delete(f"patient_dead_state:{payload.patient_id}")
+    await redis.delete(f"alert_lock:{payload.patient_id}:Network")
+
+    # Only clear hardware disconnect locks if the sensor states are completely sound
     if payload.is_connected and not payload.is_removed:
         await redis.delete(f"alert_lock:{payload.patient_id}:Connectivity")
         await redis.delete(f"alert_lock:{payload.patient_id}:Band Status")
-        # CLEAR HEARTBEAT DEAD LOCK: Allows future missing telemetry detections
-        await redis.delete(f"patient_dead_state:{payload.patient_id}")
 
-    # 8. Broadcast to Real-time Stream
+    # 9. JSON Serialization Safe Realtime Broadcast
+    timestamp_str = datetime.utcnow().isoformat()
+    serializable_vitals = {**vital_dict, **calculated_data}
+    serializable_vitals["created_at"] = timestamp_str # Overwrite datetime object with string
+    
     stream_payload = json.dumps({
         "patient_id": payload.patient_id,
-        "vitals": {**vital_dict, **calculated_data},
+        "vitals": serializable_vitals,
         "ward_name": ward_name,
         "room_number": room_number,
-        "timestamp": str(datetime.utcnow())
+        "timestamp": timestamp_str
     })
+    
     await redis.publish(f"patient:{payload.patient_id}:stream", stream_payload)
+    
+    # 10. Update Heartbeat Switch Active Window (3 Minutes TTL)
     await redis.setex(f"patient_active:{payload.patient_id}", 180, "online")
 
     await db.commit()
