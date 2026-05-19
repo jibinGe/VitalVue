@@ -35,13 +35,13 @@ import { Link } from "react-router-dom";
 
 import SpO2Gauge from "@/components/animation/overview/spo2Gauge";
 import BPTrend from "@/components/animation/overview/BPTrend";
-// import HrvScore from "@/components/animation/overview/hrv-score";
+import HrvScore from "@/components/animation/overview/hrv-score";
 import TempWave from "../../../components/animation/overview/tempWave";
 import SleepPattern from "@/components/animation/overview/sleep-pattern";
-// import StressPatternChart from "@/components/dashboard/charts/stress-pattern-chart";
+import StressPatternChart from "@/components/dashboard/charts/stress-pattern-chart";
 import DoctorReview from "../../../components/dashboard/overview/doctor-review";
 import HeartRateLive from "../../../components/charts/HeartRateLive";
-// import Movement from "../../../components/animation/overview/movement";
+import Movement from "../../../components/animation/overview/movement";
 import ArcProgress from "../../../components/arc-progress";
 import HistoryTable from "@/components/dashboard/HistoryTable";
 
@@ -163,6 +163,7 @@ export default function Overview() {
     const statusMap = [];
 
     // NEWS2 Score
+    /*
     if (assessments.news2_score !== undefined || assessments.news2 !== undefined) {
       const score = assessments.news2_score ?? assessments.news2?.score ?? 0;
       const riskLevel = score >= 7 ? "High" : score >= 5 ? "Medium" : "Low";
@@ -174,8 +175,10 @@ export default function Overview() {
         color: riskLevel === "High" ? "#E54D4D" : riskLevel === "Medium" ? "#FFBB33" : "#2CD155",
       });
     }
+    */
 
     // AF Warning
+    /*
     const afWarningStr = assessments.af_warning; // could be boolean, int, or object
     let afStatus = "Normal";
     if (afWarningStr && afWarningStr !== "Normal" && afWarningStr !== 0 && afWarningStr !== false) {
@@ -188,6 +191,7 @@ export default function Overview() {
       description: afStatus === "Normal" ? "Regular Rhythm" : "Irregular Rhythm",
       color: afStatus === "Normal" ? "#2CD155" : "#E54D4D",
     });
+    */
 
     // Stroke Risk
     /*
@@ -340,6 +344,8 @@ export default function Overview() {
     if (hrvVal !== undefined && hrvVal !== null) hrvVal = Math.round(hrvVal);
     if (movementVal !== undefined && movementVal !== null) movementVal = Math.round(movementVal);
 
+    const isAfHigh = apiAssessments?.af_warning && apiAssessments.af_warning !== "Normal" && apiAssessments.af_warning !== 0 && apiAssessments.af_warning !== false;
+
     const noGraphPlaceholder = <div className="flex items-center justify-center h-full  text-white/20 font-lufga italic">no graph</div>;
 
     return [
@@ -370,6 +376,7 @@ export default function Overview() {
         img: (sysVal === 0 || sysVal === '0' || !sysVal) ? noGraphPlaceholder : <BPTrend historyData={historyData} />,
         path: `/dashboard/bp-trend/${userId || ""}`,
       },
+      /*
       {
         icon: <Temp />,
         iconBg: "bg-blue",
@@ -379,7 +386,51 @@ export default function Overview() {
         img: (tempVal === 0 || tempVal === '0' || !tempVal) ? noGraphPlaceholder : <TempWave historyData={historyData} />,
         path: `/dashboard/temperature/${userId || ""}`,
       },
-      /* {
+      */
+      {
+        isTriageDesign: true,
+        title: "AF Warning",
+        status: isAfHigh ? "High" : "Normal",
+        position: isAfHigh ? "High" : "Normal",
+        des: isAfHigh ? "Irregular Rhythm" : "Regular Rhythm",
+        color: isAfHigh ? "#E54D4D" : "#2CD155",
+        icon: <High />,
+        action: () => set_ap_warning(true),
+        progress: (
+          <svg
+            width="116"
+            height="104"
+            viewBox="0 0 116 104"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <circle
+              cx="104"
+              cy="104"
+              r="102"
+              stroke={isAfHigh ? "#E54D4D" : "#2CD155"}
+              strokeOpacity="0.08"
+              strokeWidth="4"
+            />
+            <path
+              d="M21.4803 44.0459C12.0189 57.0684 5.77386 72.1452 3.25579 88.0437C0.737717 103.942 2.01809 120.211 6.99223 135.52C11.9664 150.829 20.493 164.743 31.8751 176.125C43.2572 187.507 57.1714 196.034 72.4803 201.008C87.7891 205.982 104.058 207.262 119.956 204.744C135.855 202.226 150.932 195.981 163.954 186.52C176.977 177.058 187.575 164.649 194.883 150.307C202.19 135.965 206 120.097 206 104"
+              stroke={isAfHigh ? "#E54D4D" : "#2CD155"}
+              strokeWidth="4"
+              strokeLinecap="round"
+            />
+            <rect
+              x="12"
+              y="33"
+              width="20"
+              height="20"
+              rx="10"
+              fill="#2F2F31"
+            />
+            <circle cx="22" cy="43" r="4" fill={isAfHigh ? "#E54D4D" : "#2CD155"} />
+          </svg>
+        ),
+      },
+      {
         icon: <Hrv />,
         iconBg: "bg-yellow",
         title: "HRV Score",
@@ -396,7 +447,7 @@ export default function Overview() {
         extension: "",
         img: (movementVal === 0 || !movementVal) ? noGraphPlaceholder : <Movement historyData={historyData} />,
         path: `/dashboard/movement/${userId || ""}`,
-      }, */
+      },
       {
         icon: <Moon />,
         iconBg: "bg-burnt",
@@ -406,7 +457,7 @@ export default function Overview() {
         img: (latestVitals?.sleep_pattern === "Unknown" || !latestVitals?.sleep_pattern || latestVitals?.sleep_pattern === '--') ? noGraphPlaceholder : <SleepPattern />,
         path: `/dashboard/sleep-pattern/${userId || ""}`,
       },
-      /* {
+      {
         icon: <Brain />,
         iconBg: "bg-deepBlue",
         title: "Stress Level",
@@ -414,9 +465,9 @@ export default function Overview() {
         extension: "",
         img: (latestVitals?.stress_level === "Normal" && (hrVal === 0 || !hrVal)) ? noGraphPlaceholder : <StressPatternChart historyData={historyData} />,
         path: `/dashboard/stress/${userId || ""}`,
-      }, */
+      },
     ];
-  }, [currentVitals, patientData, userId, patientHistory]);
+  }, [currentVitals, patientData, userId, patientHistory, apiAssessments, streamData]);
 
   const btn = [
     "Add Note",
@@ -658,10 +709,117 @@ export default function Overview() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-[repeat(auto-fit,325px)] gap-4 md:gap-5 xl:gap-6">
           {vitals.map((item, index) => (
+            item.isTriageDesign ? (
+              <div
+                key={index}
+                onClick={item.action}
+                className={`border cursor-pointer relative z-1 overflow-hidden rounded-[20px] bg-[#2f2f31] shadow-[0_0_100px_0_rgba(0,0,0,0.08)] flex flex-col gap-5 min-h-50 ${item.status === "Warning"
+                  ? "border-yellow"
+                  : item.status === "High"
+                    ? "border-red"
+                    : "border-green"
+                  }`}
+              >
+                <div className="py-5 px-6.5">
+                  <div className="flex items-center justify-between gap-4 mb-10">
+                    <h4 className="text-lg md:text-xl lg:text-lg xl:text-xl font-normal text-white">
+                      {item.title}{" "}
+                    </h4>
+                    <div
+                      className={`flex items-center justify-center rounded-full size-11 lg:size-10 xl:size-11 ${item.status === "High"
+                        ? "bg-froly"
+                        : item.status === "Warning"
+                          ? "bg-yellow"
+                          : "bg-green"
+                        }`}
+                    >
+                      {item.icon}
+                    </div>
+                  </div>
+                  <div className="">
+                    <span className="text-xl md:text-2xl lg:text-xl xl:text-[36px] text-white font-medium mr-3">
+                      {item.position}
+                    </span>
+                    <p className="text-base lg:text-sm xl:text-base text-para">{item.des} </p>
+                  </div>
+                  <div className="absolute bottom-0 right-0 -z-1">
+                    {item.progress}
+                  </div>
+                  <div className="absolute top-0 left-0 -z-1">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="170"
+                      height="170"
+                      viewBox="0 0 170 170"
+                      fill="none"
+                    >
+                      <g filter={`url(#filter0_f_119_5326_${index})`}>
+                        <ellipse
+                          cx="45.6203"
+                          cy="45.5834"
+                          rx="75"
+                          ry="12.5796"
+                          transform="rotate(45 45.6203 45.5834)"
+                          fill={`${item.color}`}
+                          fillOpacity="0.35"
+                        />
+                        <ellipse
+                          cx="75.0855"
+                          cy="12.5654"
+                          rx="75.0855"
+                          ry="12.5654"
+                          transform="matrix(0.940523 0.339729 -0.3443 0.93886 -3.04492 -18.8887)"
+                          fill={`${item.color}`}
+                          fillOpacity="0.35"
+                        />
+                        <ellipse
+                          cx="75.0855"
+                          cy="12.5654"
+                          rx="75.0855"
+                          ry="12.5654"
+                          transform="matrix(0.339729 0.940523 -0.93886 0.3443 4.7052 -11.6963)"
+                          fill={`${item.color}`}
+                          fillOpacity="0.35"
+                        />
+                      </g>
+                      <defs>
+                        <filter
+                          id={`filter0_f_119_5326_${index}`}
+                          x="-45.6946"
+                          y="-45.6941"
+                          width="215.698"
+                          height="215.698"
+                          filterUnits="userSpaceOnUse"
+                          colorInterpolationFilters="sRGB"
+                        >
+                          <feFlood floodOpacity="0" result="BackgroundImageFix" />
+                          <feBlend
+                            mode="normal"
+                            in="SourceGraphic"
+                            in2="BackgroundImageFix"
+                            result="shape"
+                          />
+                          <feGaussianBlur
+                            stdDeviation="18"
+                            result="effect1_foregroundBlur_119_5326"
+                          />
+                        </filter>
+                      </defs>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            ) : (
             <Link
               to={item.path}
               className="bg-[#2F2F31] rounded-3xl overflow-hidden min-h-50  flex flex-col justify-between"
               key={index}
+              onClick={(e) => {
+                if (item.action) {
+                  e.preventDefault();
+                  item.action();
+                }
+              }}
             >
               <div className="p-5">
                 <div className="flex items-center gap-4 mb-4">
@@ -696,6 +854,7 @@ export default function Overview() {
                 {chartsReady ? item.img : <div className="h-[120px] w-full animate-pulse bg-white/5 opacity-50 rounded-b-3xl"></div>}
               </div>
             </Link>
+            )
           ))}
         </div>
         <div className="bg-[#2D2D2F] rounded-3xl border border-[#0F0F0F] flex-wrap gap-3 p-5 xl:py-6.5 xl:px-7.5 mt-6 flex items-center justify-between">

@@ -374,12 +374,13 @@ export default function Home() {
           { icon: <Hart />, title: "Heart Rate", heartRate: vitals.heartRate?.value || 0, historyData: p.vitals_history || [] },
           { icon: <Spo />, title: "SpO2", spo2: vitals.spo2?.value ? Math.round(vitals.spo2.value) : 0, historyData: p.vitals_history || [] },
           { icon: <Bp />, title: "BP Trend", bp: `${vitals.bloodPressure?.systolic || '--'}/${vitals.bloodPressure?.diastolic || '--'}`, historyData: p.vitals_history || [] },
-          { icon: <Temp />, title: "Skin Temp", temp: vitals.temperature?.value ? formatTemperature(vitals.temperature?.value) : '--', historyData: p.vitals_history || [] },
+          { icon: <High />, title: "AF Warning", afWarning: p.af_warning ?? finalAssessments?.af_warning },
         ],
         alerts: (() => {
           const alertsList = [];
 
           // NEWS2 Score
+          /*
           const news2Val = p.news2_score ?? finalAssessments?.news2_score ?? finalAssessments?.news2?.score;
           if (news2Val !== undefined && news2Val !== null) {
             const score = Number(news2Val);
@@ -405,8 +406,10 @@ export default function Home() {
               ),
             });
           }
+          */
 
           // AF Warning
+          /*
           const afVal = p.af_warning ?? finalAssessments?.af_warning;
           if (afVal !== undefined && afVal !== null) {
             const isNormal = afVal === "Normal" || afVal === false || afVal === 0 || afVal === "normal";
@@ -422,6 +425,7 @@ export default function Home() {
               ),
             });
           }
+          */
 
           return alertsList;
         })(),

@@ -1,6 +1,6 @@
 import React, { memo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Angle, Bp, Hart, Spo, Temp } from "@/utilities/icons";
+import { Angle, Bp, Hart, Spo, Temp, High } from "@/utilities/icons";
 import HeartRateLive from "@/components/charts/HeartRateLive";
 import BPTrend from "@/components/animation/overview/BPTrend";
 import TempWave from "@/components/animation/overview/tempWave";
@@ -94,7 +94,8 @@ const PatientCard = memo(({
         "Heart Rate": <Hart />,
         "SpO2": <Spo />,
         "BP Trend": <Bp />,
-        "Skin Temp": <Temp />
+        "Skin Temp": <Temp />,
+        "AF Warning": <High />
     };
 
     const getBatteryColor = (percent) => {
@@ -176,32 +177,87 @@ const PatientCard = memo(({
                     <div className="flex-1">
                         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
                             {/* Vitals items */}
-                            {item.vitals.map((vital, vIndex) => (
-                                <Link
-                                    key={vIndex}
-                                    to={`/dashboard/overview/${item.id}`}
-                                    state={{ patientName: item.name, patientId: item.patientId || item.userId, room: item.room }}
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="bg-[#2F2F31] rounded-[20px] overflow-hidden p-2.5 flex flex-col justify-between relative z-1 min-h-[140px]"
-                                >
-                                    <div className="">
-                                        <div className="flex items-center gap-2 mb-3">
-                                            <div className={`size-9 rounded-full flex items-center justify-center shrink-0 ${vIndex === 0 ? "bg-green" : vIndex === 1 ? "bg-purple" : vIndex === 2 ? "bg-pink" : "bg-blue"
-                                                }`}>
-                                                {vitalIcons[vital.title] || vital.icon}
+                            {item.vitals.map((vital, vIndex) => {
+                                if (vital.title === "AF Warning") {
+                                    const isHigh = vital.afWarning && vital.afWarning !== "Normal" && vital.afWarning !== 0 && vital.afWarning !== false && String(vital.afWarning).toLowerCase() !== "normal";
+                                    const color = isHigh ? "#E54D4D" : "#4DE573";
+                                    const statusLabel = isHigh ? String(vital.afWarning) : "Normal";
+                                    const borderColorClass = isHigh ? "border-[#E54D4D]" : "border-[#4DE573]";
+                                    const iconBgClass = isHigh ? "bg-froly" : "bg-green";
+
+                                    return (
+                                        <div
+                                            key={vIndex}
+                                            className={`border relative z-1 overflow-hidden rounded-[20px] bg-[#2f2f31] shadow-[0_0_100px_0_rgba(0,0,0,0.08)] flex flex-col justify-between min-h-[140px] p-2.5 ${borderColorClass}`}
+                                            onClick={(e) => { e.stopPropagation(); }}
+                                        >
+                                            <div className="flex items-start justify-between gap-2 relative z-10">
+                                                <div className="flex flex-col gap-1 mt-1 ml-1">
+                                                    <h4 className="text-xs text-white/60 font-lufga mb-1">
+                                                        AF Warning
+                                                    </h4>
+                                                    <div className="text-2xl text-white font-medium" style={{ textShadow: `0 0 10px ${color}40` }}>
+                                                        {statusLabel}
+                                                    </div>
+                                                </div>
+                                                <div className={`size-9 rounded-full flex items-center justify-center shrink-0 ${iconBgClass}`}>
+                                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                        <path d="M22 12h-4l-3 9L9 3l-3 9H2" stroke="white" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                                                    </svg>
+                                                </div>
                                             </div>
-                                            <span className="text-xs text-white font-medium">{vital.title}</span>
+                                            <div className="mt-1 z-10 relative ml-1 mb-1">
+                                                <p className="text-xs text-para">AF Warning Score</p>
+                                            </div>
+
+                                            <div className="absolute top-0 left-0 -z-1 pointer-events-none">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="140" height="140" viewBox="0 0 170 170" fill="none">
+                                                    <g filter={`url(#filter0_f_119_5326_af_${vIndex}_${index})`}>
+                                                        <ellipse cx="45.6203" cy="45.5834" rx="75" ry="12.5796" transform="rotate(45 45.6203 45.5834)" fill={color} fillOpacity="0.35" />
+                                                        <ellipse cx="75.0855" cy="12.5654" rx="75.0855" ry="12.5654" transform="matrix(0.940523 0.339729 -0.3443 0.93886 -3.04492 -18.8887)" fill={color} fillOpacity="0.35" />
+                                                        <ellipse cx="75.0855" cy="12.5654" rx="75.0855" ry="12.5654" transform="matrix(0.339729 0.940523 -0.93886 0.3443 4.7052 -11.6963)" fill={color} fillOpacity="0.35" />
+                                                    </g>
+                                                    <defs>
+                                                        <filter id={`filter0_f_119_5326_af_${vIndex}_${index}`} x="-45.6946" y="-45.6941" width="215.698" height="215.698" filterUnits="userSpaceOnUse" colorInterpolationFilters="sRGB">
+                                                            <feFlood floodOpacity="0" result="BackgroundImageFix" />
+                                                            <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape" />
+                                                            <feGaussianBlur stdDeviation="18" result="effect1_foregroundBlur_119_5326" />
+                                                        </filter>
+                                                    </defs>
+                                                </svg>
+                                            </div>
                                         </div>
-                                        <div className="text-2xl font-medium [text-shadow:1px_1px_5px_rgba(255,0,0,0.16),-1px_-1px_5px_rgba(0,170,255,0.16) ]">
-                                            {vital.heartRate !== undefined && <>{vital.heartRate || '--'} <span className="text-xs text-para">bpm</span></>}
-                                            {vital.spo2 !== undefined && <>{vital.spo2 || '--'}%</>}
-                                            {vital.bp && <>{vital.bp.split("/")[0]}<span className="text-sm">/{vital.bp.split("/")[1]}</span> <span className="text-xs text-para">mmHg</span></>}
-                                            {vital.temp !== undefined && <>{vital.temp} <span className="text-xs text-para">°C</span></>}
+                                    );
+                                }
+
+                                return (
+                                    <Link
+                                        key={vIndex}
+                                        to={`/dashboard/overview/${item.id}`}
+                                        state={{ patientName: item.name, patientId: item.patientId || item.userId, room: item.room }}
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="bg-[#2F2F31] rounded-[20px] overflow-hidden p-2.5 flex flex-col justify-between relative z-1 min-h-[140px]"
+                                    >
+                                        <div className="">
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <div className={`size-9 rounded-full flex items-center justify-center shrink-0 ${vIndex === 0 ? "bg-green" : vIndex === 1 ? "bg-purple" : vIndex === 2 ? "bg-pink" : "bg-blue"
+                                                    }`}>
+                                                    {vitalIcons[vital.title] || vital.icon}
+                                                </div>
+                                                <span className="text-xs text-white font-medium">{vital.title}</span>
+                                            </div>
+                                            <div className="text-2xl font-medium [text-shadow:1px_1px_5px_rgba(255,0,0,0.16),-1px_-1px_5px_rgba(0,170,255,0.16) ]">
+                                                {vital.heartRate !== undefined && <>{vital.heartRate || '--'} <span className="text-xs text-para">bpm</span></>}
+                                                {vital.spo2 !== undefined && <>{vital.spo2 || '--'}%</>}
+                                                {vital.bp && <>{vital.bp.split("/")[0]}<span className="text-sm">/{vital.bp.split("/")[1]}</span> <span className="text-xs text-para">mmHg</span></>}
+                                                {vital.temp !== undefined && <>{vital.temp} <span className="text-xs text-para">°C</span></>}
+                                                {vital.afWarning !== undefined && <span className="text-xl md:text-2xl">{vital.afWarning && vital.afWarning !== "Normal" && vital.afWarning !== 0 && vital.afWarning !== false && String(vital.afWarning).toLowerCase() !== "normal" ? "High" : "Normal"}</span>}
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div className="mt-0">{renderVitalGraph(vital, vIndex)}</div>
-                                </Link>
-                            ))}
+                                        <div className="mt-0">{renderVitalGraph(vital, vIndex)}</div>
+                                    </Link>
+                                );
+                            })}
 
                             {/* Status and Battery card */}
                             <div className="bg-[#2F2F31] rounded-[20px] p-2.5 flex flex-col justify-between items-start overflow-hidden relative shadow-[0px_0px_50px_0px_rgba(0,0,0,0.08)] z-2 min-h-[140px]">
@@ -273,27 +329,24 @@ const PatientCard = memo(({
                                 </div>
 
                                 {/* Alerts Grid + Take Action (aligned with Vitals Grid) */}
-                                <div className="flex-1 grid grid-cols-2 xl:grid-cols-3 gap-4 w-full h-full">
-                                    {item.alerts.map((alert, aIndex) => (
-                                        <div key={aIndex} className="rounded-xl flex items-center justify-between overflow-hidden bg-white/5 border-r border-r-[px] px-3.5 py-2.5 relative z-1 min-h-[58px]" style={{ borderColor: alert.color }}>
-                                            <div className="">
-                                                <p className="text-xs font-medium mb-1 text-para">{alert.type} </p>
-                                                <p className="text-xs font-medium mb-1 text-para" style={{ color: alert.color }}>{alert.status} </p>
+                                <div className="flex-1 flex flex-col xl:flex-row gap-4 w-full h-full justify-between">
+                                    <div className="flex-1 w-full grid grid-cols-2 xl:grid-cols-3 gap-4">
+                                        {item.alerts.map((alert, aIndex) => (
+                                            <div key={aIndex} className="rounded-xl flex items-center justify-between overflow-hidden bg-white/5 border-r border-r-[px] px-3.5 py-2.5 relative z-1 min-h-[58px]" style={{ borderColor: alert.color }}>
+                                                <div className="">
+                                                    <p className="text-xs font-medium mb-1 text-para">{alert.type} </p>
+                                                    <p className="text-xs font-medium mb-1 text-para" style={{ color: alert.color }}>{alert.status} </p>
+                                                </div>
+                                                <div className="">{alert.icon}</div>
+                                                <div className="absolute top-1/2 -translate-y-1/2 -right-1.5 w-12.5 h-8 rounded-[100%] blur-md opacity-25" style={{ backgroundColor: alert.color }} />
                                             </div>
-                                            <div className="">{alert.icon}</div>
-                                            <div className="absolute top-1/2 -translate-y-1/2 -right-1.5 w-12.5 h-8 rounded-[100%] blur-md opacity-25" style={{ backgroundColor: alert.color }} />
-                                        </div>
-                                    ))}
-
-                                    {/* Spacers to keep Take Action on far right */}
-                                    {Array.from({ length: Math.max(0, 2 - item.alerts.length) }).map((_, i) => (
-                                        <div key={`empty-${i}`} className="hidden xl:block"></div>
-                                    ))}
+                                        ))}
+                                    </div>
 
                                     {/* Take Action Button */}
-                                    <div className="flex items-center">
+                                    <div className="w-full xl:w-[270px] shrink-0 flex items-center">
                                         <button
-                                            className="w-full btn min-h-[58px] px-0 bg-transparent border border-white/20 hover:bg-white/5 rounded-xl text-white font-medium text-sm"
+                                            className="w-full btn min-h-[58px] px-0 bg-transparent border border-white/20 hover:bg-white/5 rounded-xl text-white font-medium text-sm transition-colors"
                                             onClick={(e) => { e.stopPropagation(); setTakeAction(true); setSelectedUserId(item.id); setSelectedUserName(item.name); }}
                                         >
                                             Take Action
