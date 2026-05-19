@@ -27,7 +27,7 @@ async def get_current_user(
     
     # 3. Fallback to Header
     if not token:
-        token = token_from_header
+        token = token_from_header 
 
     if not token:
         raise HTTPException(
