@@ -132,7 +132,7 @@ const PatientCard = memo(({
                         <div className="hidden xl:block absolute right-0 top-0 bottom-0 w-[1px] bg-[linear-gradient(180deg,rgba(102,102,102,0)_0%,#CCA166_49.52%,rgba(102,102,102,0)_100%)]"></div>
                         <div className="flex flex-col gap-3.5 mt-2 text-nowrap relative">
                             <div className="flex items-center justify-between">
-                                <span className="text-white font-lufga font-medium text-[18px]">{item.name}</span>
+                                <span className="text-white font-lufga font-medium text-[20px]">{item.name}</span>
                                 <button onClick={(e) => { e.stopPropagation(); setCardMenu(cardMenu === index + 1 ? null : index + 1) }} className="relative z-20 hover:bg-white/10 p-1.5 rounded-full transition-colors cursor-pointer">
                                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-white opacity-80"><circle cx="12" cy="5" r="1.5" fill="currentColor" /><circle cx="12" cy="12" r="1.5" fill="currentColor" /><circle cx="12" cy="19" r="1.5" fill="currentColor" /></svg>
                                 </button>
@@ -163,12 +163,12 @@ const PatientCard = memo(({
                                 </AnimatePresence>
                             </div>
                             <div className="flex items-center gap-1.5">
-                                <span className="text-white font-lufga font-medium text-[18px] whitespace-nowrap">Id:</span>
-                                <span className="text-white font-lufga font-medium text-[18px]">{item.patientId || item.userId?.toString().slice(0, 5)}</span>
+                                <span className="text-white font-lufga font-medium text-[20px] whitespace-nowrap">Id:</span>
+                                <span className="text-white font-lufga font-medium text-[20px]">{item.patientId || item.userId?.toString().slice(0, 5)}</span>
                             </div>
                             <div className="flex items-center gap-1.5">
-                                <span className="text-white font-lufga font-medium text-[22px] whitespace-nowrap">R.No:</span>
-                                <span className="text-white font-lufga font-medium text-[22px]">{item.room}</span>
+                                <span className="text-white font-lufga font-medium text-[20px] whitespace-nowrap">R.No:</span>
+                                <span className="text-white font-lufga font-medium text-[20px]">{item.room}</span>
                             </div>
                         </div>
                     </div>
@@ -193,7 +193,7 @@ const PatientCard = memo(({
                                         >
                                             <div className="flex items-start justify-between gap-2 relative z-10">
                                                 <div className="flex flex-col gap-1 mt-1 ml-1">
-                                                    <h4 className="text-xs text-white/60 font-lufga mb-1">
+                                                    <h4 className="text-lg text-white/60 font-lufga mb-1">
                                                         AF Warning
                                                     </h4>
                                                     <div className="text-2xl text-white font-medium" style={{ textShadow: `0 0 10px ${color}40` }}>
@@ -207,7 +207,6 @@ const PatientCard = memo(({
                                                 </div>
                                             </div>
                                             <div className="mt-1 z-10 relative ml-1 mb-1">
-                                                <p className="text-xs text-para">AF Warning Score</p>
                                             </div>
 
                                             <div className="absolute top-0 left-0 -z-1 pointer-events-none">
@@ -244,7 +243,7 @@ const PatientCard = memo(({
                                                     }`}>
                                                     {vitalIcons[vital.title] || vital.icon}
                                                 </div>
-                                                <span className="text-xs text-white font-medium">{vital.title}</span>
+                                                <span className="text-lg text-white font-medium">{vital.title}</span>
                                             </div>
                                             <div className="text-2xl font-medium [text-shadow:1px_1px_5px_rgba(255,0,0,0.16),-1px_-1px_5px_rgba(0,170,255,0.16) ]">
                                                 {vital.heartRate !== undefined && <>{vital.heartRate || '--'} <span className="text-xs text-para">bpm</span></>}
@@ -277,7 +276,7 @@ const PatientCard = memo(({
                                                 <path d="M22 16H20" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
                                             </svg>
                                         </div>
-                                        <span className="text-xs text-white font-medium">Device</span>
+                                        <span className="text-lg text-white font-medium">Device</span>
                                     </div>
                                     <div className="flex flex-col gap-2 w-full">
                                         <div className="flex items-center gap-1.5 w-full justify-between xl:justify-start">
