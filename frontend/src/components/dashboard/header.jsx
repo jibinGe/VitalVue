@@ -9,7 +9,6 @@ import { useAuth } from '../../contexts/AuthContext';
 
 import avater from '@/assets/img/user-profile.png'
 import { Search } from '../../utilities/icons';
-import Notifactions from './notifactions';
 import { LogOut, Settings, User } from 'lucide-react';
 import { patientService } from '@/services/patientService';
 import { useWard } from '../../contexts/WardContext';
@@ -33,20 +32,7 @@ export default function Header() {
     };
   }, [profile_ref]);
 
-  const notifaction_ref = useRef(null)
-  const [notifaction_open, setNotifactionOpen] = useState(false);
-  // click outside to close
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (notifaction_ref.current && !notifaction_ref.current.contains(event.target)) {
-        setNotifactionOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [notifaction_ref]);
+
 
   const handleLogout = async () => {
     setProfileOpen(false)
@@ -123,25 +109,14 @@ export default function Header() {
         </div>
 
         <div className="flex items-center justify-end gap-4 md:gap-5">
-          <div ref={notifaction_ref} className="relative">
-            <button onClick={() => setNotifactionOpen((prev) => !prev)} className="size-12 relative lg:size-14 flex items-center justify-center text-white bg-[#373739] hover:bg-primary/40 rounded-full">
+          <div className="relative">
+            <button onClick={() => window.open('/dashboard/notifications', '_blank')} className="size-12 relative lg:size-14 flex items-center justify-center text-white bg-[#373739] hover:bg-primary/40 rounded-full">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path fillRule="evenodd" clipRule="evenodd" d="M12.2449 2.51367C7.81063 2.51367 5.88397 6.52891 5.88397 9.18319C5.88397 11.167 6.17159 10.5832 5.07349 13.0032C3.73254 16.4518 9.12492 17.8613 12.2449 17.8613C15.364 17.8613 20.7564 16.4518 19.4164 13.0032C18.3183 10.5832 18.6059 11.167 18.6059 9.18319C18.6059 6.52891 16.6783 2.51367 12.2449 2.51367Z" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
                 <path d="M14.5575 20.5117C13.2632 21.9574 11.2442 21.9746 9.9375 20.5117" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
               <span className='size-1 rounded-full bg-[#FF0000] absolute top-5 right-5 outline-2 outline-solid outline-[#373739]'></span>
             </button>
-            <AnimatePresence>
-              {notifaction_open && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="absolute top-full right-0 mt-5 w-full min-w-114 bg-[#222225] border border-solid border-white/16 shadow-[15px_25px_150px_0_rgba(0,0,0,0.50)] rounded-2xl md:rounded-3xl">
-                  <Notifactions />
-                </motion.div>
-              )}
-            </AnimatePresence>
           </div>
 
           {/* <Link to='/dashboard/settings' className="size-12 lg:size-14 flex items-center justify-center text-white bg-[#373739] hover:bg-primary/40 rounded-full">

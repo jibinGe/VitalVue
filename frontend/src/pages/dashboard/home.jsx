@@ -1232,7 +1232,7 @@ export default function Home() {
         }}
         onViewPatient={() => {
           if (criticalAlarmData?.userId) {
-            navigate(`/dashboard/overview/${criticalAlarmData.userId}`);
+            window.open(`/dashboard/overview/${criticalAlarmData.userId}`, '_blank');
           }
         }}
       />

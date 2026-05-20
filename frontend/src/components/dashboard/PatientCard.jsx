@@ -150,7 +150,7 @@ const PatientCard = memo(({
                                                             setSelectedUserName(item.name);
                                                             setEndMonitoring(true);
                                                         } else if (menuItem.text === "View Details") {
-                                                            navigate(`/dashboard/overview/${item.id}`, { state: { patientName: item.name, patientId: item.patientId || item.userId, room: item.room } });
+                                                            window.open(`/dashboard/overview/${item.id}`, '_blank');
                                                         }
                                                         setCardMenu(null);
                                                     }} className={`flex items-center hover:bg-white/5 gap-3 font-normal py-3.5 px-4 text-[15px] relative z-1 w-full text-nowrap transition-colors ${isAction ? "text-[#E86363] hover:bg-[#E86363]/10" : "text-white"}`}>
@@ -199,6 +199,9 @@ const PatientCard = memo(({
                                                     <div className="text-2xl text-white font-medium" style={{ textShadow: `0 0 10px ${color}40` }}>
                                                         {statusLabel}
                                                     </div>
+                                                    <p className="text-[11px] text-para mt-0.5">
+                                                        {isHigh ? "Irregular Rhythm" : "Regular Rhythm"}
+                                                    </p>
                                                 </div>
                                                 <div className={`size-9 rounded-full flex items-center justify-center shrink-0 ${iconBgClass}`}>
                                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -206,7 +209,39 @@ const PatientCard = memo(({
                                                     </svg>
                                                 </div>
                                             </div>
-                                            <div className="mt-1 z-10 relative ml-1 mb-1">
+
+                                            <div className="absolute bottom-0 right-0 -z-1 pointer-events-none">
+                                                <svg
+                                                    width="81"
+                                                    height="73"
+                                                    viewBox="0 0 116 104"
+                                                    fill="none"
+                                                    xmlns="http://www.w3.org/2000/svg"
+                                                >
+                                                    <circle
+                                                        cx="104"
+                                                        cy="104"
+                                                        r="102"
+                                                        stroke={color}
+                                                        strokeOpacity="0.08"
+                                                        strokeWidth="4"
+                                                    />
+                                                    <path
+                                                        d="M21.4803 44.0459C12.0189 57.0684 5.77386 72.1452 3.25579 88.0437C0.737717 103.942 2.01809 120.211 6.99223 135.52C11.9664 150.829 20.493 164.743 31.8751 176.125C43.2572 187.507 57.1714 196.034 72.4803 201.008C87.7891 205.982 104.058 207.262 119.956 204.744C135.855 202.226 150.932 195.981 163.954 186.52C176.977 177.058 187.575 164.649 194.883 150.307C202.19 135.965 206 120.097 206 104"
+                                                        stroke={color}
+                                                        strokeWidth="4"
+                                                        strokeLinecap="round"
+                                                    />
+                                                    <rect
+                                                        x="12"
+                                                        y="33"
+                                                        width="20"
+                                                        height="20"
+                                                        rx="10"
+                                                        fill="#2F2F31"
+                                                    />
+                                                    <circle cx="22" cy="43" r="4" fill={color} />
+                                                </svg>
                                             </div>
 
                                             <div className="absolute top-0 left-0 -z-1 pointer-events-none">
@@ -233,6 +268,7 @@ const PatientCard = memo(({
                                     <Link
                                         key={vIndex}
                                         to={`/dashboard/overview/${item.id}`}
+                                        target="_blank"
                                         state={{ patientName: item.name, patientId: item.patientId || item.userId, room: item.room }}
                                         onClick={(e) => e.stopPropagation()}
                                         className="bg-[#2F2F31] rounded-[20px] overflow-hidden p-2.5 flex flex-col justify-between relative z-1 min-h-[140px]"
@@ -280,8 +316,14 @@ const PatientCard = memo(({
                                     </div>
                                     <div className="flex flex-col gap-2 w-full">
                                         <div className="flex items-center gap-1.5 w-full justify-between xl:justify-start">
-                                            <span className="font-lufga font-medium text-[13px] xl:text-[14px] text-white">Status</span>
-                                            <div className={`px-2 py-[2px] flex items-center justify-center font-lufga font-normal rounded-full text-[11px] xl:text-[12px] whitespace-nowrap mt-0.5 ${item.isConnected ? 'text-[#4DE573] bg-[#4DE573]/10' : 'text-[#E54D4D] bg-[#E54D4D]/20'}`}>
+                                            <span className="font-lufga font-medium text-[13px] xl:text-[14px] text-white flex items-center gap-1">
+
+                                                Status
+                                            </span>
+                                            <div className={`px-2 py-[2px] flex items-center justify-center font-lufga font-normal rounded-full text-[11px] xl:text-[12px] whitespace-nowrap mt-0.5 gap-1 ${item.isConnected ? 'text-[#4DE573] bg-[#4DE573]/10' : 'text-[#E54D4D] bg-[#E54D4D]/20'}`}>
+                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                                                    <path d="M7 7l10 10-5 5V2l5 5L7 17" />
+                                                </svg>
                                                 {item.isConnected ? 'Connected' : 'Disconnected'}
                                             </div>
                                         </div>

@@ -79,7 +79,7 @@ export default function NotificationsPage() {
         } else {
             setLoadingMore(true);
         }
-        
+
         try {
             const res = await patientService.getNotifications(unreadOnly, currentSkip, limit);
             if (res.success) {
@@ -123,11 +123,11 @@ export default function NotificationsPage() {
     );
 
     return (
-        <div className="p-4 md:p-8 max-w-7xl mx-auto w-full">
+        <div className="p-4 md:p-8  w-full">
             <div className="bg-[#222225] rounded-3xl border border-solid border-white/16 overflow-hidden flex flex-col h-[calc(100vh-120px)]">
                 <div className="flex items-center gap-4 justify-between p-6 border-b border-white/10 shrink-0">
                     <div className="flex items-center gap-4">
-                        <button 
+                        <button
                             onClick={() => navigate(-1)}
                             className="flex items-center justify-center w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 text-white transition-colors"
                         >
@@ -138,7 +138,7 @@ export default function NotificationsPage() {
                             <p className="text-para text-sm mt-1">You have {totalCount} total notifications</p>
                         </div>
                     </div>
-                    
+
                     <button
                         className="text-sm transition-colors duration-300 px-5 py-3 rounded-full border border-white/10 bg-[#373739] text-white font-inter flex items-center gap-2 hover:bg-primary/40 hover:border-primary/50"
                         onClick={() => setUnreadOnly((prev) => !prev)}
@@ -180,16 +180,16 @@ export default function NotificationsPage() {
                                             const wardId = notif.ward_id || notif.wardId || '—';
                                             const bedId = notif.room_id || notif.bedId || '—';
                                             const time = formatTime(notif.created_at || notif.createdAt || notif.timestamp);
-                                            
+
                                             const status = notif.status || 'active';
                                             const isResolved = notif.is_resolved || status === 'resolved';
                                             const isSnoozed = status === 'snoozed';
-                                            
+
                                             const isLastElement = groupIndex === grouped.length - 1 && idx === group.items.length - 1;
 
                                             return (
-                                                <div 
-                                                    key={alertId || idx} 
+                                                <div
+                                                    key={alertId || idx}
                                                     ref={isLastElement ? lastNotifElementRef : null}
                                                     className={`flex flex-col ${idx !== 0 ? 'border-t border-white/5' : ''}`}
                                                 >
@@ -206,7 +206,7 @@ export default function NotificationsPage() {
                                                                     </h6>
                                                                     <div className="shrink-0 text-para font-medium text-sm bg-white/5 px-3 py-1 rounded-full">{time}</div>
                                                                 </div>
-                                                                
+
                                                                 <div className="flex flex-wrap items-center gap-4 text-sm font-normal">
                                                                     <span className="text-[#F1F2F4] flex items-center gap-2">
                                                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-para"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
@@ -218,7 +218,7 @@ export default function NotificationsPage() {
                                                                         Room: <span className="text-white font-medium">{bedId}</span>
                                                                     </span>
                                                                 </div>
-                                                                
+
                                                                 <div className="flex items-center gap-3 text-sm mt-1">
                                                                     {isResolved ? (
                                                                         <span className="text-[#4DE573] flex items-center gap-2 bg-[#4DE573]/10 px-3 py-1.5 rounded-lg w-fit">
@@ -246,13 +246,13 @@ export default function NotificationsPage() {
                                     </div>
                                 </div>
                             ))}
-                            
+
                             {loadingMore && (
                                 <div className="py-6 flex justify-center">
                                     <div className="w-8 h-8 border-3 border-primary/30 border-t-primary rounded-full animate-spin"></div>
                                 </div>
                             )}
-                            
+
                             {!hasMore && grouped.length > 0 && (
                                 <div className="py-8 text-center text-para">
                                     You have reached the end of notifications
