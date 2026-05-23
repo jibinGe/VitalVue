@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks, Body
+from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks, Body, status
 from app.database import get_db, get_redis
 from app.schemas.user import PatientCreate
 from app.crud.user import patient as crud_patient
@@ -14,6 +14,8 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.future import select
 from app.api.deps import get_current_user, allow_admins
 from sqlalchemy import func, and_, text, or_
+from app.models.clinical import Alert, Action, ClinicalNote
+from app.schemas.clinical_audit import PatientClinicalTimelineResponse
 from datetime import datetime
 from sqlalchemy import func, and_, text, select, inspect, Integer, Float, String, Boolean
 import json
@@ -123,6 +125,73 @@ async def update_my_device(
         "message": "Device successfully updated",
         "old_device_id": old_device_id,
         "new_device_id": patient.device_id
+    }
+
+@router.get("/{patient_id}/timeline", response_model=PatientClinicalTimelineResponse)
+async def get_patient_clinical_timeline(
+    patient_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Retrieves the comprehensive clinical incident timeline for a patient.
+    Includes all alerts (with nested mitigation actions taken) and clinical notes.
+    """
+    # 1. Verify that the requested patient exists inside the context boundaries
+    patient_exists = await db.scalar(select(Patient.id).where(Patient.id == patient_id))
+    if not patient_exists:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail=f"Patient with ID {patient_id} not found"
+        )
+
+    # 2. Query all Alerts recorded for the patient along with their linked mitigation Actions
+    # We use selectinload to eagerly load the relationship without N+1 query execution problems
+    alerts_stmt = (
+        select(Alert)
+        .where(Alert.patient_id == patient_id)
+        .order_by(Alert.created_at.desc())
+    )
+    alerts_result = await db.execute(alerts_stmt)
+    alerts_list = alerts_result.scalars().all()
+
+    # 3. Query all recorded Actions for this patient
+    actions_stmt = (
+        select(Action)
+        .where(Action.patient_id == patient_id)
+        .order_by(Action.performed_at.asc())
+    )
+    actions_result = await db.execute(actions_stmt)
+    actions_list = actions_result.scalars().all()
+
+    # 4. Map actions to their corresponding alerts (or treat them as independent timeline entries)
+    # This manually maps actions to the alert object to comply with our response schema mapping
+    alert_map = {alert.id: alert for alert in alerts_list}
+    
+    # We prepare a placeholder attribute on the model instance dynamically for Pydantic to read
+    for alert in alerts_list:
+        alert.actions_taken = []
+        
+    for action in actions_list:
+        if action.alert_id in alert_map:
+            alert_map[action.alert_id].actions_taken.append(action)
+
+    # 5. Query all Clinical Notes & Event logs chronologically
+    notes_stmt = (
+        select(ClinicalNote)
+        .where(ClinicalNote.patient_id == patient_id)
+        .order_by(ClinicalNote.event_timestamp.desc())
+    )
+    notes_result = await db.execute(notes_stmt)
+    notes_list = notes_result.scalars().all()
+
+    # 6. Build the combined data matrix structure safely
+    return {
+        "patient_id": patient_id,
+        "total_alerts_count": len(alerts_list),
+        "total_notes_count": len(notes_list),
+        "alerts": alerts_list,
+        "clinical_notes": notes_list
     }
 
 @router.patch("/{patient_id}/assign-nurse")
