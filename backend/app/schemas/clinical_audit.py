@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
 
+# --- EXISTING SUBSCHEMAS (With Option B/Bool Safe Fallbacks) ---
 class ActionResponse(BaseModel):
     id: int
     alert_id: Optional[int] = None
@@ -20,14 +21,14 @@ class AlertAuditResponse(BaseModel):
     triggered_value: str
     status: str
     severity: str
-    is_flagged: bool
+    is_flagged: Optional[bool] = False
+    is_resolved: Optional[bool] = False
     flagged_doctor_id: Optional[int] = None
     snoozed_until: Optional[datetime] = None
-    is_resolved: bool
     resolved_at: Optional[datetime] = None
     resolved_by: Optional[int] = None
     created_at: datetime
-    actions_taken: List[ActionResponse] = [] # Nested actions mapped to this specific alert
+    actions_taken: List[ActionResponse] = []
 
     class Config:
         from_attributes = True
@@ -44,10 +45,13 @@ class ClinicalNoteResponse(BaseModel):
     class Config:
         from_attributes = True
 
+# --- NEW PAGINATED TIMELINE RESPONSE SCHEMA ---
 class PatientClinicalTimelineResponse(BaseModel):
     patient_id: int
-    total_alerts_count: int
-    total_notes_count: int
+    page: int
+    limit: int
+    total_alerts: int
+    total_pages: int
     alerts: List[AlertAuditResponse]
     clinical_notes: List[ClinicalNoteResponse]
 

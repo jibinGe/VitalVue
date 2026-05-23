@@ -24,6 +24,7 @@ import string
 from sqlalchemy.exc import IntegrityError
 import secrets
 import string
+import math
 
 router = APIRouter()
 
@@ -130,14 +131,19 @@ async def update_my_device(
 @router.get("/{patient_id}/timeline", response_model=PatientClinicalTimelineResponse)
 async def get_patient_clinical_timeline(
     patient_id: int,
+    page: int = Query(1, ge=1, description="Page number for pagination"),
+    limit: int = Query(10, ge=1, le=100, description="Items per page"),
+    alert_category: Optional[str] = Query(None, description="Filter categories: 'vital', 'device'"),
+    is_resolved: Optional[bool] = Query(None, description="Filter by resolution state: true/false"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
-    Retrieves the comprehensive clinical incident timeline for a patient.
-    Includes all alerts (with nested mitigation actions taken) and clinical notes.
+    Retrieves a paginated clinical incident timeline for a patient with filter matrices:
+    - alert_category: 'vital' (SpO2, Heart Rate, Blood Pressure) vs 'device' (Connectivity, Band Status)
+    - is_resolved: True (Solved entries) vs False (Unsolved/Active entries)
     """
-    # 1. Verify that the requested patient exists inside the context boundaries
+    # 1. Verify Patient Existence inside data tier bounds
     patient_exists = await db.scalar(select(Patient.id).where(Patient.id == patient_id))
     if not patient_exists:
         raise HTTPException(
@@ -145,30 +151,51 @@ async def get_patient_clinical_timeline(
             detail=f"Patient with ID {patient_id} not found"
         )
 
-    # 2. Query all Alerts recorded for the patient along with their linked mitigation Actions
-    # We use selectinload to eagerly load the relationship without N+1 query execution problems
-    alerts_stmt = (
-        select(Alert)
-        .where(Alert.patient_id == patient_id)
-        .order_by(Alert.created_at.desc())
-    )
+    # 2. Build Dynamic Filters for the Alerts Query
+    alerts_stmt = select(Alert).where(Alert.patient_id == patient_id)
+    
+    # Filter A: Resolution State (Handles Boolean NULL/False convergence dynamically)
+    if is_resolved is not None:
+        if is_resolved:
+            alerts_stmt = alerts_stmt.where(Alert.is_resolved == True)
+        else:
+            alerts_stmt = alerts_stmt.where(or_(Alert.is_resolved == False, Alert.is_resolved == None))
+
+    # Filter B: Category Partitioning (Differentiates hardware alerts from true vital anomalies)
+    if alert_category:
+        device_types = ["Connectivity", "Band Status"]
+        if alert_category.lower() == "device":
+            alerts_stmt = alerts_stmt.where(Alert.vital_type.in_(device_types))
+        elif alert_category.lower() == "vital":
+            alerts_stmt = alerts_stmt.where(Alert.vital_type.not_in(device_types))
+
+    # 3. Compute Total Filtered Record Volume for Pagination Calculations
+    count_stmt = select(func.count()).select_from(alerts_stmt.subquery())
+    total_alerts = await db.scalar(count_stmt) or 0
+    total_pages = math.ceil(total_alerts / limit) if total_alerts > 0 else 1
+
+    # 4. Apply Limit/Offset Window constraints to extract targeted subset row page
+    offset = (page - 1) * limit
+    alerts_stmt = alerts_stmt.order_by(Alert.created_at.desc()).offset(offset).limit(limit)
+    
     alerts_result = await db.execute(alerts_stmt)
     alerts_list = alerts_result.scalars().all()
 
-    # 3. Query all recorded Actions for this patient
-    actions_stmt = (
-        select(Action)
-        .where(Action.patient_id == patient_id)
-        .order_by(Action.performed_at.asc())
-    )
-    actions_result = await db.execute(actions_stmt)
-    actions_list = actions_result.scalars().all()
+    # 5. Eagerly collect mitigation actions specifically belonging to the paginated alert subset
+    if alerts_list:
+        alert_ids = [alert.id for alert in alerts_list]
+        actions_stmt = (
+            select(Action)
+            .where(Action.alert_id.in_(alert_ids))
+            .order_by(Action.performed_at.asc())
+        )
+        actions_result = await db.execute(actions_stmt)
+        actions_list = actions_result.scalars().all()
+    else:
+        actions_list = []
 
-    # 4. Map actions to their corresponding alerts (or treat them as independent timeline entries)
-    # This manually maps actions to the alert object to comply with our response schema mapping
+    # Map target rows back onto in-memory properties safely
     alert_map = {alert.id: alert for alert in alerts_list}
-    
-    # We prepare a placeholder attribute on the model instance dynamically for Pydantic to read
     for alert in alerts_list:
         alert.actions_taken = []
         
@@ -176,20 +203,24 @@ async def get_patient_clinical_timeline(
         if action.alert_id in alert_map:
             alert_map[action.alert_id].actions_taken.append(action)
 
-    # 5. Query all Clinical Notes & Event logs chronologically
+    # 6. Fetch Clinical Notes (Filtered or proportional to query context bounds)
     notes_stmt = (
         select(ClinicalNote)
         .where(ClinicalNote.patient_id == patient_id)
         .order_by(ClinicalNote.event_timestamp.desc())
+        # To maintain alignment with pagination boundaries, we cap or match limit size
+        .limit(limit) 
     )
     notes_result = await db.execute(notes_stmt)
     notes_list = notes_result.scalars().all()
 
-    # 6. Build the combined data matrix structure safely
+    # 7. Package paginated structural matrix response
     return {
         "patient_id": patient_id,
-        "total_alerts_count": len(alerts_list),
-        "total_notes_count": len(notes_list),
+        "page": page,
+        "limit": limit,
+        "total_alerts": total_alerts,
+        "total_pages": total_pages,
         "alerts": alerts_list,
         "clinical_notes": notes_list
     }
