@@ -2,26 +2,29 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { patientService } from '../../services/patientService';
 
-const DefaultIcon = ({ color = '#9855F7' }) => (
-    <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M0 24C0 10.7452 10.7452 0 24 0C37.2548 0 48 10.7452 48 24C48 37.2548 37.2548 48 24 48C10.7452 48 0 37.2548 0 24Z" fill={color} />
-        <path d="M14 24.625H18L20.3333 20.875L24 29L28 19L30.6667 24.625H34" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-);
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 const typeColorMap = {
     critical: 'bg-[#E54D4D]/15 text-[#E54D4D]',
-    warning: 'bg-[#E5DB4D]/15 text-[#E5DB4C]',
-    stable: 'bg-[#4DE573]/15 text-[#4DE573]',
-    info: 'bg-[#4D8AE5]/15 text-[#4D8AE5]',
+    warning:  'bg-[#E5DB4D]/15 text-[#E5DB4C]',
+    stable:   'bg-[#4DE573]/15 text-[#4DE573]',
+    info:     'bg-[#4D8AE5]/15 text-[#4D8AE5]',
 };
-
 const iconColorMap = {
     critical: '#E54D4D',
-    warning: '#E5AD00',
-    stable: '#1AB340',
-    info: '#9855F7',
+    warning:  '#E5AD00',
+    stable:   '#1AB340',
+    info:     '#9855F7',
 };
+
+function toUtcDate(ts) {
+    if (!ts) return new Date();
+    const s = String(ts);
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(s) && !s.endsWith('Z') && !/[+-]\d{2}:?\d{2}$/.test(s)) {
+        return new Date(s + 'Z');
+    }
+    return new Date(s);
+}
 
 function groupByDate(notifications) {
     const groups = {};
@@ -31,12 +34,13 @@ function groupByDate(notifications) {
     yesterday.setDate(yesterday.getDate() - 1);
 
     notifications.forEach((n) => {
-        const d = new Date(n.created_at || n.createdAt || n.timestamp || Date.now());
-        d.setHours(0, 0, 0, 0);
+        const d = toUtcDate(n.created_at || n.createdAt || n.timestamp);
+        const dLocal = new Date(d);
+        dLocal.setHours(0, 0, 0, 0);
         let label;
-        if (d.getTime() === today.getTime()) label = 'Today';
-        else if (d.getTime() === yesterday.getTime()) label = 'Yesterday';
-        else label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        if (dLocal.getTime() === today.getTime()) label = 'Today';
+        else if (dLocal.getTime() === yesterday.getTime()) label = 'Yesterday';
+        else label = dLocal.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
         if (!groups[label]) groups[label] = [];
         groups[label].push(n);
     });
@@ -46,193 +50,315 @@ function groupByDate(notifications) {
 
 function formatTime(ts) {
     if (!ts) return '';
-    return new Date(ts).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    return toUtcDate(ts).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 }
+
+const DefaultIcon = ({ color = '#9855F7' }) => (
+    <svg width="44" height="44" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M0 24C0 10.7452 10.7452 0 24 0C37.2548 0 48 10.7452 48 24C48 37.2548 37.2548 48 24 48C10.7452 48 0 37.2548 0 24Z" fill={color} />
+        <path d="M14 24.625H18L20.3333 20.875L24 29L28 19L30.6667 24.625H34" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+);
+
+// ── Filter pill ───────────────────────────────────────────────────────────────
+
+function FilterPill({ active, onClick, children }) {
+    return (
+        <button
+            onClick={onClick}
+            className={`text-xs h-8 px-3.5 rounded-xl font-medium transition-all duration-150 whitespace-nowrap ${
+                active
+                    ? 'bg-primary text-white shadow-sm shadow-primary/30'
+                    : 'text-white/50 hover:text-white hover:bg-white/8'
+            }`}
+        >
+            {children}
+        </button>
+    );
+}
+
+// ── Skeleton card ─────────────────────────────────────────────────────────────
+
+function SkeletonCard() {
+    return (
+        <div className="flex gap-4 px-6 py-5 border-t border-white/5 animate-pulse">
+            <div className="size-11 rounded-full bg-white/10 shrink-0" />
+            <div className="flex-1 space-y-2 pt-1">
+                <div className="h-4 w-2/3 rounded bg-white/10" />
+                <div className="h-3 w-1/3 rounded bg-white/8" />
+                <div className="h-7 w-24 rounded-lg bg-white/5 mt-2" />
+            </div>
+            <div className="h-6 w-14 rounded-full bg-white/8 shrink-0" />
+        </div>
+    );
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────────
+
+const PAGE_LIMIT = 50;
 
 export default function NotificationsPage() {
     const navigate = useNavigate();
-    const [allNotifs, setAllNotifs] = useState([]);
-    const [grouped, setGrouped] = useState([]);
+
+    // ── filter state ──────────────────────────────────────────────────────────
+    const [unreadOnly, setUnreadOnly]       = useState(false);
+    const [alertCategory, setAlertCategory] = useState('');       // '' | 'vital' | 'device'
+    const [isResolved, setIsResolved]       = useState(undefined); // undefined | true | false
+
+    // ── pagination state ──────────────────────────────────────────────────────
+    const [allNotifs, setAllNotifs]   = useState([]);
+    const [grouped, setGrouped]       = useState([]);
     const [totalCount, setTotalCount] = useState(0);
-    const [unreadOnly, setUnreadOnly] = useState(false);
-    const [loading, setLoading] = useState(true);
+    const [page, setPage]             = useState(1);
+    const [hasMore, setHasMore]       = useState(true);
+
+    // ── async state ───────────────────────────────────────────────────────────
+    const [loading, setLoading]         = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
-    const [skip, setSkip] = useState(0);
-    const [hasMore, setHasMore] = useState(true);
-    const limit = 50;
 
-    const observer = useRef();
-    const lastNotifElementRef = useCallback(node => {
-        if (loading || loadingMore) return;
-        if (observer.current) observer.current.disconnect();
-        observer.current = new IntersectionObserver(entries => {
-            if (entries[0].isIntersecting && hasMore) {
-                setSkip(prevSkip => prevSkip + limit);
+    // ── infinite scroll ───────────────────────────────────────────────────────
+    const sentinelRef = useRef(null);
+    const isFetchingRef = useRef(false);
+
+    // ── fetch ─────────────────────────────────────────────────────────────────
+    const fetchPage = useCallback(async (pageNum, reset = false) => {
+        if (isFetchingRef.current) return;
+        isFetchingRef.current = true;
+
+        if (reset) setLoading(true);
+        else        setLoadingMore(true);
+
+        const res = await patientService.getNotifications(
+            unreadOnly, pageNum, PAGE_LIMIT, alertCategory, isResolved
+        );
+
+        if (res.success) {
+            const fresh = res.data;
+            if (reset) {
+                setAllNotifs(fresh);
+                setGrouped(groupByDate(fresh));
+                setTotalCount(res.count || fresh.length);
+            } else {
+                const merged = [...allNotifs, ...fresh];
+                setAllNotifs(merged);
+                setGrouped(groupByDate(merged));
             }
-        });
-        if (node) observer.current.observe(node);
-    }, [loading, loadingMore, hasMore]);
-
-    const fetchNotifications = useCallback(async (isInitial = true, currentSkip = 0) => {
-        if (isInitial) {
-            setLoading(true);
-        } else {
-            setLoadingMore(true);
+            setHasMore(fresh.length >= PAGE_LIMIT);
         }
 
-        try {
-            const res = await patientService.getNotifications(unreadOnly, currentSkip, limit);
-            if (res.success) {
-                if (isInitial) {
-                    setAllNotifs(res.data);
-                    setTotalCount(res.count || res.data.length);
-                    setGrouped(groupByDate(res.data));
-                } else {
-                    const newNotifs = [...allNotifs, ...res.data];
-                    setAllNotifs(newNotifs);
-                    setGrouped(groupByDate(newNotifs));
-                }
-                setHasMore(res.data.length === limit);
-            }
-        } catch (err) {
-            console.error('Failed to load notifications:', err);
-        } finally {
-            setLoading(false);
-            setLoadingMore(false);
-        }
-    }, [unreadOnly, allNotifs, limit]);
+        if (reset) setLoading(false);
+        else        setLoadingMore(false);
+        isFetchingRef.current = false;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [unreadOnly, alertCategory, isResolved]);
 
-    // Initial load and when unreadOnly changes
+    // reset when filters change
     useEffect(() => {
-        setSkip(0);
+        setPage(1);
         setAllNotifs([]);
         setGrouped([]);
         setHasMore(true);
-        fetchNotifications(true, 0);
-    }, [unreadOnly]);
+        fetchPage(1, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [unreadOnly, alertCategory, isResolved]);
 
-    // Load more when skip changes
+    // infinite scroll observer
     useEffect(() => {
-        if (skip > 0) {
-            fetchNotifications(false, skip);
-        }
-    }, [skip]);
+        const el = sentinelRef.current;
+        if (!el) return;
+        const obs = new IntersectionObserver(([entry]) => {
+            if (entry.isIntersecting && hasMore && !loadingMore && !loading) {
+                const next = page + 1;
+                setPage(next);
+                fetchPage(next, false);
+            }
+        }, { threshold: 0.1 });
+        obs.observe(el);
+        return () => obs.disconnect();
+    }, [hasMore, loadingMore, loading, page, fetchPage]);
 
-    const line_shape = (
-        <div className="h-px w-full bg-[linear-gradient(90deg,rgba(255,255,255,0)_0%,rgba(255,255,255,0.25)_50%,rgba(255,255,255,0)_100%)]" />
-    );
+    // ── active filter count ───────────────────────────────────────────────────
+    const activeFilterCount = [unreadOnly, alertCategory !== '', isResolved !== undefined].filter(Boolean).length;
 
+    const clearFilters = () => {
+        setUnreadOnly(false);
+        setAlertCategory('');
+        setIsResolved(undefined);
+    };
+
+    // ── render ────────────────────────────────────────────────────────────────
     return (
-        <div className="p-4 md:p-8  w-full">
-            <div className="bg-[#222225] rounded-3xl border border-solid border-white/16 overflow-hidden flex flex-col h-[calc(100vh-120px)]">
-                <div className="flex items-center gap-4 justify-between p-6 border-b border-white/10 shrink-0">
-                    <div className="flex items-center gap-4">
-                        <button
-                            onClick={() => navigate(-1)}
-                            className="flex items-center justify-center w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 text-white transition-colors"
-                        >
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5"></path><polyline points="12 19 5 12 12 5"></polyline></svg>
-                        </button>
-                        <div>
-                            <h2 className="text-2xl font-semibold text-white">Notifications</h2>
-                            <p className="text-para text-sm mt-1">You have {totalCount} total notifications</p>
+        <div className="p-4 md:p-8 w-full">
+            <div className="bg-[#222225] rounded-3xl border border-solid border-white/10 overflow-hidden flex flex-col h-[calc(100vh-120px)]">
+
+                {/* ── Header ── */}
+                <div className="shrink-0 border-b border-white/8">
+                    {/* top row */}
+                    <div className="flex items-center gap-4 justify-between px-6 pt-6 pb-4">
+                        <div className="flex items-center gap-4">
+                            <button
+                                onClick={() => navigate(-1)}
+                                className="flex items-center justify-center w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 text-white transition-colors"
+                            >
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M19 12H5" /><polyline points="12 19 5 12 12 5" />
+                                </svg>
+                            </button>
+                            <div>
+                                <h2 className="text-2xl font-semibold text-white">Notifications</h2>
+                                <p className="text-para text-sm mt-0.5">
+                                    {loading ? 'Loading…' : `${totalCount} total notification${totalCount !== 1 ? 's' : ''}`}
+                                    {activeFilterCount > 0 && (
+                                        <span className="ml-2 text-primary/80">· {activeFilterCount} filter{activeFilterCount > 1 ? 's' : ''} active</span>
+                                    )}
+                                </p>
+                            </div>
                         </div>
+
+                        {/* clear filters */}
+                        {activeFilterCount > 0 && (
+                            <button
+                                onClick={clearFilters}
+                                className="text-xs text-white/40 hover:text-white flex items-center gap-1.5 transition-colors px-3 py-2 rounded-xl hover:bg-white/5"
+                            >
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                                </svg>
+                                Clear filters
+                            </button>
+                        )}
                     </div>
 
-                    <button
-                        className="text-sm transition-colors duration-300 px-5 py-3 rounded-full border border-white/10 bg-[#373739] text-white font-inter flex items-center gap-2 hover:bg-primary/40 hover:border-primary/50"
-                        onClick={() => setUnreadOnly((prev) => !prev)}
-                    >
-                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M6.94878 9.99959L10.2997 13.5L17 6.5M3 9.99959L6.35093 13.5M13.052 6.5L10.5027 9.18698" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                        {unreadOnly ? 'Show All Notifications' : 'Show Unread Only'}
-                    </button>
+                    {/* filter bar */}
+                    <div className="flex flex-wrap items-center gap-3 px-6 pb-4">
+
+                        {/* Unread toggle */}
+                        <div className="flex items-center gap-1 bg-[#2e2e31] p-1 rounded-xl">
+                            <FilterPill active={!unreadOnly} onClick={() => setUnreadOnly(false)}>All</FilterPill>
+                            <FilterPill active={unreadOnly}  onClick={() => setUnreadOnly(true)}>Unread Only</FilterPill>
+                        </div>
+
+                        <div className="w-px h-5 bg-white/10" />
+
+                        {/* Category */}
+                        <div className="flex items-center gap-2">
+                            <span className="text-[11px] text-white/30 hidden sm:block">Category</span>
+                            <div className="flex items-center gap-1 bg-[#2e2e31] p-1 rounded-xl">
+                                <FilterPill active={alertCategory === ''}       onClick={() => setAlertCategory('')}>All</FilterPill>
+                                <FilterPill active={alertCategory === 'vital'}  onClick={() => setAlertCategory('vital')}>Vital</FilterPill>
+                                <FilterPill active={alertCategory === 'device'} onClick={() => setAlertCategory('device')}>Device</FilterPill>
+                            </div>
+                        </div>
+
+                        <div className="w-px h-5 bg-white/10" />
+
+                        {/* Resolution status */}
+                        <div className="flex items-center gap-2">
+                            <span className="text-[11px] text-white/30 hidden sm:block">Status</span>
+                            <div className="flex items-center gap-1 bg-[#2e2e31] p-1 rounded-xl">
+                                <FilterPill active={isResolved === undefined} onClick={() => setIsResolved(undefined)}>All</FilterPill>
+                                <FilterPill active={isResolved === false}     onClick={() => setIsResolved(false)}>Active</FilterPill>
+                                <FilterPill active={isResolved === true}      onClick={() => setIsResolved(true)}>Resolved</FilterPill>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
+                {/* ── Body ── */}
                 <div className="flex-1 overflow-y-auto p-2">
-                    {loading ? (
-                        <div className="px-5 py-12 text-center text-para text-base flex flex-col items-center justify-center h-full">
-                            <div className="w-10 h-10 border-4 border-primary/30 border-t-primary rounded-full animate-spin mb-4"></div>
-                            Loading notifications...
+
+                    {/* initial loading */}
+                    {loading && (
+                        <div className="bg-[#2A2A2D] rounded-2xl border border-white/5 overflow-hidden mt-2">
+                            {[1, 2, 3, 4, 5].map(i => <SkeletonCard key={i} />)}
                         </div>
-                    ) : grouped.length === 0 ? (
-                        <div className="px-5 py-12 text-center text-para text-base flex flex-col items-center justify-center h-full">
-                            <svg className="w-16 h-16 text-white/20 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    )}
+
+                    {/* empty */}
+                    {!loading && grouped.length === 0 && (
+                        <div className="px-5 py-16 text-center flex flex-col items-center justify-center h-full">
+                            <svg className="w-16 h-16 text-white/15 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                             </svg>
-                            No notifications found.
+                            <p className="text-para text-base">No notifications match the current filters</p>
+                            {activeFilterCount > 0 && (
+                                <button onClick={clearFilters} className="mt-3 text-sm text-white/40 hover:text-white underline underline-offset-2 transition-colors">
+                                    Clear all filters
+                                </button>
+                            )}
                         </div>
-                    ) : (
-                        <div className="space-y-6 pb-6">
+                    )}
+
+                    {/* notifications list */}
+                    {!loading && grouped.length > 0 && (
+                        <div className="space-y-4 pb-6">
                             {grouped.map((group, groupIndex) => (
                                 <div key={groupIndex} className="bg-[#2A2A2D] rounded-2xl overflow-hidden border border-white/5">
-                                    <div className="px-6 py-4 bg-white/5 border-b border-white/5">
-                                        <span className="font-semibold text-sm text-white tracking-wider">{group.date}</span>
+                                    {/* date header */}
+                                    <div className="px-6 py-3 bg-white/4 border-b border-white/5">
+                                        <span className="font-semibold text-xs text-white/60 tracking-widest uppercase">{group.date}</span>
                                     </div>
+
                                     <div className="flex flex-col">
                                         {group.items.map((notif, idx) => {
-                                            const alertId = notif.id || notif._id || notif.alertId;
-                                            const type = (notif.severity || notif.type || notif.priority || 'info').toLowerCase();
+                                            const alertId   = notif.id || notif._id || notif.alertId;
+                                            const type      = (notif.severity || notif.type || notif.priority || 'info').toLowerCase();
                                             const badgeClass = typeColorMap[type] || typeColorMap.info;
-                                            const iconColor = iconColorMap[type] || iconColorMap.info;
-                                            const title = notif.vital_type ? `${notif.patient_name}: ${notif.vital_type} (${notif.triggered_value})` : (notif.title || notif.message || 'Notification');
-                                            const wardId = notif.ward_id || notif.wardId || '—';
-                                            const bedId = notif.room_id || notif.bedId || '—';
-                                            const time = formatTime(notif.created_at || notif.createdAt || notif.timestamp);
-
-                                            const status = notif.status || 'active';
-                                            const isResolved = notif.is_resolved || status === 'resolved';
-                                            const isSnoozed = status === 'snoozed';
-
-                                            const isLastElement = groupIndex === grouped.length - 1 && idx === group.items.length - 1;
+                                            const iconColor  = iconColorMap[type] || iconColorMap.info;
+                                            const title     = notif.vital_type
+                                                ? `${notif.patient_name}: ${notif.vital_type} (${notif.triggered_value})`
+                                                : (notif.title || notif.message || 'Notification');
+                                            const wardId    = notif.ward_id  || notif.wardId  || '—';
+                                            const bedId     = notif.room_id  || notif.bedId   || '—';
+                                            const time      = formatTime(notif.created_at || notif.createdAt || notif.timestamp);
+                                            const status     = notif.status || 'active';
+                                            const resolved   = notif.is_resolved || status === 'resolved';
+                                            const snoozed    = status === 'snoozed';
 
                                             return (
                                                 <div
                                                     key={alertId || idx}
-                                                    ref={isLastElement ? lastNotifElementRef : null}
                                                     className={`flex flex-col ${idx !== 0 ? 'border-t border-white/5' : ''}`}
                                                 >
-                                                    <div className={`flex flex-col gap-y-4 px-6 py-6 hover:bg-white/5 transition-colors duration-300 ${status === 'active' ? 'border-l-4 border-primary' : 'border-l-4 border-transparent'}`}>
-                                                        <div className="flex items-start gap-4 md:gap-5">
-                                                            <div className="shrink-0 mt-1"><DefaultIcon color={iconColor} /></div>
-                                                            <div className="flex-1 flex flex-col gap-y-2">
-                                                                <div className="flex items-start justify-between gap-4">
-                                                                    <h6 className="flex items-center gap-3 flex-wrap">
-                                                                        <span className="text-lg font-medium text-white leading-tight">{title}</span>
-                                                                        <span className={`flex items-center justify-center px-3 py-1 text-xs font-medium rounded-full capitalize ${badgeClass}`}>
-                                                                            {type}
-                                                                        </span>
-                                                                    </h6>
-                                                                    <div className="shrink-0 text-para font-medium text-sm bg-white/5 px-3 py-1 rounded-full">{time}</div>
+                                                    <div className={`flex flex-col gap-y-4 px-6 py-5 hover:bg-white/4 transition-colors duration-200 ${status === 'active' ? 'border-l-[3px] border-primary' : 'border-l-[3px] border-transparent'}`}>
+                                                        <div className="flex items-start gap-4">
+                                                            <div className="shrink-0 mt-0.5"><DefaultIcon color={iconColor} /></div>
+                                                            <div className="flex-1 flex flex-col gap-y-1.5">
+                                                                <div className="flex items-start justify-between gap-4 flex-wrap">
+                                                                    <div className="flex items-center gap-2.5 flex-wrap">
+                                                                        <span className="text-base font-medium text-white leading-tight">{title}</span>
+                                                                        <span className={`flex items-center justify-center px-2.5 py-0.5 text-[11px] font-medium rounded-full capitalize ${badgeClass}`}>{type}</span>
+                                                                    </div>
+                                                                    <div className="shrink-0 text-para text-xs bg-white/5 px-3 py-1 rounded-full">{time}</div>
                                                                 </div>
 
-                                                                <div className="flex flex-wrap items-center gap-4 text-sm font-normal">
-                                                                    <span className="text-[#F1F2F4] flex items-center gap-2">
-                                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-para"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
-                                                                        Ward: <span className="text-white font-medium">{wardId}</span>
+                                                                <div className="flex flex-wrap items-center gap-3 text-sm font-normal text-white/60">
+                                                                    <span className="flex items-center gap-1.5">
+                                                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
+                                                                        Ward: <span className="text-white">{wardId}</span>
                                                                     </span>
-                                                                    <span className="w-1 h-1 rounded-full bg-white/20"></span>
-                                                                    <span className="text-[#F1F2F4] flex items-center gap-2">
-                                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-para"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
-                                                                        Room: <span className="text-white font-medium">{bedId}</span>
+                                                                    <span className="w-1 h-1 rounded-full bg-white/20" />
+                                                                    <span className="flex items-center gap-1.5">
+                                                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><line x1="9" y1="3" x2="9" y2="21" /></svg>
+                                                                        Room: <span className="text-white">{bedId}</span>
                                                                     </span>
                                                                 </div>
 
-                                                                <div className="flex items-center gap-3 text-sm mt-1">
-                                                                    {isResolved ? (
-                                                                        <span className="text-[#4DE573] flex items-center gap-2 bg-[#4DE573]/10 px-3 py-1.5 rounded-lg w-fit">
-                                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                                                                {/* status chip */}
+                                                                <div className="mt-0.5">
+                                                                    {resolved ? (
+                                                                        <span className="inline-flex items-center gap-2 text-[#4DE573] bg-[#4DE573]/10 px-3 py-1.5 rounded-lg text-sm">
+                                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
                                                                             Action Taken {notif.resolved_at ? `at ${formatTime(notif.resolved_at)}` : ''}
                                                                         </span>
-                                                                    ) : isSnoozed ? (
-                                                                        <span className="text-[#E5DB4C] flex items-center gap-2 bg-[#E5DB4C]/10 px-3 py-1.5 rounded-lg w-fit">
-                                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                                                                    ) : snoozed ? (
+                                                                        <span className="inline-flex items-center gap-2 text-[#E5DB4C] bg-[#E5DB4C]/10 px-3 py-1.5 rounded-lg text-sm">
+                                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
                                                                             Snoozed {notif.snoozed_until ? `until ${formatTime(notif.snoozed_until)}` : ''}
                                                                         </span>
                                                                     ) : (
-                                                                        <span className="text-[#E54D4D] flex items-center gap-2 bg-[#E54D4D]/10 px-3 py-1.5 rounded-lg w-fit">
-                                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                                                                        <span className="inline-flex items-center gap-2 text-[#E54D4D] bg-[#E54D4D]/10 px-3 py-1.5 rounded-lg text-sm">
+                                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
                                                                             Active Alert
                                                                         </span>
                                                                     )}
@@ -247,15 +373,24 @@ export default function NotificationsPage() {
                                 </div>
                             ))}
 
+                            {/* load-more spinner */}
                             {loadingMore && (
                                 <div className="py-6 flex justify-center">
-                                    <div className="w-8 h-8 border-3 border-primary/30 border-t-primary rounded-full animate-spin"></div>
+                                    <div className="w-8 h-8 border-[3px] border-primary/30 border-t-primary rounded-full animate-spin" />
                                 </div>
                             )}
 
-                            {!hasMore && grouped.length > 0 && (
-                                <div className="py-8 text-center text-para">
-                                    You have reached the end of notifications
+                            {/* sentinel */}
+                            <div ref={sentinelRef} className="h-4" />
+
+                            {/* end of list */}
+                            {!hasMore && !loadingMore && grouped.length > 0 && (
+                                <div className="flex items-center gap-3 py-4 px-2">
+                                    <div className="flex-1 h-px bg-white/8" />
+                                    <span className="text-[11px] text-white/25 whitespace-nowrap">
+                                        End of notifications · {allNotifs.length} shown
+                                    </span>
+                                    <div className="flex-1 h-px bg-white/8" />
                                 </div>
                             )}
                         </div>

@@ -43,7 +43,7 @@ import DoctorReview from "../../../components/dashboard/overview/doctor-review";
 import HeartRateLive from "../../../components/charts/HeartRateLive";
 import Movement from "../../../components/animation/overview/movement";
 import ArcProgress from "../../../components/arc-progress";
-import HistoryTable from "@/components/dashboard/HistoryTable";
+import AlertsTimeline from "@/components/dashboard/AlertsTimeline";
 
 export default function Overview() {
   const { userId } = useParams();
@@ -442,7 +442,7 @@ export default function Overview() {
       {
         icon: <Brain />,
         iconBg: "bg-aqua",
-        title: "Movement",
+        title: "Steps",
         value: movementVal ?? '--',
         extension: "",
         img: (movementVal === 0 || !movementVal) ? noGraphPlaceholder : <Movement historyData={historyData} />,
@@ -883,24 +883,8 @@ export default function Overview() {
           </button>
         </div>
 
-        {/* --- History Section --- */}
-        <div className="mt-10">
-          <div className="flex items-center justify-between mb-6">
-            <h4 className="text-xl lg:text-2xl font-medium text-white">Full Vitals History</h4>
-            <div className="flex items-center gap-1 bg-[#313135] p-1 rounded-xl">
-              {filter.map((item, index) => (
-                <button
-                  key={index}
-                  className={`text-sm min-h-7 px-3 rounded-lg min-w-12.5 ${item === filterTab ? "btn btn-gradient" : ""}`}
-                  onClick={() => setFilterTab(item)}
-                >
-                  {item}
-                </button>
-              ))}
-            </div>
-          </div>
-          <HistoryTable history={patientHistory || currentVitals?.vitals_history || []} />
-        </div>
+        {/* --- Alerts Timeline Section --- */}
+        <AlertsTimeline patientId={parsedUserId} />
       </MainBody>
 
       {/* new 2 score modal */}

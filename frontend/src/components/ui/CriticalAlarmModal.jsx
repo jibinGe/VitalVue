@@ -43,7 +43,11 @@ export default function CriticalAlarmModal({
   // Device alarm: triggered when watch is disconnected OR band is removed
   // Also check the SSE alert payload for "Band Status" or "Connectivity" alerts
   const isAlertBandRemoved = alert?.vital_type === "Band Status" && alert?.triggered_value === "Removed";
-  const isAlertDisconnected = alert?.vital_type === "Connectivity" && alert?.triggered_value === "Disconnected";
+  const isNetworkDisconnected = alert?.vital_type === "Connectivity" && (
+    alert?.triggered_value === "Network Disconnected" ||
+    alert?.triggered_value === "Disconnected"
+  );
+  const isAlertDisconnected = isNetworkDisconnected;
 
   // Priority to alert payload. If it's explicitly a band removed alert, ignore stale `isConnected` false state.
   const currentIsConnected = isAlertBandRemoved ? true : (isConnected !== false && !isAlertDisconnected);
@@ -51,14 +55,16 @@ export default function CriticalAlarmModal({
 
   const isDeviceAlarm = !currentIsConnected || currentIsRemoved;
 
-  // Theme: yellow for device alarm, orange for warning, red for critical
-  const themeColor = isDeviceAlarm ? '#F8FD1E' : (isWarning ? '#E5A54D' : '#E54D4D');
-  const themeColorRgba = isDeviceAlarm ? '248,253,30' : (isWarning ? '229,165,77' : '229,77,77');
+  // Theme: blue for network disconnected, yellow for other device alarms, orange for warning, red for critical
+  const themeColor = isNetworkDisconnected ? '#3B9EFF' : isDeviceAlarm ? '#F8FD1E' : (isWarning ? '#E5A54D' : '#E54D4D');
+  const themeColorRgba = isNetworkDisconnected ? '59,158,255' : isDeviceAlarm ? '248,253,30' : (isWarning ? '229,165,77' : '229,77,77');
 
-  // Border: solid yellow for device alarm, else semi-transparent theme color
-  const borderStyle = isDeviceAlarm
-    ? '6px solid rgb(248 253 30)'
-    : `6px solid rgba(${themeColorRgba},0.4)`;
+  // Border: solid blue for network disconnected, solid yellow for other device alarms, else semi-transparent
+  const borderStyle = isNetworkDisconnected
+    ? '6px solid rgb(59 158 255)'
+    : isDeviceAlarm
+      ? '6px solid rgb(248 253 30)'
+      : `6px solid rgba(${themeColorRgba},0.4)`;
 
   // Start / stop alarm sound when modal opens/closes
   useEffect(() => {
@@ -318,22 +324,31 @@ export default function CriticalAlarmModal({
                     animate={{ opacity: 1, y: 0 }}
                     className="w-full rounded-2xl px-5 py-5 mb-6 flex flex-col items-center gap-3 text-center"
                     style={{
-                      background: 'rgba(248,253,30,0.06)',
-                      border: '1px solid rgba(248,253,30,0.25)',
+                      background: isNetworkDisconnected ? 'rgba(59,158,255,0.08)' : 'rgba(248,253,30,0.06)',
+                      border: isNetworkDisconnected ? '1px solid rgba(59,158,255,0.3)' : '1px solid rgba(248,253,30,0.25)',
                     }}
                   >
-                    {currentIsConnected === false ? (
+                    {isNetworkDisconnected ? (
+                      /* WiFi disconnected icon — crossed-out WiFi */
+                      <svg width="42" height="42" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M1.5 8.5C5.5 4.5 10.5 2.5 12 2.5C13.5 2.5 18.5 4.5 22.5 8.5" stroke="#3B9EFF" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="3 2" />
+                        <path d="M5 12C7.5 9.5 10 8 12 8C14 8 16.5 9.5 19 12" stroke="#3B9EFF" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="3 2" />
+                        <path d="M8.5 15.5C9.8 14.2 11 13.5 12 13.5C13 13.5 14.2 14.2 15.5 15.5" stroke="#3B9EFF" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="3 2" />
+                        <circle cx="12" cy="19" r="1.5" fill="#3B9EFF" />
+                        <line x1="3" y1="3" x2="21" y2="21" stroke="#3B9EFF" strokeWidth="1.8" strokeLinecap="round" />
+                      </svg>
+                    ) : currentIsConnected === false ? (
                       <svg width="38" height="38" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path
                           d="M12 3L18 7.5L12 12L18 16.5L12 21"
-                          stroke="#0004ff"
+                          stroke="#F8FD1E"
                           strokeWidth="1.5"
                           strokeLinecap="round"
                           strokeLinejoin="round"
                         />
-                        <line x1="12" y1="3" x2="12" y2="21" stroke="#0004ff" strokeWidth="1.5" strokeLinecap="round" />
-                        <line x1="6" y1="7.5" x2="12" y2="12" stroke="#0004ff" strokeWidth="1.5" strokeLinecap="round" />
-                        <line x1="6" y1="16.5" x2="12" y2="12" stroke="#0004ff" strokeWidth="1.5" strokeLinecap="round" />
+                        <line x1="12" y1="3" x2="12" y2="21" stroke="#F8FD1E" strokeWidth="1.5" strokeLinecap="round" />
+                        <line x1="6" y1="7.5" x2="12" y2="12" stroke="#F8FD1E" strokeWidth="1.5" strokeLinecap="round" />
+                        <line x1="6" y1="16.5" x2="12" y2="12" stroke="#F8FD1E" strokeWidth="1.5" strokeLinecap="round" />
                       </svg>
                     ) : (
                       <svg width="38" height="38" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -342,13 +357,15 @@ export default function CriticalAlarmModal({
                         <circle cx="12" cy="12" r="2" stroke="#F8FD1E" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                     )}
-                    <p className="text-sm font-bold" style={{ color: '#F8FD1E' }}>
-                      {currentIsConnected === false ? "Bluetooth Disconnected" : "Band Removed"}
+                    <p className="text-sm font-bold" style={{ color: isNetworkDisconnected ? '#3B9EFF' : '#F8FD1E' }}>
+                      {isNetworkDisconnected ? "Network Disconnected" : currentIsConnected === false ? "Bluetooth Disconnected" : "Band Removed"}
                     </p>
                     <p className="text-lg text-[#aaa] leading-relaxed">
-                      {currentIsConnected === false
-                        ? "Please check the Bluetooth connection and ensure the device is within range."
-                        : "Please ensure the band is properly placed on the patient."}
+                      {isNetworkDisconnected
+                        ? "The device has lost its network connection. Please check the WiFi or network settings."
+                        : currentIsConnected === false
+                          ? "Please check the Bluetooth connection and ensure the device is within range."
+                          : "Please ensure the band is properly placed on the patient."}
                     </p>
                   </motion.div>
                 ) : (

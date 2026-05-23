@@ -294,30 +294,53 @@ const PatientCard = memo(({
                                 );
                             })}
 
-                            {/* Status and Battery card */}
+                            {/* Device card — Status, WiFi indicator (header), Battery */}
                             <div className="bg-[#2F2F31] rounded-[20px] p-2.5 flex flex-col justify-between items-start overflow-hidden relative shadow-[0px_0px_50px_0px_rgba(0,0,0,0.08)] z-2 min-h-[140px]">
                                 <div className="w-full relative z-10">
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <div className="size-8 rounded-full flex items-center justify-center shrink-0 bg-yellow">
-                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                <path d="M4 7C4 5.34315 5.34315 4 7 4H17C18.6569 4 20 5.34315 20 7V17C20 18.6569 18.6569 20 17 20H7C5.34315 20 4 18.6569 4 17V7Z" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-                                                <path d="M12 16V16.01" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-                                                <path d="M8 4V2" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-                                                <path d="M16 4V2" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-                                                <path d="M8 22V20" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-                                                <path d="M16 22V20" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-                                                <path d="M4 8H2" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-                                                <path d="M4 16H2" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-                                                <path d="M22 8H20" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-                                                <path d="M22 16H20" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                                    {/* Header row: Device icon + label + WiFi status icon */}
+                                    <div className="flex items-center justify-between gap-2 mb-2">
+                                        <div className="flex items-center gap-2">
+                                            <div className="size-8 rounded-full flex items-center justify-center shrink-0 bg-yellow">
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                    <path d="M4 7C4 5.34315 5.34315 4 7 4H17C18.6569 4 20 5.34315 20 7V17C20 18.6569 18.6569 20 17 20H7C5.34315 20 4 18.6569 4 17V7Z" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                                                    <path d="M12 16V16.01" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                                                    <path d="M8 4V2" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                                                    <path d="M16 4V2" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                                                    <path d="M8 22V20" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                                                    <path d="M16 22V20" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                                                    <path d="M4 8H2" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                                                    <path d="M4 16H2" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                                                    <path d="M22 8H20" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                                                    <path d="M22 16H20" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                                                </svg>
+                                            </div>
+                                            <span className="text-lg text-white font-medium">Device</span>
+                                        </div>
+                                        {/* WiFi status indicator — icon only, no extra row */}
+                                        <div title={item.isConnected ? 'WiFi Connected' : 'WiFi — No Signal'} style={{ color: item.isConnected ? '#4DE573' : '#E54D4D' }}>
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                {item.isConnected ? (
+                                                    <>
+                                                        <path d="M1.5 8.5C5.5 4.5 10.5 2.5 12 2.5C13.5 2.5 18.5 4.5 22.5 8.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                                        <path d="M5 12C7.5 9.5 10 8 12 8C14 8 16.5 9.5 19 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                                        <path d="M8.5 15.5C9.8 14.2 11 13.5 12 13.5C13 13.5 14.2 14.2 15.5 15.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                                        <circle cx="12" cy="19" r="1.5" fill="currentColor" />
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <path d="M1.5 8.5C5.5 4.5 10.5 2.5 12 2.5C13.5 2.5 18.5 4.5 22.5 8.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="2 2" />
+                                                        <path d="M5 12C7.5 9.5 10 8 12 8C14 8 16.5 9.5 19 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="2 2" />
+                                                        <path d="M8.5 15.5C9.8 14.2 11 13.5 12 13.5C13 13.5 14.2 14.2 15.5 15.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="2 2" />
+                                                        <circle cx="12" cy="19" r="1.5" fill="currentColor" />
+                                                        <line x1="3" y1="3" x2="21" y2="21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                                                    </>
+                                                )}
                                             </svg>
                                         </div>
-                                        <span className="text-lg text-white font-medium">Device</span>
                                     </div>
                                     <div className="flex flex-col gap-2 w-full">
                                         <div className="flex items-center gap-1.5 w-full justify-between xl:justify-start">
                                             <span className="font-lufga font-medium text-[13px] xl:text-[14px] text-white flex items-center gap-1">
-
                                                 Status
                                             </span>
                                             <div className={`px-2 py-[2px] flex items-center justify-center font-lufga font-normal rounded-full text-[11px] xl:text-[12px] whitespace-nowrap mt-0.5 gap-1 ${item.isConnected ? 'text-[#4DE573] bg-[#4DE573]/10' : 'text-[#E54D4D] bg-[#E54D4D]/20'}`}>

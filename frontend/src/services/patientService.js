@@ -843,12 +843,22 @@ export const patientService = {
 
   /**
    * Get staff notifications
+   * GET /api/v1/patients/notifications
+   *
+   * params:
+   *   unreadOnly     – boolean  (default false) filters status to ['active','snoozed']
+   *   page           – integer  (default 1)
+   *   limit          – integer  (default 50, max 100)
+   *   alertCategory  – "vital" | "device" | "" (optional)
+   *   isResolved     – true | false | undefined (optional)
    */
-  async getNotifications(unreadOnly = false, skip = 0, limit = 50) {
+  async getNotifications(unreadOnly = false, page = 1, limit = 50, alertCategory = '', isResolved = undefined) {
     try {
-      const response = await apiClient.get('/api/v1/patients/notifications', {
-        params: { unread_only: unreadOnly, skip, limit }
-      });
+      const params = { unread_only: unreadOnly, page, limit };
+      if (alertCategory)             params.alert_category = alertCategory;
+      if (isResolved !== undefined)  params.is_resolved    = isResolved;
+
+      const response = await apiClient.get('/api/v1/patients/notifications', { params });
       return {
         success: true,
         data: response.data?.notifications || [],
@@ -865,6 +875,7 @@ export const patientService = {
       };
     }
   },
+
 
   /**
    * Snooze an alert
@@ -1005,6 +1016,41 @@ export const patientService = {
     } catch (error) {
       console.error('Error fetching stroke risk:', error);
       return { success: false, data: null, message: error.message || "Failed to fetch stroke risk" };
+    }
+  },
+
+  /**
+   * Get patient alerts & clinical notes timeline
+   * GET /api/v1/patients/{patient_id}/timeline
+   *
+   * params:
+   *   page            – page number (default 1)
+   *   limit           – items per page (default 10, max 500)
+   *   alert_category  – "vital" | "device" (optional)
+   *   is_resolved     – true | false (optional)
+   */
+  async getPatientTimeline(patientId, params = {}) {
+    try {
+      const queryParams = {
+        page:  params.page  ?? 1,
+        limit: params.limit ?? 10,
+      };
+      if (params.alert_category)            queryParams.alert_category = params.alert_category;
+      if (params.is_resolved !== undefined) queryParams.is_resolved    = params.is_resolved;
+
+      const response = await apiClient.get(`/api/v1/patients/${patientId}/timeline`, { params: queryParams });
+      return {
+        success: true,
+        data: response.data || { alerts: [], clinical_notes: [], total_alerts_count: 0, total_notes_count: 0 },
+        message: 'Success',
+      };
+    } catch (error) {
+      console.error('Error fetching patient timeline:', error);
+      return {
+        success: false,
+        data: { alerts: [], clinical_notes: [], total_alerts_count: 0, total_notes_count: 0 },
+        message: error.message || 'Failed to fetch patient timeline',
+      };
     }
   },
 

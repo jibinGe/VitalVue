@@ -2,6 +2,8 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import './assets/scss/style.scss'
+// Import early so AudioContext unlock listeners are registered at app boot
+import './utilities/alarmSound'
 
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClient } from './lib/query-client'
