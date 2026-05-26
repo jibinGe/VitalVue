@@ -29,6 +29,7 @@ const PatientCard = memo(({
     signalQualityWarnings,
     takeAction,
     setTakeAction,
+    setTakeActionIsDeviceAlert,
     flagDoctor,
     setFlagDoctor
 }) => {
@@ -411,7 +412,15 @@ const PatientCard = memo(({
                                     <div className="w-full xl:w-[270px] shrink-0 flex items-center">
                                         <button
                                             className="w-full btn min-h-[58px] px-0 bg-transparent border border-white/20 hover:bg-white/5 rounded-xl text-white font-medium text-sm transition-colors"
-                                            onClick={(e) => { e.stopPropagation(); setTakeAction(true); setSelectedUserId(item.id); setSelectedUserName(item.name); }}
+                                            onClick={(e) => { 
+                                                e.stopPropagation(); 
+                                                if (setTakeActionIsDeviceAlert) {
+                                                    setTakeActionIsDeviceAlert(!item.isConnected || item.isRemoved);
+                                                }
+                                                setTakeAction(true); 
+                                                setSelectedUserId(item.id); 
+                                                setSelectedUserName(item.name); 
+                                            }}
                                         >
                                             Take Action
                                         </button>

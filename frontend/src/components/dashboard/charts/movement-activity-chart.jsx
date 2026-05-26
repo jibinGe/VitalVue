@@ -57,7 +57,7 @@ const MovementActivityChart = ({ movementData = [], statistics = null }) => {
                 <div className="bg-[#2F2F31] border border-[#555555] p-2.5 rounded shadow-lg">
                     <p className="text-[#9CA3AF] text-xs font-medium">{data.time}</p>
                     <p className="text-[#9CA3AF] text-xs">
-                        Movement: {data.hasMovement ? 'Detected' : 'No Movement'}
+                        Steps: {data.hasMovement ? 'Detected' : 'No Steps'}
                     </p>
                     <p className="text-[#9CA3AF] text-xs">Quality: {data.quality}%</p>
                 </div>

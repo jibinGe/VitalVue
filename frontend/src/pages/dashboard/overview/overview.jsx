@@ -11,6 +11,7 @@ import ConfirmationModal from "@/components/ui/ConfirmationModal";
 import CriticalAlarmModal from "@/components/ui/CriticalAlarmModal";
 import { usePatientHistory } from "@/hooks/usePatientHistory";
 import { useVitalsStream } from "@/hooks/useVitalsStream";
+import { usePatient } from "@/hooks/usePatient";
 import { useDashboardStore } from "@/store/useDashboardStore";
 
 import {
@@ -64,8 +65,9 @@ export default function Overview() {
   const parsedUserId = parseInt(userId, 10);
   const { data: patientHistory, isLoading: loading } = usePatientHistory(parsedUserId, filterTab);
   const { streamData, criticalAlert } = useVitalsStream(parsedUserId);
+  const { data: patientDetails } = usePatient(parsedUserId);
   const currentVitals = patientHistory ? patientHistory[patientHistory.length - 1] : null;
-  const patientData = currentVitals; // Map for legacy compatibility
+  const patientData = patientDetails || currentVitals; // Map for legacy compatibility
 
   const prevVitalsRaw = useRef("");
   const [chartsReady, setChartsReady] = useState(false);
@@ -579,22 +581,22 @@ export default function Overview() {
           <div className="flex flex-wrap items-center gap-x-6 gap-y-3 text-base md:text-lg xl:text-[22px]">
             <div className="flex items-center gap-2">
               <span className="text-white/60 font-lufga">Patient:</span>
-              <span className="text-white font-medium font-lufga">{statePatient.patientName || patientData?.name || currentVitals?.patientName || "--"}</span>
+              <span className="text-white font-medium font-lufga">{statePatient.patientName || patientDetails?.full_name || patientDetails?.name || patientData?.name || currentVitals?.patientName || "--"}</span>
             </div>
             <div className="hidden md:block w-[1px] h-5 xl:h-6 bg-white/20"></div>
             <div className="flex items-center gap-2">
               <span className="text-white/60 font-lufga">ID:</span>
-              <span className="text-white font-medium font-lufga">{statePatient.patientId || patientData?.patientId || currentVitals?.patientId || userId || "--"}</span>
+              <span className="text-white font-medium font-lufga">{statePatient.patientId || patientDetails?.patient_id || patientDetails?.patientId || patientData?.patientId || currentVitals?.patientId || userId || "--"}</span>
             </div>
             <div className="hidden md:block w-[1px] h-5 xl:h-6 bg-white/20"></div>
             <div className="flex items-center gap-2">
               <span className="text-white/60 font-lufga">Ward:</span>
-              <span className="text-white font-medium font-lufga">{patientData?.ward || currentVitals?.ward || "--"}</span>
+              <span className="text-white font-medium font-lufga">{patientDetails?.ward_name || patientDetails?.ward_no || patientDetails?.ward || patientData?.ward || currentVitals?.ward || "--"}</span>
             </div>
             <div className="hidden md:block w-[1px] h-5 xl:h-6 bg-white/20"></div>
             <div className="flex items-center gap-2">
               <span className="text-white/60 font-lufga">Room/Bed:</span>
-              <span className="text-white font-medium font-lufga">{statePatient.room || patientData?.room || currentVitals?.room || patientData?.bed || currentVitals?.bed || "--"}</span>
+              <span className="text-white font-medium font-lufga">{statePatient.room || patientDetails?.room_no || patientDetails?.room_name || patientDetails?.room || patientData?.room || currentVitals?.room || patientDetails?.bed || patientData?.bed || currentVitals?.bed || "--"}</span>
             </div>
           </div>
         </div>

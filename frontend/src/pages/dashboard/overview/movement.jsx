@@ -66,11 +66,11 @@ export default function Movement() {
     { name: 'Awake / Disrupted', color: '#F59E0B' },
   ]
   const status2 = [
-    { name: 'Sudden movement detected', color: '#E54D4D' },
-    { name: 'Movement Intensity', color: '#FE9A00' },
+    { name: 'Sudden Steps detected', color: '#E54D4D' },
+    { name: 'Steps Intensity', color: '#FE9A00' },
   ]
   const status3 = [
-    { name: 'Movement', color: '#FE9A00' },
+    { name: 'Steps', color: '#FE9A00' },
     { name: 'Immobility Period', color: '#B686F9' },
   ]
   const cardList = [
@@ -107,13 +107,13 @@ export default function Movement() {
   if (hasNoData) {
     return (
       <Mainbody>
-        <TopTitle title="Movement" />
+        <TopTitle title="Steps" />
         <div className="flex items-center justify-center min-h-96">
           <div className="text-center">
             <svg className="mx-auto mb-4 w-16 h-16 text-[#9CA3AF]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            <h3 className="text-xl font-medium text-white mb-2">No Movement Data Available</h3>
+            <h3 className="text-xl font-medium text-white mb-2">No Steps Data Available</h3>
             <p className="text-[#9CA3AF] text-sm">No movement data found for the selected time range.</p>
             <p className="text-[#9CA3AF] text-xs mt-1">Please try selecting a different time period.</p>
           </div>
@@ -127,10 +127,10 @@ export default function Movement() {
   return (
     <>
       <Mainbody>
-        <TopTitle title="Movement" />
+        <TopTitle title="Steps" />
         <div className="bg-[#2F2F31] p-4 lg:p-5 rounded-xl lg:rounded-2xl xl:rounded-[28px] mb-4 lg:mb-5 xl:mb-6">
           <ChartTitle
-            title="Movement Activity Timeline"
+            title="Steps Activity Timeline"
             des="Activity and inactivity patterns across the monitoring period."
             filter_items={filter}
             set_active_filter={filter.findIndex(f => f === filterTab)}

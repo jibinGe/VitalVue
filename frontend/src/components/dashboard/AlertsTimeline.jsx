@@ -64,117 +64,50 @@ function StatusBadge({ status, resolved }) {
   );
 }
 
-// ── Alert card ────────────────────────────────────────────────────────────────
+// ── Alert table row ────────────────────────────────────────────────────────────
 
-function AlertCard({ alert }) {
-  const sev = getSeverity(alert);
-  const vitalLabel = (alert.vital_type || "").replace(/_/g, " ");
+function AlertTableRow({ item }) {
+  const sev = getSeverity(item);
+  const isAlert = item._kind === "alert";
+  const statusActive = item.status?.toLowerCase() === "active" || !item.is_resolved;
+  
+  const timeStr = statusActive
+    ? `${formatTime(item.created_at)} to NOW`
+    : `${formatTime(item.created_at)} to ${formatTime(item.resolved_at || item.created_at)}`;
 
   return (
-    <div className="relative flex gap-4 group" style={{ paddingLeft: "28px" }}>
-      <span
-        className="absolute top-[18px] size-3 rounded-full border-2 border-[#1a1a1c] z-10 transition-transform duration-200 group-hover:scale-125"
-        style={{ background: sev.color, left: "14px" }}
-      />
-      <div
-        className="flex-1 rounded-2xl p-4 border transition-all duration-200 group-hover:-translate-y-px"
-        style={{ background: sev.bg, borderColor: sev.border }}
-      >
-        {/* header */}
-        <div className="flex items-start justify-between gap-3 flex-wrap mb-2">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span
-              className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full uppercase tracking-wider"
-              style={{ background: sev.color + "22", color: sev.color, border: `1px solid ${sev.border}` }}
-            >
-              {sev.label}
-            </span>
-            {vitalLabel && (
-              <span className="text-sm font-medium text-white capitalize">{vitalLabel}</span>
-            )}
-            {alert.is_flagged && (
-              <span title="Flagged" className="text-[11px] text-yellow-400 font-medium flex items-center gap-1">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M4 5v16h2v-7h14l-4-4 4-4H6V5H4z" /></svg>
-                Flagged
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <StatusBadge status={alert.status} resolved={alert.is_resolved} />
-            <span className="text-[11px] text-white/40">{timeAgo(alert.created_at)}</span>
-          </div>
-        </div>
-
-        {alert.triggered_value && (
-          <p className="text-sm text-white/80 mb-1">
-            <span className="text-white/50">Triggered: </span>
-            <span className="font-medium text-white">{alert.triggered_value}</span>
-          </p>
-        )}
-
-        {alert.actions_taken?.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {alert.actions_taken.map((a, i) => (
-              <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 text-white/50 border border-white/10">
-                {typeof a === "object" ? a.action_type || JSON.stringify(a) : a}
-              </span>
-            ))}
-          </div>
-        )}
-
-        <div className="mt-2 flex items-center gap-3 text-[11px] text-white/35 flex-wrap">
-          <span>{formatTime(alert.created_at)}</span>
-          {alert.is_resolved && alert.resolved_at && <span>· Resolved {formatTime(alert.resolved_at)}</span>}
-          {alert.snoozed_until && !alert.is_resolved && <span>· Snoozed until {formatTime(alert.snoozed_until)}</span>}
+    <div className="grid grid-cols-1 md:grid-cols-[minmax(200px,1.5fr)_minmax(250px,2fr)_120px_120px] gap-4 items-center px-4 py-3 bg-[#1a1a1c] border-b border-white/5 hover:bg-white/[0.04] transition-colors last:border-b-0">
+      {/* Alerts */}
+      <div className="flex items-center gap-3">
+        <div className="bg-white/5 border border-white/10 text-white/80 text-[11px] px-3 py-1.5 rounded min-w-[100px] text-center font-medium">
+          {isAlert ? (item.triggered_value ? `Triggered: ${item.triggered_value}` : "Alert") : "Note"}
         </div>
       </div>
-    </div>
-  );
-}
-
-// ── Clinical note card ────────────────────────────────────────────────────────
-
-function NoteCard({ note }) {
-  const cfg = SEVERITY_CONFIG.note;
-  return (
-    <div className="relative flex gap-4 group" style={{ paddingLeft: "28px" }}>
-      <span
-        className="absolute top-[18px] size-3 rounded-full border-2 border-[#1a1a1c] z-10 transition-transform duration-200 group-hover:scale-125"
-        style={{ background: cfg.color, left: "14px" }}
-      />
-      <div
-        className="flex-1 rounded-2xl p-4 border transition-all duration-200 group-hover:-translate-y-px"
-        style={{ background: cfg.bg, borderColor: cfg.border }}
-      >
-        <div className="flex items-start justify-between gap-3 flex-wrap mb-2">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span
-              className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full uppercase tracking-wider"
-              style={{ background: cfg.color + "22", color: cfg.color, border: `1px solid ${cfg.border}` }}
-            >
-              Clinical Note
-            </span>
-            {note.event_type && (
-              <span className="text-sm font-medium text-white capitalize">{note.event_type}</span>
-            )}
-            {note.is_flagged_for_review && (
-              <span className="text-[11px] text-yellow-400 font-medium flex items-center gap-1">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M4 5v16h2v-7h14l-4-4 4-4H6V5H4z" /></svg>
-                Review
-              </span>
-            )}
-          </div>
-          <span className="text-[11px] text-white/40">{timeAgo(note.created_at)}</span>
-        </div>
-
-        {note.note_content && (
-          <p className="text-sm text-white/80 leading-relaxed">{note.note_content}</p>
+      
+      {/* Time Duration */}
+      <div className="flex items-center gap-2 text-[11px] text-white/70 whitespace-nowrap overflow-hidden text-ellipsis">
+        {statusActive ? (
+          <span className="bg-[#FFBB33] text-black font-bold px-2 py-0.5 rounded text-[10px] uppercase tracking-wide">Active</span>
+        ) : (
+          <span className="font-bold text-white">{timeAgo(item.created_at)}</span>
         )}
+        <span className="text-white/20">|</span>
+        <span className="truncate">{timeStr}</span>
+      </div>
 
-        <div className="mt-2 flex items-center gap-3 text-[11px] text-white/35 flex-wrap">
-          <span>{formatTime(note.event_timestamp || note.created_at)}</span>
-          {note.author_id && <span>· Author {note.author_id}</span>}
-        </div>
+      {/* Priority */}
+      <div className="flex items-center gap-2">
+        <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke={sev.color} strokeWidth="2">
+           <circle cx="12" cy="12" r="5" fill={sev.color} fillOpacity="0.2"/>
+           <path d="M12 2v2m0 16v2m8-10h2m-20 0h2m15.07-7.07l-1.41 1.41M4.93 19.07l1.41-1.41m0-11.32L4.93 4.93m14.14 14.14l-1.41-1.41" />
+        </svg>
+        <span className="text-[11px] font-bold tracking-wide" style={{ color: sev.color }}>{sev.label.toUpperCase()}</span>
+      </div>
+
+      {/* Acknowledged By */}
+      <div className="flex items-center justify-between text-[11px] text-white/50 w-full pr-2">
+        <span className="truncate max-w-[60px]">{item.is_resolved ? "System" : "-"}</span>
+        <button className="text-primary hover:text-primary/80 font-bold tracking-wide transition-colors uppercase text-[10px] bg-primary/10 hover:bg-primary/20 px-2 py-1 rounded">ACK</button>
       </div>
     </div>
   );
@@ -345,36 +278,40 @@ export default function AlertsTimeline({ patientId }) {
           </div>
 
           {/* Alert category */}
-          <div className="flex items-center gap-1 bg-[#252527] p-1 rounded-xl border border-white/5">
-            {[
-              { value: "vital", label: "Vital Alerts" },
-              { value: "device", label: "Device Alerts" },
-            ].map(c => (
-              <FilterPill
-                key={c.value}
-                active={alertCategory === c.value}
-                onClick={() => setAlertCategory(c.value)}
-              >
-                {c.label}
-              </FilterPill>
-            ))}
+          <div className="flex items-end justify-end gap-3">
+            <div className="flex gap-0.5 bg-primary/10 border border-primary/20 rounded-xl p-1">
+              {[{ value: "vital", label: "Vital Alerts" }, { value: "device", label: "Device Alerts" }].map(c => (
+                <button
+                  key={c.value}
+                  onClick={() => setAlertCategory(c.value)}
+                  className={`text-sm font-medium px-5 py-2 rounded-lg transition-all border ${alertCategory === c.value
+                    ? "bg-primary/20 text-primary border-primary/40"
+                    : "border-transparent text-primary/70 hover:text-primary"
+                    }`}
+                >
+                  {c.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
           {/* Resolution status */}
-          <div className="flex items-center gap-1 bg-[#252527] p-1 rounded-xl border border-white/5">
-            {[
-              { value: "false", label: "Active" },
-              { value: "true", label: "Resolved" },
-            ].map(s => (
-              <FilterPill
+          <div className="flex gap-0.5 bg-[#1a1a1c] border border-white/5 rounded-lg p-0.5">
+            {[{ value: "false", label: "Active" }, { value: "true", label: "Resolved" }].map(s => (
+              <button
                 key={s.value}
-                active={isResolved === s.value}
                 onClick={() => setIsResolved(s.value)}
+                className={`text-[11px] font-medium px-3.5 py-1 rounded-md transition-all ${isResolved === s.value
+                  ? s.value === "true"
+                    ? "bg-white/8 text-green-400 border border-white/10"
+                    : "bg-white/8 text-blue-400 border border-white/10"
+                  : "text-white/35 hover:text-white/60 border border-transparent"
+                  }`}
               >
                 {s.label}
-              </FilterPill>
+              </button>
             ))}
           </div>
 
@@ -396,7 +333,9 @@ export default function AlertsTimeline({ patientId }) {
             </svg>
           </button>
         </div>
+
       </div>
+
 
       {/* ── Initial loading skeletons ── */}
       {initialLoading && (
@@ -442,18 +381,55 @@ export default function AlertsTimeline({ patientId }) {
       {/* ── Timeline feed ── */}
       {!initialLoading && !error && items.length > 0 && (
         <>
-          <div
-            className="relative space-y-4"
-            style={{ paddingLeft: "14px", borderLeft: "1px solid rgba(255,255,255,0.07)" }}
-          >
-            {items.map((item, idx) =>
-              item._kind === "alert"
-                ? <AlertCard key={`alert-${item.id ?? idx}`} alert={item} />
-                : <NoteCard key={`note-${item.id ?? idx}`} note={item} />
-            )}
+          <div className="w-full bg-[#151517] border border-white/10 rounded-xl overflow-hidden mt-4 shadow-xl">
+            {/* Table Header */}
+            <div className="hidden md:grid grid-cols-[minmax(200px,1.5fr)_minmax(250px,2fr)_120px_120px] gap-4 px-4 py-3 bg-[#1a1a1c] border-b border-white/10">
+              <div className="flex items-center gap-2 text-[10px] font-bold text-white/50 uppercase tracking-wider">
+                <svg className="w-4 h-4 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+                Alerts
+              </div>
+              <div className="text-[10px] font-bold text-white/50 uppercase tracking-wider flex items-center">Time Duration</div>
+              <div className="text-[10px] font-bold text-white/50 uppercase tracking-wider flex items-center">Priority</div>
+              <div className="text-[10px] font-bold text-white/50 uppercase tracking-wider flex items-center">Acknowledged By</div>
+            </div>
 
-            {/* load-more skeletons inline */}
-            {loadingMore && [1, 2].map(i => <SkeletonRow key={`more-${i}`} />)}
+            {/* Grouped Rows */}
+            <div className="flex flex-col">
+              {Object.entries(
+                items.reduce((acc, item) => {
+                  const type = (item._kind === "alert" ? item.vital_type : item.event_type) || "OTHER";
+                  const normalized = type.replace(/_/g, " ").toUpperCase();
+                  if (!acc[normalized]) acc[normalized] = [];
+                  acc[normalized].push(item);
+                  return acc;
+                }, {})
+              ).map(([groupName, groupItems], gIdx) => (
+                <div key={groupName} className="flex flex-col">
+                  {/* Group Header */}
+                  <div className="flex items-center gap-3 px-4 py-2.5 bg-primary/10 border-y border-primary/20 first:border-t-0">
+                    <span className="text-[11px] font-bold text-primary uppercase tracking-wider">
+                      {groupName}
+                    </span>
+                  </div>
+                  
+                  {/* Group Items */}
+                  <div className="flex flex-col">
+                    {groupItems.map((item, idx) => (
+                      <AlertTableRow key={item.id ?? `${gIdx}-${idx}`} item={item} />
+                    ))}
+                  </div>
+                </div>
+              ))}
+              
+              {/* load-more skeletons inline */}
+              {loadingMore && (
+                 <div className="p-4 border-t border-white/10">
+                    <SkeletonRow />
+                 </div>
+              )}
+            </div>
           </div>
 
           {/* Sentinel — observed by IntersectionObserver */}

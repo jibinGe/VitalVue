@@ -182,6 +182,7 @@ export default function Home() {
   ];
 
   const [takeAction, setTakeAction] = useState(false);
+  const [takeActionIsDeviceAlert, setTakeActionIsDeviceAlert] = useState(false);
   const [clinicalNotes, setClinicalNotes] = useState("");
   const [activeAction, setActiveAction] = useState(null);
   const [actionTime, setActionTime] = useState("");
@@ -189,6 +190,14 @@ export default function Home() {
   const [actionDoctorSearch, setActionDoctorSearch] = useState("");
   const [actionDoctorDropdownOpen, setActionDoctorDropdownOpen] = useState(false);
   const [isLoggingEvent, setIsLoggingEvent] = useState(false);
+
+  const deviceAction = [
+    { text: "Device Reconnected", color: "#F2685A" },
+    { text: "Network Reset", color: "#47B4EB" },
+    { text: "Battery Replaced", color: "#E06CE0" },
+    { text: "Band Adjusted", color: "#09AA59" },
+    { text: "Other Action", color: "#D2A92D" },
+  ];
 
   // Auto-fill name & time when Action Capture modal opens
   useEffect(() => {
@@ -731,6 +740,7 @@ export default function Home() {
                       setEndMonitoring={setEndMonitoring}
                       takeAction={takeAction}
                       setTakeAction={setTakeAction}
+                      setTakeActionIsDeviceAlert={setTakeActionIsDeviceAlert}
                       flagDoctor={flagDoctor}
                       setFlagDoctor={setFlagDoctor}
                     />
@@ -814,7 +824,7 @@ export default function Home() {
           <div className="">
             <p className="mb-4">Action Taken</p>
             <div className="flex flex-wrap gap-4">
-              {action.map((item, index) => (
+              {(takeActionIsDeviceAlert ? deviceAction : action).map((item, index) => (
                 <button
                   key={index}
                   onClick={() => setActiveAction(item.text)}
@@ -1225,6 +1235,14 @@ export default function Home() {
           if (alertId) {
             setTakeActionAlertId(alertId);
           }
+          
+          const isAlertBandRemoved = criticalAlarmData?.alert?.vital_type === "Band Status" && criticalAlarmData?.alert?.triggered_value === "Removed";
+          const isNetworkDisconnected = criticalAlarmData?.alert?.vital_type === "Connectivity" && (criticalAlarmData?.alert?.triggered_value === "Network Disconnected" || criticalAlarmData?.alert?.triggered_value === "Disconnected");
+          const currentIsConnected = isAlertBandRemoved ? true : (criticalAlarmData?.isConnected !== false && !isNetworkDisconnected);
+          const currentIsRemoved = isAlertBandRemoved || criticalAlarmData?.isRemoved === true;
+          const isDeviceAlarm = !currentIsConnected || currentIsRemoved;
+
+          setTakeActionIsDeviceAlert(isDeviceAlarm);
           setSelectedUserId(criticalAlarmData?.userId);
           setSelectedUserName(criticalAlarmData?.name);
           setTakeAction(true);
