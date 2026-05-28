@@ -11,7 +11,7 @@ export const usePatients = (wardId = 'all', refreshTrigger = 0, searchQuery = ""
   const queryClient = useQueryClient();
   const queryKey = ['patients', wardId, refreshTrigger, searchQuery];
   
-  const { setCriticalAlarmData, updateLiveVitals } = useDashboardStore();
+  const { setCriticalAlarmData, updateLiveVitals, clearCriticalAlarm } = useDashboardStore();
 
   const query = useQuery({
     queryKey,
@@ -100,6 +100,34 @@ export const usePatients = (wardId = 'all', refreshTrigger = 0, searchQuery = ""
     const handleAlert = (e) => {
       try {
         const data = JSON.parse(e.data);
+
+        // ── Cross-screen dismissal: ALERT_SNOOZED / ALERT_RESOLVED ────────
+        // When any logged-in user snoozes or takes action on an alert, the
+        // backend publishes this control message on the same alerts channel.
+        // We must clear the modal on all other connected screens immediately.
+        if (data.event === 'ALERT_SNOOZED' || data.event === 'ALERT_RESOLVED') {
+          console.info('[usePatients] Alert dismissed by another session:', data);
+          const currentAlarm = useDashboardStore.getState().criticalAlarmData;
+          if (currentAlarm) {
+            const currentAlertId = currentAlarm.alert?.id || currentAlarm.alert?.alert_id;
+            const dismissedAlertId = data.alert_id;
+            const dismissedPatientId = data.patient_id;
+
+            const isMatchingPatient =
+              currentAlarm.userId === dismissedPatientId ||
+              String(currentAlarm.userId) === String(dismissedPatientId);
+
+            // It's safer to clear the modal if the patient matches, even if the alert_id
+            // differs slightly due to rapid duplicate alerts or string/number type mismatches.
+            if (isMatchingPatient) {
+              console.info(`[usePatients] Dismissing modal for patient ${dismissedPatientId}`);
+              clearCriticalAlarm();
+            }
+          }
+          return; // Do not process as a real alert
+        }
+        // ─────────────────────────────────────────────────────────────────
+
         console.warn('[usePatients] Critical alert received:', data);
 
         // Map vital_type to status field and update live vitals so the patient card moves to critical

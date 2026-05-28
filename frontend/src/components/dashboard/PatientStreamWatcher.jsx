@@ -12,8 +12,8 @@ import { useDashboardStore } from '@/store/useDashboardStore';
  *   patientName : string  — displayed in the CriticalAlarmModal title
  */
 export default function PatientStreamWatcher({ patientId, patientName, room, ward, phoneNumber }) {
-  const { criticalAlert, streamData } = useVitalsStream(patientId);
-  const { setCriticalAlarmData, updateLiveVitals } = useDashboardStore();
+  const { criticalAlert, streamData, alertDismissed } = useVitalsStream(patientId);
+  const { setCriticalAlarmData, updateLiveVitals, clearCriticalAlarm, criticalAlarmData } = useDashboardStore();
 
   // 1. Update live vitals cache for clinical risks / UI bubbles
   useEffect(() => {
@@ -49,6 +49,40 @@ export default function PatientStreamWatcher({ patientId, patientName, room, war
     });
   }, [criticalAlert]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // 3. Cross-screen alert dismissal
+  // When any other logged-in user snoozes or takes action on an alert, the
+  // backend broadcasts ALERT_SNOOZED / ALERT_RESOLVED on the patient's
+  // alert channel. We receive it via SSE and clear the modal here so all
+  // other sessions see the popup disappear automatically.
+  useEffect(() => {
+    if (!alertDismissed) return;
+
+    const dismissedAlertId = alertDismissed.alert_id;
+    const dismissedPatientId = alertDismissed.patient_id;
+
+    // Only act if the currently shown alarm matches this patient & alert
+    const currentAlertId =
+      criticalAlarmData?.alert?.id ||
+      criticalAlarmData?.alert?.alert_id;
+
+    const isMatchingPatient = criticalAlarmData?.userId === patientId ||
+      criticalAlarmData?.userId === dismissedPatientId;
+
+    const isMatchingAlert =
+      !dismissedAlertId ||       // no specific ID means dismiss for the whole patient
+      !currentAlertId ||         // no current alert ID tracked → clear anyway for safety
+      currentAlertId === dismissedAlertId;
+
+    if (isMatchingPatient && isMatchingAlert) {
+      console.info(
+        '[PatientStreamWatcher] Dismissing alert modal — resolved by another session.',
+        alertDismissed
+      );
+      clearCriticalAlarm();
+    }
+  }, [alertDismissed]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Renders nothing — purely logic
   return null;
 }
+

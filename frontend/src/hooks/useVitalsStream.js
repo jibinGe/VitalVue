@@ -7,6 +7,9 @@ export const useVitalsStream = (patientId) => {
   // Each critical_alert event from the server updates this object so
   // consumers can open the alarm modal via a useEffect dependency.
   const [criticalAlert, setCriticalAlert] = useState(null);
+  // Fires when another session snoozes or resolves an alert so the modal
+  // can be dismissed on all other connected screens.
+  const [alertDismissed, setAlertDismissed] = useState(null);
   
   const latestVitalsRef = useRef(null);
   const alertSentStatusRef = useRef({ removed: false, disconnected: false, battery: false });
@@ -54,6 +57,12 @@ export const useVitalsStream = (patientId) => {
     const handleCriticalAlert = (event) => {
       try {
         const data = JSON.parse(event.data);
+
+        // ── Guard: ignore resolution/snooze control messages ────────────
+        // These arrive on the same channel but must NOT open a new alarm.
+        if (data.event === 'ALERT_SNOOZED' || data.event === 'ALERT_RESOLVED') {
+          return;
+        }
         
         // If the watch is removed or disconnected, we want to suppress bogus critical alerts (like heart rate 0).
         // However, we still allow 'warning' alerts to pass through if they are sent by the backend.
@@ -97,6 +106,32 @@ export const useVitalsStream = (patientId) => {
     // Legacy 'alert' event name (backward compat)
     eventSource.addEventListener('alert', handleCriticalAlert);
 
+    // ── alert_dismissed / alert_snoozed events ───────────────────────────
+    // These are published by the backend when ANY user snoozes or resolves
+    // an alert so that all other connected sessions can remove the popup.
+    const handleAlertDismissed = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        // Payload: { event: 'ALERT_SNOOZED'|'ALERT_RESOLVED', alert_id, patient_id, ... }
+        if (
+          data.event === 'ALERT_SNOOZED' ||
+          data.event === 'ALERT_RESOLVED'
+        ) {
+          console.info('[VitalsStream] Alert dismissed by another session:', data);
+          setAlertDismissed({ ...data, _ts: Date.now() });
+        }
+      } catch (err) {
+        console.error('Error parsing alert dismissed event:', err);
+      }
+    };
+
+    // The backend publishes these on the same :alerts channel, which arrives
+    // as the 'alert' or 'critical_alert' SSE event types. We also listen on
+    // a dedicated 'alert_dismissed' event for forward compatibility.
+    eventSource.addEventListener('alert_dismissed', handleAlertDismissed);
+    eventSource.addEventListener('critical_alert', handleAlertDismissed);
+    eventSource.addEventListener('alert', handleAlertDismissed);
+
     eventSource.onerror = (error) => {
       console.error('EventSource error:', error);
       setIsConnected(false);
@@ -110,5 +145,5 @@ export const useVitalsStream = (patientId) => {
     };
   }, [patientId]);
 
-  return { streamData, isConnected, streamError, criticalAlert };
+  return { streamData, isConnected, streamError, criticalAlert, alertDismissed };
 };
