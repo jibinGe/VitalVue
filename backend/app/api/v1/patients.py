@@ -677,20 +677,25 @@ async def snooze_alert(
 async def get_notifications(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    unread_only: bool = Query(False),
+    unread_only: bool = Query(False, description="If true, returns only active or snoozed alerts"),
+    alert_category: Optional[str] = Query(None, description="Filter categories: 'vital', 'device'"),
+    is_resolved: Optional[bool] = Query(None, description="Filter by resolution state: true/false"),
     page: int = Query(1, ge=1, description="Page number, starting from 1"),
-    limit: int = Query(50, ge=1, le=100, description="Number of items per page (max 100)")
+    limit: int = Query(50, ge=1, le=100, description="Items per page (max 100)")
 ):
-    # Fetch patients assigned to the current user
-    # Note: Fixed the User.is_active check to properly filter on Patient if needed, 
-    # but keeping your core query logic intact.
+    """
+    Retrieves paginated alerts assigned to the current staff member with advanced filtering:
+    - unread_only: Filters statuses to ['active', 'snoozed']
+    - alert_category: 'vital' (clinical metrics) vs 'device' (hardware/network drops)
+    - is_resolved: True (Solved entries) vs False (Unsolved entries)
+    """
+    # 1. Fetch patients assigned to the current user based on role partitions
     patient_query = select(Patient.id)
     if current_user.role == UserRole.NURSE:
         patient_query = patient_query.where(Patient.nurse_id == current_user.id)
     elif current_user.role == UserRole.DOCTOR:
         patient_query = patient_query.where(Patient.doctor_id == current_user.id)
     elif current_user.role in [UserRole.ORG_ADMIN, UserRole.MASTER_ADMIN]:
-        # Joined Patient to User to filter by organization accurately
         patient_query = patient_query.join(User, Patient.user_id == User.id).where(
             User.organization_id == current_user.organization_id
         )
@@ -705,29 +710,47 @@ async def get_notifications(
             "limit": limit,
             "notifications": []
         }
-        
-    # 1. Total Count Query (Matches frontend expectations for pagination bars)
-    count_query = select(func.count(Alert.id)).where(Alert.patient_id.in_(patient_ids))
+
+    # 2. Build the Base Alert Filter Conditions Matrix
+    # We construct this dynamically so both the COUNT query and the ROW query use identical rules
+    base_filters = [Alert.patient_id.in_(patient_ids)]
+
+    # Filter A: Unread Only Status Filter
     if unread_only:
-        count_query = count_query.where(Alert.status.in_(["active", "snoozed"]))
+        base_filters.append(Alert.status.in_(["active", "snoozed"]))
+
+    # Filter B: Resolution State Filter (Protects against Boolean NULL/False validation gaps)
+    if is_resolved is not None:
+        if is_resolved:
+            base_filters.append(Alert.is_resolved == True)
+        else:
+            base_filters.append(or_(Alert.is_resolved == False, Alert.is_resolved == None))
+
+    # Filter C: Category Partitioning Filter
+    if alert_category:
+        device_types = ["Connectivity", "Band Status"]
+        if alert_category.lower() == "device":
+            base_filters.append(Alert.vital_type.in_(device_types))
+        elif alert_category.lower() == "vital":
+            base_filters.append(Alert.vital_type.not_in(device_types))
+
+    # 3. Total Filtered Count Query (Crucial for computing accurate frontend pagination limits)
+    count_query = select(func.count(Alert.id)).where(*base_filters)
     total_count_result = await db.execute(count_query)
     total_count = total_count_result.scalar() or 0
         
-    # 2. Main Alert Query with Pagination Logic
+    # 4. Main Alert Retrieval Query with Joins & Pagination Window applied
     alert_query = (
         select(Alert, Patient.full_name, Patient.room_id)
         .join(Patient, Alert.patient_id == Patient.id)
-        .where(Alert.patient_id.in_(patient_ids))
+        .where(*base_filters)
         .order_by(Alert.created_at.desc())
     )
     
-    if unread_only:
-        alert_query = alert_query.where(Alert.status.in_(["active", "snoozed"]))
-        
-    # --- PAGINATION MATH ---
+    # --- PAGINATION CONSTRAINT MATH ---
     offset = (page - 1) * limit
     alert_query = alert_query.offset(offset).limit(limit)
-    # -----------------------
+    # ----------------------------------
         
     alerts_result = await db.execute(alert_query)
     rows = alerts_result.all()
@@ -744,9 +767,9 @@ async def get_notifications(
             "triggered_value": alert.triggered_value,
             "status": alert.status,
             "severity": alert.severity,
-            "is_flagged": alert.is_flagged,
+            "is_flagged": alert.is_flagged if alert.is_flagged is not None else False,
             "snoozed_until": alert.snoozed_until.isoformat() if alert.snoozed_until else None,
-            "is_resolved": alert.is_resolved,
+            "is_resolved": alert.is_resolved if alert.is_resolved is not None else False,
             "resolved_at": alert.resolved_at.isoformat() if alert.resolved_at else None,
             "created_at": alert.created_at.isoformat() if alert.created_at else None,
         })
