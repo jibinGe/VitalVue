@@ -141,7 +141,7 @@ const PatientCard = memo(({
                                     {cardMenu === index + 1 && (
                                         <motion.div ref={card_ref} initial={{ opacity: 0, scale: 0.9, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 10 }} transition={{ duration: 0.15 }} className="absolute top-8 right-0 min-w-[200px] bg-[#222225] border border-white/16 rounded-2xl shadow-2xl z-[90] overflow-hidden">
                                             {CardMenu.map((menuItem, menuIndex) => {
-                                                const isAction = menuItem.text === "End Monitoring";
+                                                const isAction = menuItem.text === "Patient Discharge";
                                                 const text = (isAction && !item.isConnected) ? "Start Monitoring" : menuItem.text;
                                                 return (
                                                     <button key={menuIndex} onClick={(e) => {
@@ -412,14 +412,14 @@ const PatientCard = memo(({
                                     <div className="w-full xl:w-[270px] shrink-0 flex items-center">
                                         <button
                                             className="w-full btn min-h-[58px] px-0 bg-transparent border border-white/20 hover:bg-white/5 rounded-xl text-white font-medium text-sm transition-colors"
-                                            onClick={(e) => { 
-                                                e.stopPropagation(); 
+                                            onClick={(e) => {
+                                                e.stopPropagation();
                                                 if (setTakeActionIsDeviceAlert) {
                                                     setTakeActionIsDeviceAlert(!item.isConnected || item.isRemoved);
                                                 }
-                                                setTakeAction(true); 
-                                                setSelectedUserId(item.id); 
-                                                setSelectedUserName(item.name); 
+                                                setTakeAction(true);
+                                                setSelectedUserId(item.id);
+                                                setSelectedUserName(item.name);
                                             }}
                                         >
                                             Take Action

@@ -177,7 +177,7 @@ export default function Home() {
           />
         </svg>
       ),
-      text: "End Monitoring",
+      text: "Patient Discharge",
     },
   ];
 
@@ -1153,8 +1153,8 @@ export default function Home() {
             setSelectedUserName(null);
           }
         }}
-        title="End Patient Monitoring"
-        message={`Are you absolutely sure you want to end active monitoring for ${selectedUserName ? `${selectedUserName} (ID: ${selectedUserId})` : `ID: ${selectedUserId || "N/A"}`}? Please confirm the necessary archival steps.`}
+        title="Patient Discharge"
+        message={`Are you absolutely sure you want to discharge ${selectedUserName ? `${selectedUserName} (ID: ${selectedUserId})` : `ID: ${selectedUserId || "N/A"}`}?`}
         confirmText={endingMonitoring ? "Ending..." : "Confirm"}
         cancelText="Cancel"
         icon={
@@ -1235,7 +1235,7 @@ export default function Home() {
           if (alertId) {
             setTakeActionAlertId(alertId);
           }
-          
+
           const isAlertBandRemoved = criticalAlarmData?.alert?.vital_type === "Band Status" && criticalAlarmData?.alert?.triggered_value === "Removed";
           const isNetworkDisconnected = criticalAlarmData?.alert?.vital_type === "Connectivity" && (criticalAlarmData?.alert?.triggered_value === "Network Disconnected" || criticalAlarmData?.alert?.triggered_value === "Disconnected");
           const currentIsConnected = isAlertBandRemoved ? true : (criticalAlarmData?.isConnected !== false && !isNetworkDisconnected);

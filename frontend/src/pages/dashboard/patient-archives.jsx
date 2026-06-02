@@ -9,6 +9,7 @@ import Checkbox from '@/components/ui/checkbox'
 import Dropdown from '@/components/ui/dropdown'
 import DatePicker from '@/components/ui/date-picker';
 import { patientService } from '@/services/patientService';
+import ConfirmationModal from '@/components/ui/ConfirmationModal';
 
 export default function PatientArchives() {
     const [quick_filter, set_quick_filter] = useState(true)
@@ -43,23 +44,57 @@ export default function PatientArchives() {
 
     const [archivedPatients, setArchivedPatients] = useState([]);
     const [loadingArchives, setLoadingArchives] = useState(false);
+    const [unarchiveModalOpen, setUnarchiveModalOpen] = useState(false);
+    const [selectedPatientId, setSelectedPatientId] = useState(null);
+    const [selectedPatientName, setSelectedPatientName] = useState(null);
+    const [isUnarchiving, setIsUnarchiving] = useState(false);
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
 
     useEffect(() => {
         const fetchArchives = async () => {
             setLoadingArchives(true);
             try {
-                // Placeholder for future backend integration
-                // const response = await patientService.getArchivedPatients();
-                // if (response.success) setArchivedPatients(response.data);
-                setArchivedPatients([]);
+                const response = await patientService.getLifecycleRegistry();
+                if (response.success && response.data?.patients) {
+                    const formattedData = response.data.patients.map(p => {
+                        const start = p.created_at ? new Date(p.created_at) : null;
+                        const end = p.discharged_at ? new Date(p.discharged_at) : null;
+                        
+                        let duration = "-";
+                        if (start && end) {
+                            const diffMs = end - start;
+                            if (diffMs > 0) {
+                                const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+                                const diffHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                                duration = diffDays > 0 ? `${diffDays}d ${diffHours}h` : `${diffHours}h`;
+                            }
+                        }
+
+                        return {
+                            id: p.id,
+                            userId: p.user_id,
+                            name: p.full_name || "Unknown",
+                            uhid: p.user_id || "-",
+                            ward: p.room_no || "-",
+                            monitoringStart: start ? start.toLocaleString() : "-",
+                            monitoringEnd: end ? end.toLocaleString() : "-",
+                            duration: duration,
+                            risk: p.archive_status || "-",
+                        };
+                    });
+                    setArchivedPatients(formattedData);
+                } else {
+                    setArchivedPatients([]);
+                }
             } catch (error) {
                 console.error('Failed to fetch archived patients:', error);
+                setArchivedPatients([]);
             } finally {
                 setLoadingArchives(false);
             }
         };
         fetchArchives();
-    }, []);
+    }, [refreshTrigger]);
 
     return (
         <>
@@ -171,6 +206,16 @@ export default function PatientArchives() {
                                                         <button className='text-para hover:text-primary'>
                                                             <Eye className='size-4 lg:size-6' />
                                                         </button>
+                                                        <button className='text-para hover:text-[#4DE573]' title="Unarchive Patient" onClick={() => {
+                                                            setSelectedPatientId(patient.id || patient.userId);
+                                                            setSelectedPatientName(patient.name);
+                                                            setUnarchiveModalOpen(true);
+                                                        }}>
+                                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                                                                <path d="M3 3v5h5" />
+                                                            </svg>
+                                                        </button>
                                                     </div>
                                                 </td>
                                             </tr>
@@ -207,6 +252,37 @@ export default function PatientArchives() {
                     </div>
                 </div>
             </MainBody>
+            <ConfirmationModal
+                isOpen={unarchiveModalOpen}
+                onClose={() => {
+                    if (!isUnarchiving) {
+                        setUnarchiveModalOpen(false);
+                        setSelectedPatientId(null);
+                        setSelectedPatientName(null);
+                    }
+                }}
+                title="Unarchive Patient"
+                message={`Are you sure you want to unarchive ${selectedPatientName}? This will resume monitoring for the patient.`}
+                confirmText={isUnarchiving ? "Unarchiving..." : "Confirm"}
+                cancelText="Cancel"
+                onConfirm={async () => {
+                    if (!selectedPatientId || isUnarchiving) return;
+                    setIsUnarchiving(true);
+                    try {
+                        const response = await patientService.unarchivePatient(selectedPatientId);
+                        if (response.success) {
+                            setUnarchiveModalOpen(false);
+                            setRefreshTrigger(prev => prev + 1);
+                        } else {
+                            console.error(response.message);
+                        }
+                    } catch (error) {
+                        console.error(error);
+                    } finally {
+                        setIsUnarchiving(false);
+                    }
+                }}
+            />
             <Footer />
         </>
     )

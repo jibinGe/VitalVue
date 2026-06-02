@@ -67,14 +67,24 @@ export const patientService = {
   },
 
   /**
-   * End monitoring a patient
+   * Discharge a patient
    */
   async endMonitoring(patientId, endData = {}) {
-    return {
-      success: true,
-      data: null,
-      message: "Monitoring ended",
-    };
+    try {
+      const response = await apiClient.post(`/api/v1/patients/${patientId}/discharge`);
+      return {
+        success: true,
+        data: response.data,
+        message: response.data?.message || "Patient discharged successfully",
+      };
+    } catch (error) {
+      console.error('Error discharging patient:', error);
+      return {
+        success: false,
+        data: null,
+        message: error.response?.data?.message || error.message || "Failed to discharge patient",
+      };
+    }
   },
 
   /**
@@ -89,20 +99,71 @@ export const patientService = {
   },
 
   /**
+   * Get patient lifecycle registry (archived, paused)
+   */
+  async getLifecycleRegistry(params = {}) {
+    try {
+      const response = await apiClient.get('/api/v1/patients/lifecycle-registry', {
+        params: {
+          view_type: 'archived',
+          page: 1,
+          limit: 20,
+          ...params
+        }
+      });
+      return {
+        success: true,
+        data: response.data,
+        message: "Success",
+      };
+    } catch (error) {
+      console.error('Error fetching lifecycle registry:', error);
+      return {
+        success: false,
+        data: null,
+        message: error.response?.data?.message || error.message || "Failed to fetch registry",
+      };
+    }
+  },
+
+  /**
+   * Unarchive / Readmit a patient
+   */
+  async unarchivePatient(patientId) {
+    try {
+      const response = await apiClient.post(`/api/v1/patients/readmit`, {
+        archived_patient_id: patientId,
+      });
+      return {
+        success: true,
+        data: response.data,
+        message: response.data?.message || "Patient unarchived successfully",
+      };
+    } catch (error) {
+      console.error('Error unarchiving patient:', error);
+      return {
+        success: false,
+        data: null,
+        message: error.response?.data?.message || error.message || "Failed to unarchive patient",
+      };
+    }
+  },
+
+  /**
    * Get patient metadata by ID or User ID
    * Replaces the former lookup logic for patient metadata
    */
   async getPatientById(identifier) {
     try {
       if (!identifier) return { success: false, message: "No identifier provided" };
-      
+
       // Fetch assigned patients to find the specific one
       const response = await apiClient.get('/api/v1/patients/assigned');
       const patients = response.data || [];
-      
+
       // Look up by patient ID (integer/string) or user ID
-      const patient = patients.find(p => 
-        p.user_id === identifier || 
+      const patient = patients.find(p =>
+        p.user_id === identifier ||
         p.id?.toString() === identifier?.toString()
       );
 
@@ -855,8 +916,8 @@ export const patientService = {
   async getNotifications(unreadOnly = false, page = 1, limit = 50, alertCategory = '', isResolved = undefined) {
     try {
       const params = { unread_only: unreadOnly, page, limit };
-      if (alertCategory)             params.alert_category = alertCategory;
-      if (isResolved !== undefined)  params.is_resolved    = isResolved;
+      if (alertCategory) params.alert_category = alertCategory;
+      if (isResolved !== undefined) params.is_resolved = isResolved;
 
       const response = await apiClient.get('/api/v1/patients/notifications', { params });
       return {
@@ -929,13 +990,13 @@ export const patientService = {
       if (!response.success || !response.data || response.data.length === 0) {
         return { success: true, data: null, message: "No data found" };
       }
-      
+
       const latest = response.data[response.data.length - 1];
       const score = typeof latest.v === 'string' ? parseInt(latest.v, 10) : latest.v;
       let riskLevel = 'Low';
       if (score >= 7) riskLevel = 'High';
       else if (score >= 5) riskLevel = 'Medium';
-      
+
       return {
         success: true,
         data: {
@@ -962,19 +1023,19 @@ export const patientService = {
       if (!response.success || !response.data || response.data.length === 0) {
         return { success: true, data: null, message: "No warning found" };
       }
-      
+
       const latest = response.data[response.data.length - 1];
       const val = latest.v; // 'Normal' or 'Detected'
       const status = val === 'Detected' ? 'High' : 'Normal';
-      
+
       return {
         success: true,
         data: {
           hasWarning: val === 'Detected',
           status: status,
-          confidence: val === 'Detected' ? 85 : 0, 
+          confidence: val === 'Detected' ? 85 : 0,
           detection: val === 'Detected' ? 'Irregular' : 'Regular',
-          episodes: val === 'Detected' ? [{ duration: 120 }] : [], 
+          episodes: val === 'Detected' ? [{ duration: 120 }] : [],
           timestamp: latest.t,
         },
         message: "Success"
@@ -994,7 +1055,7 @@ export const patientService = {
       if (!response.success || !response.data || response.data.length === 0) {
         return { success: true, data: null, message: "No risk assessment found" };
       }
-      
+
       const latest = response.data[response.data.length - 1];
       const riskLevel = latest.v; // 'Low', 'Medium', 'High'
       let score = 2;
@@ -1032,11 +1093,11 @@ export const patientService = {
   async getPatientTimeline(patientId, params = {}) {
     try {
       const queryParams = {
-        page:  params.page  ?? 1,
+        page: params.page ?? 1,
         limit: params.limit ?? 10,
       };
-      if (params.alert_category)            queryParams.alert_category = params.alert_category;
-      if (params.is_resolved !== undefined) queryParams.is_resolved    = params.is_resolved;
+      if (params.alert_category) queryParams.alert_category = params.alert_category;
+      if (params.is_resolved !== undefined) queryParams.is_resolved = params.is_resolved;
 
       const response = await apiClient.get(`/api/v1/patients/${patientId}/timeline`, { params: queryParams });
       return {
@@ -1063,7 +1124,7 @@ export const patientService = {
       if (!response.success || !response.data || response.data.length === 0) {
         return { success: true, data: null, message: "No risk assessment found" };
       }
-      
+
       const latest = response.data[response.data.length - 1];
       const riskLevel = latest.v; // 'Low', 'Medium', 'High'
 
