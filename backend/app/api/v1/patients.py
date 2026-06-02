@@ -739,11 +739,15 @@ async def get_notifications(
     total_count_result = await db.execute(count_query)
     total_count = total_count_result.scalar() or 0
         
-    # 4. Main Alert Retrieval Query with Joins & Pagination Window applied
+    # 2. Main Alert Query with Pagination Logic
+    from sqlalchemy.orm import aliased
+    Resolver = aliased(User)
+    
     alert_query = (
-        select(Alert, Patient.full_name, Patient.room_id)
+        select(Alert, Patient.full_name, Patient.room_id, Resolver.full_name)
         .join(Patient, Alert.patient_id == Patient.id)
-        .where(*base_filters)
+        .outerjoin(Resolver, Alert.resolved_by == Resolver.id)
+        .where(Alert.patient_id.in_(patient_ids))
         .order_by(Alert.created_at.desc())
     )
     
@@ -755,8 +759,17 @@ async def get_notifications(
     alerts_result = await db.execute(alert_query)
     rows = alerts_result.all()
     
+    # 3. Fetch actions for the returned alerts
+    alert_ids = [row[0].id for row in rows]
+    action_map = {}
+    if alert_ids:
+        action_query = select(Action).where(Action.alert_id.in_(alert_ids)).order_by(Action.performed_at.asc())
+        actions_result = await db.execute(action_query)
+        for action in actions_result.scalars().all():
+            action_map[action.alert_id] = action.action_type
+            
     notifications = []
-    for alert, patient_name, room_id in rows:
+    for alert, patient_name, room_id, resolver_name in rows:
         notifications.append({
             "id": alert.id,
             "patient_id": alert.patient_id,
@@ -772,6 +785,8 @@ async def get_notifications(
             "is_resolved": alert.is_resolved if alert.is_resolved is not None else False,
             "resolved_at": alert.resolved_at.isoformat() if alert.resolved_at else None,
             "created_at": alert.created_at.isoformat() if alert.created_at else None,
+            "resolved_by_name": resolver_name,
+            "action_taken": action_map.get(alert.id),
         })
         
     return {

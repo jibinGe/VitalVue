@@ -69,6 +69,24 @@ function formatTime(ts) {
     return toUtcDate(ts).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 }
 
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+const DEVICE_ACTIONS = [
+    { label: "Device Reconnected", colorClass: "text-[#E54D4D]" },
+    { label: "Network Reset", colorClass: "text-[#4D8AE5]" },
+    { label: "Battery Replaced", colorClass: "text-[#D94CE5]" },
+    { label: "Band Adjusted", colorClass: "text-[#4DE573]" },
+    { label: "Other Action", colorClass: "text-[#E5DB4C]" },
+];
+
+const CLINICAL_ACTIONS = [
+    { label: "Patient Examinated", colorClass: "text-[#E54D4D]" },
+    { label: "Informed Doctor", colorClass: "text-[#4D8AE5]" },
+    { label: "Medication Given", colorClass: "text-[#D94CE5]" },
+    { label: "Oxygen Started", colorClass: "text-[#4DE573]" },
+    { label: "Other Action", colorClass: "text-[#E5DB4C]" },
+];
+
 // ── Notification Row ──────────────────────────────────────────────────────────
 
 // Cinematic Framer Motion Variants for a pronounced 1-by-1 cascade
@@ -103,7 +121,7 @@ const rowVariants = {
     }
 };
 
-function NotificationRow({ notif, onAcknowledge, index }) {
+function NotificationRow({ notif, onAcknowledge, onResolve, index }) {
     const type = (notif.severity || notif.type || notif.priority || 'info').toLowerCase();
     const sev = getSeverity(type);
 
@@ -130,7 +148,7 @@ function NotificationRow({ notif, onAcknowledge, index }) {
             initial="hidden"
             animate="visible"
             exit="exit"
-            className="grid grid-cols-1 md:grid-cols-[minmax(300px,2fr)_minmax(180px,1fr)_140px_180px] gap-6 items-center px-6 py-5 bg-[#1a1a1c] border-b border-white/5 hover:bg-white/[0.04] transition-colors last:border-b-0 overflow-hidden"
+            className="grid grid-cols-1 md:grid-cols-[minmax(300px,2fr)_minmax(180px,1fr)_140px_140px_140px] gap-6 items-center px-6 py-5 bg-[#1a1a1c] border-b border-white/5 hover:bg-white/[0.04] transition-colors last:border-b-0 overflow-hidden"
         >
             {/* Notification Info */}
             <div className="flex flex-col gap-1.5">
@@ -144,9 +162,8 @@ function NotificationRow({ notif, onAcknowledge, index }) {
             </div>
 
             {/* Time */}
-            <div className="flex flex-col gap-1 text-sm text-white/70">
-                <span className="font-bold text-white">{timeSince}</span>
-                <span className="text-xs text-white/40">{time}</span>
+            <div className="flex flex-col justify-center text-sm text-white">
+                <span className="font-bold">{time}</span>
             </div>
 
             {/* Priority */}
@@ -161,23 +178,50 @@ function NotificationRow({ notif, onAcknowledge, index }) {
             {/* Status */}
             <div className="flex flex-col gap-1.5">
                 {resolved ? (
-                    <span className="inline-flex items-center gap-2 text-[#4DE573] text-sm font-medium">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
-                        Resolved {notif.resolved_at ? formatTime(notif.resolved_at) : ''}
-                    </span>
+                    <div className="flex flex-col gap-0.5">
+                        <span className="inline-flex items-center gap-1.5 text-[#4DE573] text-sm font-medium">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
+                            Resolved
+                        </span>
+                        {notif.resolved_at && (
+                            <span className="text-xs text-[#4DE573]/70 whitespace-nowrap">
+                                {toUtcDate(notif.resolved_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} at {formatTime(notif.resolved_at)}
+                            </span>
+                        )}
+                    </div>
                 ) : snoozed ? (
                     <span className="inline-flex items-center gap-2 text-[#E5DB4C] text-sm font-medium">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
                         Snoozed
                     </span>
                 ) : (
-                    <div className="flex items-center justify-between text-sm text-white/50 w-full pr-2">
-                        <span className="text-[#E54D4D] font-medium flex items-center gap-2">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
-                            Active
-                        </span>
-                        <button onClick={() => onAcknowledge(alertId)} className="text-primary hover:text-primary/80 font-bold tracking-wide transition-colors uppercase text-xs bg-primary/10 hover:bg-primary/20 px-3 py-1.5 rounded-md">ACK</button>
+                    <span className="inline-flex items-center gap-2 text-[#E54D4D] text-sm font-medium">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
+                        Active
+                    </span>
+                )}
+            </div>
+
+            {/* Action */}
+            <div className="flex flex-col gap-1 justify-center">
+                {!resolved ? (
+                    <div className="flex items-center gap-2">
+                        <button onClick={() => onAcknowledge(alertId)} className="text-primary hover:text-primary/80 font-bold tracking-wide transition-colors uppercase text-xs bg-primary/10 hover:bg-primary/20 px-2 py-1.5 rounded-md">ACK</button>
+                        <button onClick={() => onResolve(notif)} className="text-[#4DE573] hover:text-[#4DE573]/80 font-bold tracking-wide transition-colors uppercase text-xs bg-[#4DE573]/10 hover:bg-[#4DE573]/20 px-2 py-1.5 rounded-md">Resolve</button>
                     </div>
+                ) : (
+                    <>
+                        {notif.resolved_by_name && (
+                            <span className="text-[11px] text-white/50 leading-tight">
+                                By: <span className="text-white/80 font-medium">{notif.resolved_by_name}</span>
+                            </span>
+                        )}
+                        {notif.action_taken && (
+                            <span className="text-[11px] text-white/50 leading-tight">
+                                Action: <span className="text-[#4DE573]/80 font-medium">{notif.action_taken}</span>
+                            </span>
+                        )}
+                    </>
                 )}
             </div>
         </motion.div>
@@ -226,8 +270,51 @@ export default function NotificationsPage() {
     const [loading, setLoading] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
 
+    // ── modal state ───────────────────────────────────────────────────────────
+    const [actionModalState, setActionModalState] = useState({ isOpen: false, notif: null });
+    const [selectedActionPill, setSelectedActionPill] = useState('');
+    const [actionTakenText, setActionTakenText] = useState('');
+
     const sentinelRef = useRef(null);
     const isFetchingRef = useRef(false);
+
+    const openActionModal = (notif) => {
+        setActionModalState({ isOpen: true, notif });
+        setSelectedActionPill('');
+        setActionTakenText('');
+    };
+
+    const closeActionModal = () => {
+        setActionModalState({ isOpen: false, notif: null });
+    };
+
+    const handleResolveAction = async () => {
+        if (!actionModalState.notif) return;
+        const notif = actionModalState.notif;
+        const alertId = notif.id || notif._id || notif.alertId;
+        const patientId = notif.patient_id || notif.patientId;
+
+        try {
+            if (patientId) {
+                await patientService.captureAction({
+                    patientId: patientId,
+                    actionType: selectedActionPill || 'Other Action',
+                    alertId: alertId,
+                    otherDetails: selectedActionPill === 'Other Action' ? actionTakenText : ''
+                });
+            }
+
+            // using acknowledgeAlert to mark it as resolved in the backend for now
+            await patientService.acknowledgeAlert(alertId);
+            const filtered = allNotifs.filter((n) => (n._id || n.id || n.alertId) !== alertId);
+            setAllNotifs(filtered);
+            setTotalCount(filtered.length);
+            setGrouped(groupByDate(filtered));
+        } catch (err) {
+            console.error('Resolve error:', err);
+        }
+        closeActionModal();
+    };
 
     // ── fetch ─────────────────────────────────────────────────────────────────
     const fetchPage = useCallback(async (pageNum, reset = false) => {
@@ -377,13 +464,14 @@ export default function NotificationsPage() {
                     {/* notifications table */}
                     {!loading && grouped.length > 0 && (
                         <div className="w-full bg-[#151517] border border-white/10 rounded-2xl overflow-hidden shadow-xl">
-                            <div className="hidden md:grid grid-cols-[minmax(300px,2fr)_minmax(180px,1fr)_140px_180px] gap-6 px-6 py-4 bg-[#1a1a1c] border-b border-white/10">
+                            <div className="hidden md:grid grid-cols-[minmax(300px,2fr)_minmax(180px,1fr)_140px_140px_140px] gap-6 px-6 py-4 bg-[#1a1a1c] border-b border-white/10">
                                 <div className="flex items-center gap-3 text-xs font-bold text-white/50 uppercase tracking-wider">
                                     <svg className="w-5 h-5 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg> Notification
                                 </div>
                                 <div className="text-xs font-bold text-white/50 uppercase tracking-wider flex items-center">Time</div>
                                 <div className="text-xs font-bold text-white/50 uppercase tracking-wider flex items-center">Priority</div>
                                 <div className="text-xs font-bold text-white/50 uppercase tracking-wider flex items-center">Status</div>
+                                <div className="text-xs font-bold text-white/50 uppercase tracking-wider flex items-center">Action</div>
                             </div>
 
                             <div className="flex flex-col">
@@ -408,6 +496,7 @@ export default function NotificationsPage() {
                                                                 notif={notif}
                                                                 index={currentDelayIndex}
                                                                 onAcknowledge={handleAcknowledge}
+                                                                onResolve={openActionModal}
                                                             />
                                                         );
                                                     })}
@@ -436,6 +525,83 @@ export default function NotificationsPage() {
                     )}
                 </div>
             </div>
+
+            {/* Action Taken Modal */}
+            <AnimatePresence>
+                {actionModalState.isOpen && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                            className="bg-[#1a1a1c] border border-white/10 rounded-2xl p-6 w-full max-w-md shadow-2xl relative"
+                        >
+                            <div className="flex items-center justify-between mb-6">
+                                <h3 className="text-xl font-medium text-white">Action Capture</h3>
+                                <button onClick={closeActionModal} className="text-white/50 hover:text-white transition-colors">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
+                                </button>
+                            </div>
+
+                            <p className="text-sm text-white/70 mb-4">Action Taken</p>
+
+                            <div className="flex flex-wrap gap-3 mb-6">
+                                {(actionModalState.notif && !actionModalState.notif.vital_type ? DEVICE_ACTIONS : CLINICAL_ACTIONS).map((action) => (
+                                    <button
+                                        key={action.label}
+                                        onClick={() => {
+                                            setSelectedActionPill(action.label);
+                                            if (action.label !== 'Other Action') {
+                                                setActionTakenText(action.label);
+                                            } else {
+                                                setActionTakenText('');
+                                            }
+                                        }}
+                                        className={`px-4 py-2 rounded-full text-sm font-medium transition-colors border ${selectedActionPill === action.label ? 'bg-white/15 border-white/30' : 'bg-white/5 border-transparent hover:bg-white/10'} ${action.colorClass}`}
+                                    >
+                                        {action.label}
+                                    </button>
+                                ))}
+                            </div>
+
+                            <AnimatePresence>
+                                {selectedActionPill === 'Other Action' && (
+                                    <motion.div
+                                        initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+                                        animate={{ opacity: 1, height: 'auto', marginBottom: 24 }}
+                                        exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                                        className="overflow-hidden"
+                                    >
+                                        <textarea
+                                            value={actionTakenText}
+                                            onChange={(e) => setActionTakenText(e.target.value)}
+                                            placeholder="Please describe the action taken..."
+                                            className="w-full h-24 bg-white/5 border border-white/10 rounded-xl p-4 text-white placeholder-white/30 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all resize-none mt-2"
+                                        />
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+
+                            <div className="flex items-center justify-end gap-3 pt-2">
+                                <button
+                                    onClick={closeActionModal}
+                                    className="px-6 py-2 rounded-xl border border-white/10 text-white/70 hover:text-white hover:bg-white/5 transition-colors font-medium text-sm"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleResolveAction}
+                                    disabled={!actionTakenText.trim()}
+                                    className="px-6 py-2 rounded-xl bg-[#A58352] text-white font-medium text-sm hover:bg-[#A58352]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    Confirm
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
