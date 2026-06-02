@@ -43,14 +43,11 @@ export default function CriticalAlarmModal({
   // Device alarm: triggered when watch is disconnected OR band is removed
   // Also check the SSE alert payload for "Band Status" or "Connectivity" alerts
   const isAlertBandRemoved = alert?.vital_type === "Band Status" && alert?.triggered_value === "Removed";
-  const isNetworkDisconnected = alert?.vital_type === "Connectivity" && (
-    alert?.triggered_value === "Network Disconnected" ||
-    alert?.triggered_value === "Disconnected"
-  );
-  const isAlertDisconnected = isNetworkDisconnected;
+  const isNetworkDisconnected = alert?.vital_type === "Connectivity" && alert?.triggered_value === "Network Disconnected";
+  const isAlertBluetoothDisconnected = alert?.vital_type === "Connectivity" && alert?.triggered_value === "Disconnected";
 
   // Priority to alert payload. If it's explicitly a band removed alert, ignore stale `isConnected` false state.
-  const currentIsConnected = isAlertBandRemoved ? true : (isConnected !== false && !isAlertDisconnected);
+  const currentIsConnected = isAlertBandRemoved ? true : (isAlertBluetoothDisconnected ? false : (isConnected !== false && !isNetworkDisconnected));
   const currentIsRemoved = isAlertBandRemoved || isRemoved === true;
 
   const isDeviceAlarm = !currentIsConnected || currentIsRemoved;
