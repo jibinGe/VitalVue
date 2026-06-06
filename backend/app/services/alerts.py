@@ -5,46 +5,48 @@ from app.core.config import settings
 # Initialize client using settings
 client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
 
-async def send_vitalvue_whatsapp(
-    doctor_phone: str, 
-    patient_name: str, 
-    reason: str,      
-    hr: str,          
-    spo2: str,        
-    news2: str,       
-    ward_name: str,   
-    room_name: str    
+async def send_consolidated_vitalvue_alert(
+    doctor_phone: str,
+    severity: str,       # e.g., "🚨 CRITICAL", "⚠️ HIGH", "⚪ SYSTEM"
+    alert_title: str,    # e.g., "Shock Alert", "Device Disconnection"
+    patient_name: str,   # Patient's Full Name
+    location: str,       # e.g., "Ward 3 - Room 12/Bed B"
+    observations: str,   # Multi-line string showing vitals or system issues
+    concern: str,        # Brief summary of the underlying concern
+    action_required: str # What the clinician/staff needs to do immediately
 ):
     """
-    Sends the WhatsApp alert using the standardized Vitalvue template HX95...
+    Sends a consolidated, multi-purpose VitalVue alert via WhatsApp using 
+    a single flexible template format.
     """
     try:
-        # 1. Format the phone number
+        # 1. Format the phone number safely
         formatted_phone = doctor_phone.strip()
         if not formatted_phone.startswith("+"):
             formatted_phone = f"+91{formatted_phone}"
 
-        # 2. Build the variables dictionary exactly like your reference
-        # We ensure every value is a clean string to satisfy Twilio's validation
+        # 2. Build variables matching the sequential 1-7 layout of the template
         variables = {
-            "1": str(patient_name),
-            "2": "HR",                   # Mapping to placeholder 2
-            "3": str(int(float(hr))),    # Rounding to whole number
-            "4": f"{float(spo2):.1f}",   # Rounding to 1 decimal place (e.g., 92.6)
-            "5": str(int(float(news2))), # Placeholder 5
-            "6": str(reason)[:60],       # Placeholder 6 (Truncated for safety)
-            "7": str(room_name)          # Placeholder 7
+            "1": str(severity).upper(),
+            "2": str(alert_title),
+            "3": str(patient_name),
+            "4": str(location),
+            "5": str(observations),
+            "6": str(concern),
+            "7": str(action_required)
         }
 
-        # 3. Create the message using json.dumps for the variables
+        # 3. Trigger the message via Twilio content API
         message = client.messages.create(
             from_=f"whatsapp:{settings.TWILIO_WHATSAPP_NUMBER}",
             to=f"whatsapp:{formatted_phone}",
-            content_sid="HX95ae3a89e6546205fb7cba7ac6d731f8",
+            content_sid="HX02ef151daf68d705ace60f5c873286a6", # Replace with your new Twilio Content SID
             content_variables=json.dumps(variables)
         )
         
-        print(f"✅ WhatsApp Escalation Sent: {message.sid}")
+        print(f"✅ Consolidated Alert Sent successfully: {message.sid}")
+        return message.sid
         
     except Exception as e:
         print(f"❌ Twilio Detailed Error: {e}")
+        return None

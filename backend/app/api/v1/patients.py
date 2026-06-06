@@ -5,7 +5,7 @@ from app.crud.user import patient as crud_patient
 from app.models.organization import Room
 from app.models.user import Patient, User, Nurse, Doctor, UserRole
 from app.models.vitals import Vitals
-from app.services.alerts import send_vitalvue_whatsapp
+from app.services.alerts import send_consolidated_vitalvue_alert
 from app.models.clinical import Alert, Action
 from typing import List, Optional
 from app.schemas.patient import PaginatedPatientArchiveResponse, PatientDetailResponse, MonitoringToggleSchema, PatientDischargeResponseSchema, PatientReadmitSchema
@@ -523,9 +523,11 @@ async def flag_doctor(
         room = room_result.scalars().first()
         if room:
             room_name = room.room_number
-            ward_label = str(room.ward_id)
+            ward_label = f"Ward {room.ward_id}" if str(room.ward_id).isdigit() else str(room.ward_id)
 
-    # 3. Fetch Latest Vitals (to fill WhatsApp template placeholders)
+    location_string = f"{ward_label} - Room {room_name}"
+
+    # 3. Fetch Latest Vitals
     v_res = await db.execute(
         select(Vitals)
         .where(Vitals.patient_id == patient_id)
@@ -534,15 +536,30 @@ async def flag_doctor(
     )
     vitals = v_res.scalars().first()
     
+    # Format the multi-line observations string for template parameter {{5}}
+    if vitals:
+        # Round safely matching your prior business logic
+        hr_val = int(float(vitals.heart_rate)) if vitals.heart_rate else "N/A"
+        spo2_val = f"{float(vitals.spo2):.1f}%" if vitals.spo2 else "N/A"
+        news2_val = int(float(vitals.news2_score)) if vitals.news2_score else "N/A"
+        
+        observations_payload = (
+            f"• HR: {hr_val} bpm\n"
+            f"• SpO₂: {spo2_val}\n"
+            f"• NEWS2 Score: {news2_val}"
+        )
+    else:
+        observations_payload = "• Vitals: No recent vitals data captured on dashboard."
+
     # 4. Identify Doctor to Notify
     doc_id = selected_doctor_id or patient.doctor_id
     if not doc_id:
         raise HTTPException(status_code=400, detail="No doctor assigned to this patient")
 
-    # 5. Create Alert Record
+    # 5. Create Alert Record for Auditing
     new_alert = Alert(
         patient_id=patient_id,
-        ward_id=int(ward_label) if ward_label.isdigit() else None,
+        ward_id=int(room.ward_id) if (patient.room_id and str(room.ward_id).isdigit()) else None,
         vital_type="MANUAL_FLAG",
         triggered_value="NURSE_ESC",
         severity="CRITICAL",
@@ -550,20 +567,20 @@ async def flag_doctor(
     )
     db.add(new_alert)
 
-    # 6. Notify via WhatsApp ONLY
+    # 6. Notify via the Consolidated WhatsApp Template Structure
     doc_user = (await db.execute(select(User).where(User.id == doc_id))).scalars().first()
     
     if doc_user and doc_user.phone_number:
         background_tasks.add_task(
-            send_vitalvue_whatsapp,
-            doc_user.phone_number,         # doctor_phone
-            patient.full_name,             # patient_name
-            reason,                        # reason (6)
-            vitals.heart_rate if vitals else "0", # hr (3)
-            vitals.spo2 if vitals else "0",       # spo2 (4)
-            vitals.news2_score if vitals else "0",# news2 (5)
-            ward_label,                    # ward_name
-            room_name                      # room_name (7)
+            send_consolidated_vitalvue_alert,
+            doc_user.phone_number,              # doctor_phone
+            "🚨 CRITICAL",                       # severity ({{1}})
+            "Nurse Escalation Flag",            # alert_title ({{2}})
+            patient.full_name,                  # patient_name ({{3}})
+            location_string,                    # location ({{4}})
+            observations_payload,               # observations ({{5}})
+            f"Manual escalation: {reason[:50]}", # concern ({{6}})
+            "Immediate bedside assessment required. Evaluate patient status." # action_required ({{7}})
         )
 
     await db.commit()

@@ -13,7 +13,7 @@ import json
 from fastapi.security import OAuth2PasswordBearer
 from app.models.user import User
 from app.api.deps import get_current_user
-from app.services.alerts import send_vitalvue_whatsapp
+from app.services.alerts import send_consolidated_vitalvue_alert
 from sqlalchemy.orm import joinedload
 from datetime import datetime, timedelta
 from argparse import Namespace
