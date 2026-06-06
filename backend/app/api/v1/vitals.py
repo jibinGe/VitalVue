@@ -8,7 +8,7 @@ from app.models.clinical import Alert
 from app.models.organization import Room, Ward  # Added to find ward context
 from app.models.user import Patient
 from app.schemas.vitals import VitalIngestSchema, CalibrationRequest
-from app.services.analytics import calculate_risks, check_baseline_deviations
+from app.services.analytics import calculate_risks, check_baseline_deviations, get_vital_statuses
 import json
 from fastapi.security import OAuth2PasswordBearer
 from app.models.user import User
@@ -322,6 +322,11 @@ async def ingest_vitals(
     # 9. JSON Serialization Safe Realtime Broadcast
     timestamp_str = datetime.utcnow().isoformat()
     serializable_vitals = {**vital_dict, **calculated_data}
+    
+    # Add UI statuses for the SSE Stream
+    vital_statuses = get_vital_statuses(new_vitals)
+    serializable_vitals.update(vital_statuses)
+    
     serializable_vitals["created_at"] = timestamp_str # Overwrite datetime object with string
     
     stream_payload = json.dumps({

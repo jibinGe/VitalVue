@@ -217,5 +217,55 @@ def check_baseline_deviations(vitals, user_created_at, ward_name, room_number, p
 
     return alerts
 
-
-
+def get_vital_statuses(vitals):
+    """
+    Returns the visual status for each vital sign based on NEWS2 thresholds.
+    If the device is removed or disconnected, returns Stable to avoid UI false alarms.
+    """
+    if getattr(vitals, 'is_removed', False) or not getattr(vitals, 'is_connected', True):
+        return {
+            "heart_rate_status": "Stable",
+            "spo2_status": "Stable",
+            "bp_status": "Stable",
+            "temperature_status": "Stable",
+        }
+    
+    statuses = {}
+    
+    # Heart Rate Status
+    if vitals.heart_rate >= 131 or vitals.heart_rate <= 40:
+        statuses["heart_rate_status"] = "Critical"
+    elif vitals.heart_rate >= 111 or vitals.heart_rate <= 50:
+        statuses["heart_rate_status"] = "Warning"
+    elif vitals.heart_rate >= 91:
+        statuses["heart_rate_status"] = "Warning"
+    else:
+        statuses["heart_rate_status"] = "Stable"
+        
+    # SpO2 Status
+    if vitals.spo2 <= 91:
+        statuses["spo2_status"] = "Critical"
+    elif vitals.spo2 <= 95:
+        statuses["spo2_status"] = "Warning"
+    else:
+        statuses["spo2_status"] = "Stable"
+        
+    # BP Status (Systolic only for standard warning limits)
+    if vitals.bp_systolic <= 90 or vitals.bp_systolic >= 220:
+        statuses["bp_status"] = "Critical"
+    elif vitals.bp_systolic <= 110:
+        statuses["bp_status"] = "Warning"
+    else:
+        statuses["bp_status"] = "Stable"
+        
+    # Temperature Status
+    if vitals.temp <= 35.0:
+        statuses["temperature_status"] = "Critical"
+    elif vitals.temp >= 39.1:
+        statuses["temperature_status"] = "Warning"
+    elif vitals.temp <= 36.0 or vitals.temp >= 38.1:
+        statuses["temperature_status"] = "Warning"
+    else:
+        statuses["temperature_status"] = "Stable"
+        
+    return statuses

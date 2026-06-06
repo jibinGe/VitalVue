@@ -380,9 +380,9 @@ export default function Home() {
         ward: p.ward_name || p.ward || p.ward_no,
         lastSync: live.recorded_at || latestHistoryVitals?.recorded_at || new Date().toISOString(),
         vitals: [
-          { icon: <Hart />, title: "Heart Rate", heartRate: vitals.heartRate?.value || 0, historyData: p.vitals_history || [] },
-          { icon: <Spo />, title: "SpO2", spo2: vitals.spo2?.value ? Math.round(vitals.spo2.value) : 0, historyData: p.vitals_history || [] },
-          { icon: <Bp />, title: "BP Trend", bp: `${vitals.bloodPressure?.systolic || '--'}/${vitals.bloodPressure?.diastolic || '--'}`, historyData: p.vitals_history || [] },
+          { icon: <Hart />, title: "Heart Rate", heartRate: vitals.heartRate?.value || 0, status: vitals.heartRate?.status, historyData: p.vitals_history || [] },
+          { icon: <Spo />, title: "SpO2", spo2: vitals.spo2?.value ? Math.round(vitals.spo2.value) : 0, status: vitals.spo2?.status, historyData: p.vitals_history || [] },
+          { icon: <Bp />, title: "BP Trend", bp: `${vitals.bloodPressure?.systolic || '--'}/${vitals.bloodPressure?.diastolic || '--'}`, status: vitals.bloodPressure?.status, historyData: p.vitals_history || [] },
           { icon: <High />, title: "AF Warning", afWarning: p.af_warning ?? finalAssessments?.af_warning },
         ],
         alerts: (() => {

@@ -282,12 +282,19 @@ const PatientCard = memo(({
                                                 </div>
                                                 <span className="text-lg text-white font-medium">{vital.title}</span>
                                             </div>
-                                            <div className="text-2xl font-medium [text-shadow:1px_1px_5px_rgba(255,0,0,0.16),-1px_-1px_5px_rgba(0,170,255,0.16) ]">
-                                                {vital.heartRate !== undefined && <>{vital.heartRate || '--'} <span className="text-xs text-para">bpm</span></>}
+                                            <div 
+                                                className="text-2xl font-medium [text-shadow:1px_1px_5px_rgba(255,0,0,0.16),-1px_-1px_5px_rgba(0,170,255,0.16) ]"
+                                                style={{ 
+                                                    color: vital.status?.toLowerCase() === 'critical' ? '#E54D4D' : 
+                                                           vital.status?.toLowerCase() === 'warning' ? '#E5DB4C' : 
+                                                           'white' 
+                                                }}
+                                            >
+                                                {vital.heartRate !== undefined && <>{vital.heartRate || '--'} <span className="text-xs text-para" style={{ color: "inherit" }}>bpm</span></>}
                                                 {vital.spo2 !== undefined && <>{vital.spo2 || '--'}%</>}
-                                                {vital.bp && <>{vital.bp.split("/")[0]}<span className="text-sm">/{vital.bp.split("/")[1]}</span> <span className="text-xs text-para">mmHg</span></>}
-                                                {vital.temp !== undefined && <>{vital.temp} <span className="text-xs text-para">°C</span></>}
-                                                {vital.afWarning !== undefined && <span className="text-xl md:text-2xl">{vital.afWarning && vital.afWarning !== "Normal" && vital.afWarning !== 0 && vital.afWarning !== false && String(vital.afWarning).toLowerCase() !== "normal" ? "High" : "Normal"}</span>}
+                                                {vital.bp && <>{vital.bp.split("/")[0]}<span className="text-sm">/{vital.bp.split("/")[1]}</span> <span className="text-xs text-para" style={{ color: "inherit" }}>mmHg</span></>}
+                                                {vital.temp !== undefined && <>{vital.temp} <span className="text-xs text-para" style={{ color: "inherit" }}>°C</span></>}
+                                                {vital.afWarning !== undefined && <span className="text-xl md:text-2xl" style={{ color: "inherit" }}>{vital.afWarning && vital.afWarning !== "Normal" && vital.afWarning !== 0 && vital.afWarning !== false && String(vital.afWarning).toLowerCase() !== "normal" ? "High" : "Normal"}</span>}
                                             </div>
                                         </div>
                                         <div className="mt-0">{renderVitalGraph(vital, vIndex)}</div>

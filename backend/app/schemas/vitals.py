@@ -23,6 +23,12 @@ class VitalIngestSchema(BaseModel):
     battery_percent: int
     is_connected: bool
     is_removed: bool
+    
+    # UI Statuses (Dynamically populated, optional for initial validation)
+    heart_rate_status: Optional[str] = "Stable"
+    spo2_status: Optional[str] = "Stable"
+    bp_status: Optional[str] = "Stable"
+    temperature_status: Optional[str] = "Stable"
 
     class Config:
         from_attributes = True # Allows compatibility with SQLAlchemy models

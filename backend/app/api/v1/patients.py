@@ -25,6 +25,7 @@ from sqlalchemy.exc import IntegrityError
 import secrets
 import string
 import math
+from app.services.analytics import get_vital_statuses
 
 router = APIRouter()
 
@@ -302,6 +303,13 @@ async def get_assigned_patients(
         )
         vitals_result = await db.execute(vitals_query)
         latest_20_vitals = vitals_result.scalars().all()
+        
+        # Inject dynamically calculated statuses into vitals_history
+        latest_20_with_statuses = []
+        for v in latest_20_vitals:
+            v_dict = {c.name: getattr(v, c.name) for c in v.__table__.columns}
+            v_dict.update(get_vital_statuses(v))
+            latest_20_with_statuses.append(v_dict)
 
         latest = latest_20_vitals[0] if latest_20_vitals else None
 
@@ -318,7 +326,7 @@ async def get_assigned_patients(
             
             "assigned_doctor": p.assigned_doctor.full_name if p.assigned_doctor else None,
             "assigned_nurse": p.assigned_nurse.full_name if p.assigned_nurse else None,
-            "vitals_history": latest_20_vitals,
+            "vitals_history": latest_20_with_statuses,
 
             # --- DYNAMIC TELEMETRY STATUS VALUES ---
             "news2_score": latest.news2_score if latest else 0,
