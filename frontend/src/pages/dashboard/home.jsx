@@ -33,6 +33,7 @@ export default function Home() {
     selectedUserName,
     setSelectedUserName,
     liveVitals,
+    liveStatuses,
     searchQuery: globalSearchQuery,
   } = useDashboardStore();
 
@@ -370,6 +371,11 @@ export default function Home() {
         status = "Critical";
       }
 
+      // Override with authoritative status from backend SSE if available
+      if (liveStatuses[p.id]) {
+        status = liveStatuses[p.id];
+      }
+
       return {
         status: status,
         id: p.id,
@@ -443,7 +449,7 @@ export default function Home() {
         isRemoved: isRemoved,
       };
     });
-  }, [rawPatients, liveVitals]);
+  }, [rawPatients, liveVitals, liveStatuses]);
 
   const filteredAndSortedCards = useMemo(() => {
     let result = [...cardData];

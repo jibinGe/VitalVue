@@ -8,7 +8,7 @@ from app.models.clinical import Alert
 from app.models.organization import Room, Ward  # Added to find ward context
 from app.models.user import Patient
 from app.schemas.vitals import VitalIngestSchema, CalibrationRequest
-from app.services.analytics import calculate_risks, check_baseline_deviations, get_vital_statuses
+from app.services.analytics import calculate_risks, check_baseline_deviations, get_vital_statuses, get_patient_overall_status
 import json
 from fastapi.security import OAuth2PasswordBearer
 from app.models.user import User
@@ -327,10 +327,14 @@ async def ingest_vitals(
     vital_statuses = get_vital_statuses(new_vitals)
     serializable_vitals.update(vital_statuses)
     
+    # Derive single overall patient triage status
+    patient_status = get_patient_overall_status(new_vitals, vital_statuses, calculated_data)
+    
     serializable_vitals["created_at"] = timestamp_str # Overwrite datetime object with string
     
     stream_payload = json.dumps({
         "patient_id": payload.patient_id,
+        "patient_status": patient_status,
         "vitals": serializable_vitals,
         "ward_name": ward_name,
         "room_number": room_number,

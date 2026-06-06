@@ -11,7 +11,7 @@ export const usePatients = (wardId = 'all', refreshTrigger = 0, searchQuery = ""
   const queryClient = useQueryClient();
   const queryKey = ['patients', wardId, refreshTrigger, searchQuery];
   
-  const { setCriticalAlarmData, updateLiveVitals, clearCriticalAlarm } = useDashboardStore();
+  const { setCriticalAlarmData, updateLiveVitals, updateLiveStatus, clearCriticalAlarm } = useDashboardStore();
 
   const query = useQuery({
     queryKey,
@@ -57,6 +57,11 @@ export const usePatients = (wardId = 'all', refreshTrigger = 0, searchQuery = ""
         // Update live vitals store if there is data
         if (data.vitals) {
            updateLiveVitals(data.patient_id, data.vitals);
+        }
+
+        // Update the live triage status if the backend sent one
+        if (data.patient_status) {
+          updateLiveStatus(data.patient_id, data.patient_status);
         }
 
         queryClient.setQueryData(queryKey, (oldData) => {

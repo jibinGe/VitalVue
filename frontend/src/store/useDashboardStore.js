@@ -54,4 +54,13 @@ export const useDashboardStore = create((set) => ({
       [patientId]: { ...(state.liveVitals[patientId] || {}), ...vitals }
     }
   })),
+
+  // Live Patient Status Cache (keyed by patientId) — pushed directly from SSE patient_status field
+  liveStatuses: {},
+  updateLiveStatus: (patientId, status) => set((state) => ({
+    liveStatuses: {
+      ...state.liveStatuses,
+      [patientId]: status
+    }
+  })),
 }));

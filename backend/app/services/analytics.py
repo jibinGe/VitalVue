@@ -269,3 +269,36 @@ def get_vital_statuses(vitals):
         statuses["temperature_status"] = "Stable"
         
     return statuses
+
+def get_patient_overall_status(vitals, vital_statuses=None, calculated_data=None):
+    """
+    Derives the patient's single overall triage status (Critical / Warning / Stable)
+    from all per-vital statuses and the NEWS2 score.
+    Disconnected / removed devices are treated as Critical so staff are alerted.
+    """
+    is_removed = getattr(vitals, 'is_removed', False)
+    is_connected = getattr(vitals, 'is_connected', True)
+    
+    # Device failure is always escalated to Critical
+    if is_removed or not is_connected:
+        return "Critical"
+    
+    if vital_statuses is None:
+        vital_statuses = get_vital_statuses(vitals)
+    
+    all_statuses = list(vital_statuses.values())
+    
+    # Any single critical vital → whole patient is Critical
+    if "Critical" in all_statuses:
+        return "Critical"
+    
+    # NEWS2 >= 7 → Critical
+    news2 = calculated_data.get("news2_score", 0) if calculated_data else getattr(vitals, 'news2_score', 0)
+    if news2 >= 7:
+        return "Critical"
+    
+    # Any warning vital or NEWS2 5-6 → Warning
+    if "Warning" in all_statuses or (news2 >= 5):
+        return "Warning"
+    
+    return "Stable"
