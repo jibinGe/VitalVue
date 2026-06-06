@@ -233,8 +233,8 @@ async def ingest_vitals(
     
     patient, user_created_at, ward_id, ward_name, room_number, phone_number, cal = row
 
-    # 2. Extract payload to dictionary
-    vital_dict = payload.model_dump()
+    # 2. Extract payload to dictionary, excluding UI status fields not present in DB model
+    vital_dict = payload.model_dump(exclude={"heart_rate_status", "spo2_status", "bp_status", "temperature_status"})
 
     # 3. Rule Enforcement: Zero-out Clinical Parameters if Hardware state fails
     if not vital_dict.get("is_connected", True) or vital_dict.get("is_removed", False):
