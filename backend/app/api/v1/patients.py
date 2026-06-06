@@ -8,7 +8,7 @@ from app.models.vitals import Vitals
 from app.services.alerts import send_vitalvue_whatsapp
 from app.models.clinical import Alert, Action
 from typing import List, Optional
-from app.schemas.patient import PatientDetailResponse
+from app.schemas.patient import PaginatedPatientArchiveResponse, PatientDetailResponse, MonitoringToggleSchema, PatientDischargeResponseSchema, PatientReadmitSchema
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from sqlalchemy.future import select
@@ -248,33 +248,37 @@ async def get_assigned_patients(
     current_user: User = Depends(get_current_user),
     search: Optional[str] = Query(None, description="Search by Full Name or Patient ID")
 ):
-    # 1. Base Query: Do NOT manually join User. 
-    # SQLAlchemy handles the Patient->User join automatically via inheritance.
+    """
+    Fetches active patients assigned to the calling medical clinician.
+    Explicitly filters out archived or formally discharged records.
+    """
+    # 1. Base Query: Added joinedload(Patient.room) to prevent MissingGreenlet crash
     query = (
         select(Patient)
         .options(
             joinedload(Patient.assigned_nurse),
-            joinedload(Patient.assigned_doctor)
+            joinedload(Patient.assigned_doctor),
+            joinedload(Patient.room)  # <--- FIXED: Pre-fetches room object data safely
         )
     )
 
-    # --- MODIFICATION: Filter by User.is_active directly ---
-    # Since Patient inherits from User, referencing User.is_active here works perfectly.
+    # 2. Roster Filtering Controls
+    # Enforce strict compliance boundaries: Only pull active, in-bed hospitalizations
     query = query.where(User.is_active == True)
-    # -------------------------------------------------------
+    query = query.where(Patient.is_discharged == False)
+    query = query.where(Patient.archive_status == "active")
 
-    # 2. Role-Based Filtering
+    # 3. Role-Based Data Partitioning Filters
     if current_user.role == UserRole.NURSE:
         query = query.where(Patient.nurse_id == current_user.id)
     elif current_user.role == UserRole.DOCTOR:
         query = query.where(Patient.doctor_id == current_user.id)
     elif current_user.role in [UserRole.ORG_ADMIN, UserRole.MASTER_ADMIN]:
-        # Filter by Org ID (also found on the User table part of the Patient)
         query = query.where(User.organization_id == current_user.organization_id)
     else:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    # 3. Apply Search Filter
+    # 4. Apply Search Filter
     if search:
         search_filter = f"%{search}%"
         query = query.where(
@@ -284,13 +288,12 @@ async def get_assigned_patients(
             )
         )
 
-    # This will now execute without the DuplicateAliasError
     result = await db.execute(query)
     patients = result.scalars().all()
 
     response_data = []
     for p in patients:
-        # 4. Fetch the 20 latest vitals
+        # 5. Fetch the 20 latest vitals logs
         vitals_query = (
             select(Vitals)
             .where(Vitals.patient_id == p.id)
@@ -309,17 +312,20 @@ async def get_assigned_patients(
             "age": p.age,
             "gender": p.gender,
             "blood_group": p.blood_group,
-            "room_no": "101", # Replace with p.room_id logic if needed
+            
+            # This line will now evaluate completely in-memory without throwing 500 errors!
+            "room_no": p.room.room_number if p.room else "N/A", 
+            
             "assigned_doctor": p.assigned_doctor.full_name if p.assigned_doctor else None,
             "assigned_nurse": p.assigned_nurse.full_name if p.assigned_nurse else None,
             "vitals_history": latest_20_vitals,
 
+            # --- DYNAMIC TELEMETRY STATUS VALUES ---
             "news2_score": latest.news2_score if latest else 0,
             "af_warning": latest.af_warning if latest else "Normal",
-            # "stroke_risk": latest.stroke_risk if latest else "Low",
-            # "seizure_risk": latest.seizure_risk if latest else "Low",
             "is_connected": latest.is_connected if latest else False,
             "is_removed": latest.is_removed if latest else False,
+            "is_monitoring_paused": p.is_monitoring_paused
         })
 
     return response_data
@@ -796,3 +802,366 @@ async def get_notifications(
         "notifications": notifications
     }
 
+@router.post("/{patient_id}/toggle-monitoring", status_code=status.HTTP_200_OK)
+async def toggle_patient_monitoring(
+    patient_id: int,
+    payload: MonitoringToggleSchema,
+    db: AsyncSession = Depends(get_db),
+    redis = Depends(get_redis),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Toggles transient monitoring states. Suspends warning generation flags 
+    during diagnostic breaks or patient leaves without unlinking assets.
+    """
+    # 1. Retrieve the exact patient row entity
+    patient = await db.get(Patient, patient_id)
+    if not patient:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail="Patient tracking record not found"
+        )
+        
+    if patient.is_discharged:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail="Operation invalid: Patient care track has already been formally discharged"
+        )
+
+    # 2. Update the updated table flag
+    patient.is_monitoring_paused = payload.pause
+    
+    # 3. Handle Hot-Cache State Maintenance Transitions
+    if payload.pause:
+        # Prevent the 3-minute cron watchdog from tripping on upcoming missing pings
+        await redis.delete(f"patient_active:{patient_id}")
+        await redis.delete(f"patient_dead_state:{patient_id}")
+        
+        # Immediate cleanup of active flashing alerts on the frontend station panels
+        await redis.delete(f"alert_lock:{patient_id}:Network")
+        await redis.delete(f"alert_lock:{patient_id}:Connectivity")
+        await redis.delete(f"alert_lock:{patient_id}:Band Status")
+        
+        # Broadcast the monitoring interruption notice down the SSE channel
+        await redis.publish(
+            f"patient:{patient_id}:stream",
+            json.dumps({"patient_id": patient_id, "event": "MONITORING_PAUSED", "timestamp": datetime.utcnow().isoformat()})
+        )
+    else:
+        # Instantly refresh the watchdog TTL buffer to allow the device 3 minutes to check back in
+        await redis.setex(f"patient_active:{patient_id}", 180, "online")
+        
+        await redis.publish(
+            f"patient:{patient_id}:stream",
+            json.dumps({"patient_id": patient_id, "event": "MONITORING_RESUMED", "timestamp": datetime.utcnow().isoformat()})
+        )
+
+    await db.commit()
+    return {
+        "status": "success",
+        "patient_id": patient_id,
+        "is_monitoring_paused": patient.is_monitoring_paused
+    }
+
+
+@router.post("/{patient_id}/discharge", response_model=PatientDischargeResponseSchema)
+async def discharge_and_archive_patient(
+    patient_id: int,
+    db: AsyncSession = Depends(get_db),
+    redis = Depends(get_redis),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Formally terminates the care cycle, updates legal compliance archive flags, 
+    and frees up physical facility parameters (Beds, Rooms, Telemetry Hardware addresses).
+    """
+    # 1. Fetch patient record from database
+    patient = await db.get(Patient, patient_id)
+    if not patient:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail="Patient tracking record not found"
+        )
+        
+    if patient.is_discharged:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail="Validation failed: Selected profile is already discharged and archived"
+        )
+
+    # 2. Assert Permanent Compliance and Archival States 
+    patient.is_discharged = True
+    patient.discharged_at = datetime.utcnow()
+    patient.archive_status = "archived"  # Transitioning profile lifecycle to immutable reference track
+    
+    # 3. Asymmetric Asset Liberation Actions (Safely setting fields to None)
+    patient.room_id = None            # Free up room/bed mapping for incoming active admissions
+    patient.device_id = None          # Unbind physical telemetry hardware band for redevelopment
+    patient.is_monitoring_paused = False # Reset pause parameter
+    
+    # 4. Flush Redis Realtime Hot State Elements
+    await redis.delete(f"patient_active:{patient_id}")
+    await redis.delete(f"patient_dead_state:{patient_id}")
+    await redis.delete(f"alert_lock:{patient_id}:Network")
+    await redis.delete(f"alert_lock:{patient_id}:Connectivity")
+    await redis.delete(f"alert_lock:{patient_id}:Band Status")
+    
+    # 5. Broadcast Terminal Lifecycle Stream Notice to Station Viewports
+    discharge_payload = {
+        "patient_id": patient_id,
+        "event": "DISCHARGED",
+        "archive_status": "archived",
+        "timestamp": datetime.utcnow().isoformat()
+    }
+    await redis.publish(f"patient:{patient_id}:stream", json.dumps(discharge_payload))
+
+    # Commit transactions cleanly to PostgreSQL
+    await db.commit()
+    
+    return {
+        "status": "success",
+        "message": "Patient lifecycle finalized: Care path closed, facility assets liberated, historical tracking archived.",
+        "patient_id": patient_id,
+        "archive_status": patient.archive_status,
+        "is_discharged": patient.is_discharged
+    }
+
+@router.post("/readmit", status_code=status.HTTP_200_OK)
+async def readmit_historical_patient(
+    payload: PatientReadmitSchema,
+    db: AsyncSession = Depends(get_db),
+    redis = Depends(get_redis),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Modifies an archived patient record directly to reactivate it for a new stay.
+    Resets administrative lifecycle fields to active defaults while keeping identities intact.
+    """
+    # 1. Fetch the exact existing patient record row
+    patient = await db.get(Patient, payload.archived_patient_id)
+    if not patient:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail="Archived patient record not found"
+        )
+        
+    # Check if they are actually discharged/archived before allowing reactivation
+    if patient.archive_status != "archived" or not patient.is_discharged:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail="Operation rejected: This patient record profile is already active in the system."
+        )
+
+    # 2. UPDATE FIELDS IN PLACE (Reversing the discharge parameters)
+    # Re-initializes them back into active tracking loops
+    patient.is_discharged = False
+    patient.archive_status = "active"
+    patient.is_monitoring_paused = False
+    patient.discharged_at = None       # Clear out past checkout timestamp metadata
+    
+    # Reset structural asset parameters to clear placeholders
+    # They stay None here so clinicians can triage assignments using patch requests later
+    # patient.room_id = None
+    # patient.device_id = None
+    # patient.doctor_id = None
+    # patient.nurse_id = None
+    
+    # 3. Clean up Redis Hot Cache State Tracks
+    # Delete past dead-state indicators so background workers know this row has returned to life
+    await redis.delete(f"patient_dead_state:{payload.archived_patient_id}")
+    
+    # Clear any past flashing network alarm references remaining from their previous stay
+    await redis.delete(f"alert_lock:{payload.archived_patient_id}:Network")
+    await redis.delete(f"alert_lock:{payload.archived_patient_id}:Connectivity")
+    await redis.delete(f"alert_lock:{payload.archived_patient_id}:Band Status")
+
+    # 4. Commit updates to PostgreSQL
+    await db.commit()
+    
+    return {
+        "status": "success",
+        "message": "Patient record reactivated successfully in place. Status moved back to active pending triage allocation.",
+        "patient_id": patient.id,
+        "archive_status": patient.archive_status,
+        "is_discharged": patient.is_discharged
+    }
+
+# @router.post("/readmit", status_code=status.HTTP_201_CREATED)
+# async def readmit_historical_patient(
+#     payload: PatientReadmitSchema,
+#     db: AsyncSession = Depends(get_db),
+#     redis = Depends(get_redis),
+#     current_user: User = Depends(get_current_user)
+# ):
+#     """
+#     Clones demographic parameters from a past archived record to initialize a clean,
+#     active care tracking sequence for a returning readmitted patient.
+#     """
+#     # 1. Fetch the past archived record
+#     archived_patient = await db.get(Patient, payload.archived_patient_id)
+#     if not archived_patient:
+#         raise HTTPException(status_code=404, detail="Archived patient template reference not found")
+        
+#     if archived_patient.archive_status != "archived" or not archived_patient.is_discharged:
+#         raise HTTPException(
+#             status_code=400, 
+#             detail="Operation rejected: This patient record is currently active and cannot be readmitted."
+#         )
+
+#     # 2. Safety Verification: Ensure the new hardware band address isn't already assigned elsewhere
+#     device_in_use = await db.scalar(
+#         select(Patient.id)
+#         .where(Patient.device_id == payload.device_id)
+#         .where(Patient.archive_status == "active")
+#     )
+#     if device_in_use:
+#         raise HTTPException(status_code=400, detail="Hardware assignment collision: That band device is currently tied to an active ward bed.")
+
+#     # 3. CLONE PROCESS: Create a fresh new care timeline entry
+#     # This copies the immutable data fields but assigns a brand new database ID instance
+#     new_stay_record = Patient(
+#         # --- Base User Class Variables ---
+#         full_name=archived_patient.full_name,
+#         email=f"readmit_{payload.archived_patient_id}_{int(datetime.utcnow().timestamp())}@vitalvue.local", # Prevent login mapping collisions
+#         phone_number=archived_patient.phone_number,
+#         role=archived_patient.role,
+#         organization_id=archived_patient.organization_id,
+#         is_active=True,
+        
+#         # --- Patient Demographics Cloned ---
+#         age=archived_patient.age,
+#         gender=archived_patient.gender,
+#         height=archived_patient.height,
+#         weight=archived_patient.weight,
+#         blood_group=archived_patient.blood_group,
+#         alt_phone=archived_patient.alt_phone,
+        
+#         # --- Fresh Stay Assets Configuration ---
+#         room_id=payload.room_id,
+#         device_id=payload.device_id,
+#         doctor_id=payload.doctor_id,
+#         nurse_id=payload.nurse_id,
+        
+#         # --- Clean Active Lifecycle State Initializations ---
+#         is_monitoring_paused=False,
+#         is_discharged=False,
+#         discharged_at=None,
+#         archive_status="active"
+#     )
+
+#     db.add(new_stay_record)
+#     await db.flush() # Flushes record state to generate the new transaction ID row inside PostgreSQL
+
+#     # 4. Initialize Hot Cache Controls for the new ID
+#     # Kicks off the active tracking window for our background 3-minute cron monitor loop
+#     await redis.setex(f"patient_active:{new_stay_record.id}", 180, "online")
+#     await redis.delete(f"patient_dead_state:{new_stay_record.id}")
+
+#     await db.commit()
+    
+#     return {
+#         "status": "success",
+#         "message": "Patient readmission complete. Clean historical tracking lane generated successfully.",
+#         "new_patient_id": new_stay_record.id,
+#         "archive_status": new_stay_record.archive_status
+#     }
+
+@router.get("/lifecycle-registry", response_model=PaginatedPatientArchiveResponse)
+async def get_patient_lifecycle_registry(
+    view_type: str = Query("archived", description="Filter views: 'archived', 'paused', 'all'"),
+    page: int = Query(1, ge=1, description="Page index parameter"),
+    limit: int = Query(20, ge=1, le=100, description="Items per window slice"),
+    search: Optional[str] = Query(None, description="Search filter string by name or internal ID"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Exposes an administrative tracking registry to review historical archived checkouts,
+    transient monitoring pause windows, or a systemic layout tracking path.
+    """
+    # 1. Base Query Construction with Safe Eager Joins to prevent MissingGreenlet errors
+    stmt = (
+        select(Patient)
+        .options(joinedload(Patient.room)) # Pre-fetches room object data safely
+    )
+
+    # 2. Assert Dynamic View Filter Rules
+    if view_type.lower() == "paused":
+        # Monitoring suspended, but still active admissions inside beds
+        stmt = stmt.where(Patient.is_monitoring_paused == True)
+        stmt = stmt.where(Patient.is_discharged == False)
+        stmt = stmt.where(Patient.archive_status == "active")
+        
+    elif view_type.lower() == "archived":
+        # Formally checked-out lifecycle instances
+        stmt = stmt.where(Patient.is_discharged == True)
+        stmt = stmt.where(Patient.archive_status == "archived")
+        
+    elif view_type.lower() == "all":
+        # Master trace view across all lifecycle variants (ignores limits)
+        pass
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid view_type parameter. Allowed: 'archived', 'paused', 'all'"
+        )
+
+    # 3. Apply Multi-Tenant Organizational Role Security Boundaries
+    if current_user.role == UserRole.NURSE:
+        stmt = stmt.where(Patient.nurse_id == current_user.id)
+    elif current_user.role == UserRole.DOCTOR:
+        stmt = stmt.where(Patient.doctor_id == current_user.id)
+    elif current_user.role in [UserRole.ORG_ADMIN, UserRole.MASTER_ADMIN]:
+        stmt = stmt.where(User.organization_id == current_user.organization_id)
+    else:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access unauthorized")
+
+    # 4. Inject Search Modifier
+    if search:
+        search_pattern = f"%{search}%"
+        stmt = stmt.where(
+            or_(
+                Patient.full_name.ilike(search_pattern),
+                Patient.user_id.ilike(search_pattern)
+            )
+        )
+
+    # 5. Extract Accurate Record Counters for Frontend Pagination Bars
+    count_stmt = select(func.count()).select_from(stmt.subquery())
+    total_count = await db.scalar(count_stmt) or 0
+    total_pages = math.ceil(total_count / limit) if total_count > 0 else 1
+
+    # 6. Apply Windows Limits and Offsets for target slicing
+    offset = (page - 1) * limit
+    stmt = stmt.order_by(Patient.created_at.desc()).offset(offset).limit(limit)
+    
+    result = await db.execute(stmt)
+    patient_rows = result.scalars().all()
+
+    # 7. Formulate Output Payload Arrays
+    serialized_patients = []
+    for p in patient_rows:
+        serialized_patients.append({
+            "id": p.id,
+            "user_id": p.user_id,
+            "full_name": p.full_name,
+            "age": p.age,
+            "gender": p.gender,
+            "blood_group": p.blood_group,
+            # If discharged, room_id is None, so p.room evaluates cleanly to N/A without lazy-load exceptions
+            "room_no": p.room.room_number if p.room else "Discharged/No Room",
+            "device_id": p.device_id,
+            "is_monitoring_paused": p.is_monitoring_paused,
+            "is_discharged": p.is_discharged,
+            "discharged_at": p.discharged_at,
+            "archive_status": p.archive_status,
+            "created_at": p.created_at
+        })
+
+    return {
+        "total_count": total_count,
+        "page": page,
+        "limit": limit,
+        "total_pages": total_pages,
+        "patients": serialized_patients
+    }

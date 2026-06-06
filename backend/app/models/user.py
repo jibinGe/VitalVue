@@ -41,9 +41,10 @@ class User(Base):
 
 class Patient(User):
     __tablename__ = "patients"
+    
     id: Mapped[int] = mapped_column(ForeignKey("users.id"), primary_key=True)
     
-    # Screen 2 Data
+    # --- Dashboard Data ---
     age: Mapped[int] = mapped_column(Integer)
     gender: Mapped[str] = mapped_column(String(20))
     height: Mapped[Optional[float]] = mapped_column()
@@ -51,20 +52,37 @@ class Patient(User):
     blood_group: Mapped[str] = mapped_column(String(10))
     alt_phone: Mapped[Optional[str]] = mapped_column(String(20))
     
-    # Screen 3 / Identity
-    device_id: Mapped[str] = mapped_column(String(100), unique=True, index=True)
+    # --- Hardware Identity Association ---
+    # Made Optional[str] and nullable=True so device_id can be wiped on formal discharge
+    device_id: Mapped[Optional[str]] = mapped_column(String(100), unique=True, index=True, nullable=True)
     
-    # Hierarchical Links (Derived from Screen 1 & 2)
-    doctor_id: Mapped[int] = mapped_column(ForeignKey("doctors.id"), nullable=True)
+    # --- Hierarchical Care Team Links ---
+    doctor_id: Mapped[Optional[int]] = mapped_column(ForeignKey("doctors.id"), nullable=True)
     nurse_id: Mapped[Optional[int]] = mapped_column(ForeignKey("nurses.id"), nullable=True)
-    room_id: Mapped[int] = mapped_column(ForeignKey("rooms.id"))
+    
+    # --- Facility Assets Allocation ---
+    # Changed to Optional[int]/nullable=True so bed links can be severed immediately upon discharge
+    room_id: Mapped[Optional[int]] = mapped_column(ForeignKey("rooms.id"), nullable=True)
 
-    room: Mapped["Room"] = relationship("Room")
+    # --- NEW COMPLIANCE & LIFECYCLE FIELDS ---
+    # Transient State: True if patient is active but temporarily unstrapped (e.g., shower/X-ray)
+    is_monitoring_paused: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    
+    # Administrative Milestones: Tracks explicit legal checkout sequences
+    is_discharged: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    discharged_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    
+    # Archival Status Compliance: Tracks auditing state workflows: 'active', 'archived', 'purged'
+    archive_status: Mapped[str] = mapped_column(String(50), default="active", nullable=False)
+    # ------------------------------------------
+
+    # --- SQLAlchemy Core Graph Relationships ---
+    room: Mapped[Optional["Room"]] = relationship("Room")
     assigned_nurse: Mapped[Optional["Nurse"]] = relationship("Nurse", foreign_keys=[nurse_id])
     assigned_doctor: Mapped[Optional["Doctor"]] = relationship("Doctor", foreign_keys=[doctor_id])
 
     __mapper_args__ = {"polymorphic_identity": "patient"}
-    
+       
 class Nurse(User):
     __tablename__ = "nurses"
     id: Mapped[int] = mapped_column(ForeignKey("users.id"), primary_key=True)

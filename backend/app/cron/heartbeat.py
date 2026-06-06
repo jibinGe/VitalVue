@@ -25,6 +25,10 @@ async def monitor_device_heartbeats():
             select(Patient, User.created_at, Ward.id, Ward.name, Room.room_number, User.phone_number)
             .join(Room, Patient.room_id == Room.id)
             .join(Ward, Room.ward_id == Ward.id)
+            # --- RIGOROUS OPERATIONAL BOUNDS CHECK ---
+            .where(Patient.is_monitoring_paused == False)
+            .where(Patient.is_discharged == False)
+            .where(Patient.archive_status == "active")
         )
         result = await db.execute(stmt)
         active_patients = result.all()

@@ -9,10 +9,10 @@ docker compose exec db psql -U vitalvue_admin -d vitalvue_db -c "\dt"
 
 python files/simulator.py 
 ## Goal                    CommandCheck 
-Current Version         docker compose exec backend alembic current
-View History            docker compose exec backend alembic history
-Rollback 1 Step         docker compose exec backend alembic downgrade -1
-Check for SQL errors    docker compose logs -f db
+Current Version         docker-compose exec backend alembic current
+View History            docker-compose exec backend alembic history
+Rollback 1 Step         docker-compose exec backend alembic downgrade -1
+Check for SQL errors    docker-compose logs -f db
 
 ## Reddis Command Part
 docker exec -it vitalvue_redis redis-cli -a secure_redis_password_456

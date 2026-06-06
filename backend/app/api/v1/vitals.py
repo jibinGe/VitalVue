@@ -335,7 +335,7 @@ async def ingest_vitals(
     await redis.publish(f"patient:{payload.patient_id}:stream", stream_payload)
     
     # 10. Update Heartbeat Switch Active Window (3 Minutes TTL)
-    await redis.setex(f"patient_active:{payload.patient_id}", 180, "online")
+    await redis.setex(f"patient_active:{payload.patient_id}", 65, "online")
 
     await db.commit()
     return {"status": "success"}
