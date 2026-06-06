@@ -105,23 +105,29 @@ let alarmInterval = null;
  * "Warm-up" an audio element: play it silently and pause immediately.
  * This satisfies the browser's autoplay requirement and allows
  * future play() calls even outside a user-gesture handler.
+ * Returns a promise that resolves when warm-up is done (or immediately if it fails).
  */
 function warmUpAudio(audioEl) {
-  audioEl.volume = 0;
-  const p = audioEl.play();
-  if (p && typeof p.then === 'function') {
-    p.then(() => {
+  return new Promise((resolve) => {
+    audioEl.volume = 0;
+    const p = audioEl.play();
+    if (p && typeof p.then === 'function') {
+      p.then(() => {
+        audioEl.pause();
+        audioEl.currentTime = 0;
+        audioEl.volume = 1;
+        resolve(true);
+      }).catch(() => {
+        audioEl.volume = 1;
+        resolve(false);
+      });
+    } else {
       audioEl.pause();
       audioEl.currentTime = 0;
       audioEl.volume = 1;
-    }).catch(() => {
-      audioEl.volume = 1;
-    });
-  } else {
-    audioEl.pause();
-    audioEl.currentTime = 0;
-    audioEl.volume = 1;
-  }
+      resolve(true);
+    }
+  });
 }
 
 let warmedUp = false;
@@ -134,20 +140,36 @@ function unlockAudio() {
 }
 
 if (typeof document !== 'undefined') {
-  // Keep listeners so the audio stays unlocked after page inactivity
+  // Use capture:true so we catch the gesture even on elements that stop propagation
   ['click', 'keydown', 'touchstart', 'pointerdown'].forEach(evt => {
-    document.addEventListener(evt, unlockAudio, { passive: true, once: true });
+    document.addEventListener(evt, unlockAudio, { passive: true, capture: true, once: true });
   });
 }
 
 // ─── Playback helpers ──────────────────────────────────────────────────────
 
+/**
+ * Play an audio element. If the browser blocks autoplay (tab not focused,
+ * no prior user gesture), attempt a silent warm-up first and then replay
+ * after a short delay — this handles the cross-device dismiss scenario where
+ * the second device may never have had a user gesture before the alarm fires.
+ */
 function playBeepElement(audioEl) {
   try {
     audioEl.currentTime = 0;
     const p = audioEl.play();
     if (p && typeof p.catch === 'function') {
-      p.catch(err => console.warn('[AlarmSound] play() blocked:', err));
+      p.catch(err => {
+        console.warn('[AlarmSound] play() blocked, attempting warm-up retry:', err.name);
+        // Attempt a silent warm-up then retry. This covers the case where
+        // cross-device dismiss fired before the user ever interacted with this tab.
+        warmUpAudio(audioEl).then((unlocked) => {
+          if (unlocked) {
+            audioEl.currentTime = 0;
+            audioEl.play().catch(e => console.warn('[AlarmSound] retry play() still blocked:', e));
+          }
+        });
+      });
     }
   } catch (e) {
     console.warn('[AlarmSound] playBeepElement error:', e);
@@ -173,28 +195,52 @@ function playWarningPattern() {
 
 /**
  * Start repeating critical alarm (every 2 s).
+ * Re-warms audio elements before starting in case the tab lost
+ * its autoplay permission (e.g. after a cross-device dismiss).
  */
 export function startAlarm() {
   stopAlarm();
-  playCriticalPattern();
-  alarmInterval = setInterval(playCriticalPattern, 2000);
+  // Re-warm both elements to handle cross-device dismiss scenario:
+  // Device 2 may have had its modal dismissed before any user gesture occurred.
+  if (!warmedUp) {
+    Promise.all([warmUpAudio(criticalBeep), warmUpAudio(warningBeep)]).then(() => {
+      playCriticalPattern();
+      alarmInterval = setInterval(playCriticalPattern, 2000);
+    });
+  } else {
+    playCriticalPattern();
+    alarmInterval = setInterval(playCriticalPattern, 2000);
+  }
 }
 
 /**
  * Start repeating warning alarm (every 4 s).
+ * Re-warms audio elements before starting in case the tab lost
+ * its autoplay permission (e.g. after a cross-device dismiss).
  */
 export function startWarningAlarm() {
   stopAlarm();
-  playWarningPattern();
-  alarmInterval = setInterval(playWarningPattern, 4000);
+  if (!warmedUp) {
+    Promise.all([warmUpAudio(criticalBeep), warmUpAudio(warningBeep)]).then(() => {
+      playWarningPattern();
+      alarmInterval = setInterval(playWarningPattern, 4000);
+    });
+  } else {
+    playWarningPattern();
+    alarmInterval = setInterval(playWarningPattern, 4000);
+  }
 }
 
 /**
- * Stop any active alarm.
+ * Stop any active alarm and reset audio element positions.
+ * Resetting currentTime ensures the next play() starts cleanly.
  */
 export function stopAlarm() {
   if (alarmInterval) {
     clearInterval(alarmInterval);
     alarmInterval = null;
   }
+  // Reset audio positions so next play() starts from the beginning
+  try { criticalBeep.currentTime = 0; } catch (_) {}
+  try { warningBeep.currentTime = 0; } catch (_) {}
 }

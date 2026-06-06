@@ -20,6 +20,11 @@ export const useDashboardStore = create((set) => ({
     return { criticalAlarmData: null };
   }),
 
+  // Cross-device dismiss: close the modal WITHOUT stamping a cooldown.
+  // Device 2 didn't acknowledge anything — it was remotely dismissed,
+  // so future alerts for this patient must NOT be suppressed by the cooldown.
+  clearCriticalAlarmSilent: () => set({ criticalAlarmData: null }),
+
   canShowAlarm: (patientId, severity) => {
     // If we want different cooldowns for Warning vs Critical, we can check severity.
     // Let's enforce a 30-second cooldown for any new alert on a recently acknowledged patient

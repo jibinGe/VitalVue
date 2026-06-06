@@ -11,7 +11,7 @@ export const usePatients = (wardId = 'all', refreshTrigger = 0, searchQuery = ""
   const queryClient = useQueryClient();
   const queryKey = ['patients', wardId, refreshTrigger, searchQuery];
   
-  const { setCriticalAlarmData, updateLiveVitals, updateLiveStatus, clearCriticalAlarm } = useDashboardStore();
+  const { setCriticalAlarmData, updateLiveVitals, updateLiveStatus, clearCriticalAlarm, clearCriticalAlarmSilent } = useDashboardStore();
 
   const query = useQuery({
     queryKey,
@@ -125,8 +125,10 @@ export const usePatients = (wardId = 'all', refreshTrigger = 0, searchQuery = ""
             // It's safer to clear the modal if the patient matches, even if the alert_id
             // differs slightly due to rapid duplicate alerts or string/number type mismatches.
             if (isMatchingPatient) {
-              console.info(`[usePatients] Dismissing modal for patient ${dismissedPatientId}`);
-              clearCriticalAlarm();
+              console.info(`[usePatients] Dismissing modal for patient ${dismissedPatientId} (cross-device, no cooldown)`);
+              // Use silent clear — Device 2 was remotely dismissed, it should NOT
+              // enter a cooldown. The next alert for this patient must still show.
+              clearCriticalAlarmSilent();
             }
           }
           return; // Do not process as a real alert
