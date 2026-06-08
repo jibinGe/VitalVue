@@ -3,3 +3,5 @@
 /files
 backend/app/__pycache__
 backend/simulator.py
+backend/key.pem
+backend/deploy.sh

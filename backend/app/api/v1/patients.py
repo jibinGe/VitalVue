@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks, B
 from app.database import get_db, get_redis
 from app.schemas.user import PatientCreate
 from app.crud.user import patient as crud_patient
-from app.models.organization import Room
+from app.models.organization import Room, Ward
 from app.models.user import Patient, User, Nurse, Doctor, UserRole
 from app.models.vitals import Vitals
 from app.services.alerts import send_consolidated_vitalvue_alert
@@ -259,7 +259,7 @@ async def get_assigned_patients(
         .options(
             joinedload(Patient.assigned_nurse),
             joinedload(Patient.assigned_doctor),
-            joinedload(Patient.room)  # <--- FIXED: Pre-fetches room object data safely
+            joinedload(Patient.room).joinedload(Room.ward)  # Pre-fetches room + ward name
         )
     )
 
@@ -326,7 +326,10 @@ async def get_assigned_patients(
 
             
             # This line will now evaluate completely in-memory without throwing 500 errors!
-            "room_no": p.room.room_number if p.room else "N/A", 
+            "room_no": p.room.room_number if p.room else "N/A",
+            "ward_name": p.room.ward.name if (p.room and p.room.ward) else "N/A",
+            "phone_number": p.phone_number or "",
+            "alt_phone": p.alt_phone or "",
             
             "assigned_doctor": p.assigned_doctor.full_name if p.assigned_doctor else None,
             "assigned_nurse": p.assigned_nurse.full_name if p.assigned_nurse else None,

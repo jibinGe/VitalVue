@@ -1144,4 +1144,5 @@ export const patientService = {
       return { success: false, data: null, message: error.message || "Failed to fetch seizure risk" };
     }
   },
+
 };

@@ -176,7 +176,7 @@ const PatientCard = memo(({
 
                     {/* RIGHT SUB-SECTION: Vitals Grid */}
                     <div className="flex-1">
-                        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
                             {/* Vitals items */}
                             {item.vitals.map((vital, vIndex) => {
                                 if (vital.title === "AF Warning") {
