@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     CUSTOM_AWS_SECRET_ACCESS_KEY: str
     CUSTOM_AWS_REGION: str
 
+    AWS_ACCESS_KEY_ID: str
+    AWS_SECRET_ACCESS_KEY: str
+
     # Twilio
     TWILIO_ACCOUNT_SID: str 
     TWILIO_AUTH_TOKEN: str

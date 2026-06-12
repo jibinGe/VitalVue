@@ -34,9 +34,9 @@ def calculate_risks(vitals):
 
     # --- NEWS2: Temperature (Using the +2.2 Adjusted Value) ---
     # Standard NEWS2 thresholds applied to the calibrated temp
-    if vitals.temp <= 35.0: news2 += 3
-    elif vitals.temp >= 39.1: news2 += 2
-    elif vitals.temp <= 36.0 or vitals.temp >= 38.1: news2 += 1
+    # if vitals.temp <= 35.0: news2 += 3
+    # elif vitals.temp >= 39.1: news2 += 2
+    # elif vitals.temp <= 36.0 or vitals.temp >= 38.1: news2 += 1
 
     # --- Advanced Risk Logic ---
     stroke_risk = "Low"
@@ -259,14 +259,14 @@ def get_vital_statuses(vitals):
         statuses["bp_status"] = "Stable"
         
     # Temperature Status
-    if vitals.temp <= 35.0:
-        statuses["temperature_status"] = "Critical"
-    elif vitals.temp >= 39.1:
-        statuses["temperature_status"] = "Warning"
-    elif vitals.temp <= 36.0 or vitals.temp >= 38.1:
-        statuses["temperature_status"] = "Warning"
-    else:
-        statuses["temperature_status"] = "Stable"
+    # if vitals.temp <= 35.0:
+    #     statuses["temperature_status"] = "Critical"
+    # elif vitals.temp >= 39.1:
+    #     statuses["temperature_status"] = "Warning"
+    # elif vitals.temp <= 36.0 or vitals.temp >= 38.1:
+    #     statuses["temperature_status"] = "Warning"
+    # else:
+    #     statuses["temperature_status"] = "Stable"
         
     return statuses
 
