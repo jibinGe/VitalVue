@@ -24,6 +24,9 @@ class PatientDetailResponse(BaseModel):
     # Changed to List to hold the 20 latest entries
     vitals_history: List[VitalsSchema] 
 
+    alt_phone: Optional[str]
+    phone_number: Optional[str]
+
     news2_score: int = 0
     af_warning: str = "Normal"
     # stroke_risk: str = "Low"

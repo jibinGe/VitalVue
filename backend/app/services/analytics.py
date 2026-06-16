@@ -259,14 +259,14 @@ def get_vital_statuses(vitals):
         statuses["bp_status"] = "Stable"
         
     # Temperature Status
-    # if vitals.temp <= 35.0:
-    #     statuses["temperature_status"] = "Critical"
-    # elif vitals.temp >= 39.1:
-    #     statuses["temperature_status"] = "Warning"
-    # elif vitals.temp <= 36.0 or vitals.temp >= 38.1:
-    #     statuses["temperature_status"] = "Warning"
-    # else:
-    #     statuses["temperature_status"] = "Stable"
+    if vitals.temp <= 35.0:
+        statuses["temperature_status"] = "Stable"
+    elif vitals.temp >= 39.1:
+        statuses["temperature_status"] = "Warning"
+    elif vitals.temp <= 36.0 or vitals.temp >= 38.1:
+        statuses["temperature_status"] = "Stable"
+    else:
+        statuses["temperature_status"] = "Stable" 
         
     return statuses
 

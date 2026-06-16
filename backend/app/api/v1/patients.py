@@ -320,6 +320,10 @@ async def get_assigned_patients(
             "age": p.age,
             "gender": p.gender,
             "blood_group": p.blood_group,
+
+            "alt_phone": p.alt_phone,
+            "phone_number": p.phone_number,
+
             
             # This line will now evaluate completely in-memory without throwing 500 errors!
             "room_no": p.room.room_number if p.room else "N/A", 
@@ -424,6 +428,169 @@ async def get_patient_vitals_history(
         }
         for row in rows
     ]
+
+@router.get("/share/patient/{patient_id}")
+async def get_patient_shared_vitals(
+    patient_id: int,
+    start_time: datetime = Query(...),
+    end_time: datetime = Query(...),
+    scale_minutes: int = Query(1, ge=1, le=10),
+    db: AsyncSession = Depends(get_db),
+    # current_user: User = Depends(get_current_user)
+):
+    # 1. Security Check: Assigned Doctor or Nurse only
+    result = await db.execute(select(Patient).where(Patient.id == patient_id))
+    patient = result.scalars().first()
+    
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    
+    # RBAC: Verify assignment
+    # if current_user.role == UserRole.NURSE and patient.nurse_id != current_user.id:
+    #     raise HTTPException(status_code=403, detail="Not authorized to view this patient")
+
+    # 2. Time-Bucketing Logic
+    bucket_size = scale_minutes * 60
+    time_bucket = func.floor(func.extract('epoch', Vitals.created_at) / bucket_size) * bucket_size
+
+    query = (
+        select(
+            func.to_timestamp(time_bucket).label("timestamp"),
+            # Row 1: Primary Vitals (Averages)
+            func.avg(Vitals.heart_rate).label("hr"),
+            func.avg(Vitals.spo2).label("spo2"),
+            func.avg(Vitals.temp).label("temp"),
+            func.avg(Vitals.bp_systolic).label("sys"),
+            func.avg(Vitals.bp_diastolic).label("dia"),
+            # Row 2: Risk Analysis (Max severity in bucket)
+            func.max(Vitals.news2_score).label("news2"),
+            func.max(Vitals.af_warning).label("af"),
+            func.max(Vitals.stroke_risk).label("stroke"),
+            func.max(Vitals.seizure_risk).label("seizure"),
+            # Row 3: Advanced Metrics & Status
+            func.avg(Vitals.hrv_score).label("hrv"),
+            func.max(Vitals.stress_level).label("stress"),
+            func.avg(Vitals.movement).label("move"),
+            func.avg(Vitals.battery_percent).label("batt"),
+            func.bool_and(Vitals.is_connected).label("conn")
+        )
+        .where(
+            and_(
+                Vitals.patient_id == patient_id,
+                Vitals.created_at >= start_time,
+                Vitals.created_at <= end_time
+            )
+        )
+        .group_by("timestamp")
+        .order_by(text("timestamp ASC"))
+    )
+
+    result = await db.execute(query)
+    rows = result.all()
+
+    return [
+        {
+            "timestamp": row.timestamp,
+            "primary_vitals": {
+                "heart_rate": round(row.hr, 1),
+                "spo2": round(row.spo2, 1),
+                "temp": round(row.temp, 1),
+                "blood_pressure": f"{int(row.sys)}/{int(row.dia)}"
+            },
+            "clinical_risks": {
+                "news2_score": row.news2,
+                "af_warning": row.af,
+                "stroke_risk": row.stroke,
+                "seizure_risk": row.seizure
+            },
+            "advanced_metrics": {
+                "hrv_score": round(row.hrv, 1),
+                "stress_level": row.stress,
+                "movement_index": round(row.move, 1)
+            },
+            "device_status": {
+                "battery": int(row.batt),
+                "is_connected": row.conn
+            }
+        }
+        for row in rows
+    ]
+
+@router.get("/share/patient/{patient_id}/{metric_name}")
+async def get_shared_dynamic_metric_history(
+    patient_id: int,
+    metric_name: str,
+    start_time: datetime = Query(...),
+    end_time: datetime = Query(...),
+    scale_minutes: int = Query(1, ge=1, le=1440),
+    db: AsyncSession = Depends(get_db),
+    # current_user: User = Depends(get_current_user)
+):
+    # 1. Dynamic Column Inspection
+    # This automatically finds all columns in your Vitals model
+    mapper = inspect(Vitals)
+    columns = [c.key for c in mapper.attrs]
+    
+    if metric_name not in columns:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Metric '{metric_name}' not found. Available: {', '.join(columns)}"
+        )
+
+    # 2. Security Check (Assigned Nurse/Doctor only)
+    patient_result = await db.execute(select(Patient).where(Patient.id == patient_id))
+    patient = patient_result.scalars().first()
+    
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    
+    # if current_user.role == UserRole.NURSE and patient.nurse_id != current_user.id:
+    #     raise HTTPException(status_code=403, detail="Unauthorized access to this patient")
+
+    # 3. Dynamic Aggregation Logic
+    bucket_size = scale_minutes * 60
+    time_bucket = func.floor(func.extract('epoch', Vitals.created_at) / bucket_size) * bucket_size
+    
+    # Get the actual SQLAlchemy column object dynamically
+    target_column = getattr(Vitals, metric_name)
+    
+    # Decide aggregation type: Numbers get Averaged, Strings get Maximum (latest/worst state)
+    is_numeric = isinstance(target_column.type, (Integer, Float))
+    agg_func = func.avg(target_column) if is_numeric else func.max(target_column)
+
+    query = (
+        select(
+            func.to_timestamp(time_bucket).label("timestamp"),
+            agg_func.label("value")
+        )
+        .where(
+            and_(
+                Vitals.patient_id == patient_id,
+                Vitals.created_at >= start_time,
+                Vitals.created_at <= end_time
+            )
+        )
+        .group_by("timestamp")
+        .order_by(text("timestamp ASC"))
+    )
+
+    result = await db.execute(query)
+    rows = result.all()
+
+    # 4. Response Generation
+    return {
+        "patient_id": patient_id,
+        "metric": metric_name,
+        "aggregation": "average" if is_numeric else "max_state",
+        "data": [
+            {
+                "t": row.timestamp, 
+                "v": round(row.value, 2) if (is_numeric and row.value) else row.value
+            }
+            for row in rows
+        ]
+    }
+
 
 @router.get("/history/{patient_id}/{metric_name}")
 async def get_dynamic_metric_history(
