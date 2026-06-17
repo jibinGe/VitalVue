@@ -564,14 +564,17 @@ async def get_patient_shared_overview(
             "recorded_at": latest.created_at.isoformat() if latest.created_at else None
         }
 
-    # 3. Fetch Recent Alerts (Last 10 minutes)
-    ten_mins_ago = datetime.utcnow() - timedelta(minutes=10)
+    # 3. Fetch Recent Alerts (Last 24 hours) - Vital Alerts Only
+    one_day_ago = datetime.utcnow() - timedelta(days=1)
+    device_types = ["Connectivity", "Band Status"]
+    
     alerts_query = (
         select(Alert)
         .where(
             Alert.patient_id == patient.id,
-            Alert.created_at >= ten_mins_ago,
-            Alert.severity.in_(["critical", "warning"])
+            Alert.created_at >= one_day_ago,
+            Alert.severity.in_(["critical", "warning"]),
+            Alert.vital_type.not_in(device_types)
         )
         .order_by(Alert.created_at.desc())
     )
