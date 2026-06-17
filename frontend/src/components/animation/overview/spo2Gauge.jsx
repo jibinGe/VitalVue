@@ -39,6 +39,8 @@ const Spo2Gauge = React.memo(function Spo2Gauge({ value = 0, className = "h-38 -
     <div className={`mx-auto ${className}`}>
       <ReactSpeedometer
         fluidWidth={set_height}
+        width={180}
+        height={90}
         maxValue={100}
         value={animatedValue}
         needleColor="#CCA166"

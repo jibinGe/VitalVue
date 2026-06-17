@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { patientService } from "@/services/patientService";
-import { useDashboardStore } from "@/store/useDashboardStore";
 import HeartRateLive from "@/components/charts/HeartRateLive";
 import BPTrend from "@/components/animation/overview/BPTrend";
 import Spo2Gauge from "@/components/animation/overview/spo2Gauge";
@@ -89,7 +88,7 @@ const renderGraph = (vital, historyData) => {
   if (vital.title === "Heart Rate")
     return <HeartRateLive width={260} height={30} className="-ml-2 mt-3" historyData={historyData} />;
   if (vital.title === "SpO2")
-    return <Spo2Gauge value={vital.spo2 || 90} className="h-20 w-48 -mt-6 -ml-3" set_height animate />;
+    return <Spo2Gauge value={vital.spo2 || 90} className="w-[180px] h-[90px] -mt-5 -ml-2" set_height animate />;
   if (vital.title === "BP Trend")
     return <BPTrend className="h-9 scale-110 -mb-1" historyData={historyData} />;
   return null;
@@ -233,43 +232,61 @@ const InfoRow = ({ icon, label, value }) => {
 /* ─────────────────────────────────────────────────────── */
 export default function ShareVitalsPage() {
   const { patientId } = useParams();
-  const { liveVitals }   = useDashboardStore();
 
-  const [patient, setPatient]   = useState(null);
-  const [loading, setLoading]   = useState(true);
-  const [shared,  setShared]    = useState(false);
-  const [shareErr,setShareErr]  = useState("");
+  const [patient,   setPatient]   = useState(null);
+  const [vitalsData,setVitalsData]= useState(null);
+  const [history,   setHistory]   = useState({});
+  const [loading,   setLoading]   = useState(true);
+  const [shared,    setShared]    = useState(false);
+  const [shareErr,  setShareErr]  = useState("");
 
-  /* ── load + auto-share ── */
+  /* ── load shared vitals (public, no auth) ── */
   useEffect(() => {
     if (!patientId) return;
     (async () => {
       setLoading(true);
-      const res = await patientService.getPatientById(Number(patientId));
-      if (res.success) setPatient(res.data);
-      setLoading(false);
 
-      /* auto-trigger WhatsApp alert */
-      const sr = await patientService.shareVitals(Number(patientId));
-      if (sr.success) setShared(true);
-      else            setShareErr(sr.message || "Share failed");
+      /* 1. fetch shared overview */
+      const res = await patientService.getSharedPatientVitals(Number(patientId));
+      if (res.success && res.data) {
+        setPatient(res.data.patient ?? res.data);
+        setVitalsData(res.data.vitals ?? res.data);
+        setShared(true);
+      } else {
+        setShareErr(res.message || "Could not load shared vitals");
+      }
+
+      /* 2. fetch sparkline history for the three chart metrics in parallel */
+      const [hrRes, spo2Res, bpSysRes, bpDiaRes] = await Promise.all([
+        patientService.getSharedMetricHistory(Number(patientId), 'heart_rate'),
+        patientService.getSharedMetricHistory(Number(patientId), 'spo2'),
+        patientService.getSharedMetricHistory(Number(patientId), 'bp_systolic'),
+        patientService.getSharedMetricHistory(Number(patientId), 'bp_diastolic'),
+      ]);
+
+      setHistory({
+        heart_rate:   hrRes.data    || [],
+        spo2:         spo2Res.data  || [],
+        bp_systolic:  bpSysRes.data || [],
+        bp_diastolic: bpDiaRes.data || [],
+      });
+
+      setLoading(false);
     })();
   }, [patientId]);
 
-  /* ── merge live vitals ── */
-  const live   = liveVitals?.[patientId] || {};
-  const h      = patient?.vitals_history || [];
-  const latest = h.length > 0 ? h[h.length - 1] : {};
+  /* ── flatten vitals from shared response ── */
+  const v = vitalsData || {};
 
-  const heartRate  = live.heart_rate   ?? latest.heart_rate   ?? 0;
-  const hrStatus   = live.heart_rate_status  ?? latest.heart_rate_status  ?? "Stable";
-  const spo2       = live.spo2         ?? latest.spo2         ?? 0;
-  const spo2Status = live.spo2_status  ?? latest.spo2_status  ?? "Stable";
-  const bpSys      = live.bp_systolic  ?? latest.bp_systolic  ?? 0;
-  const bpDia      = live.bp_diastolic ?? latest.bp_diastolic ?? 0;
-  const bpStatus   = live.bp_status    ?? latest.bp_status    ?? "Stable";
-  const afWarning  = live.af_warning   ?? latest.af_warning   ?? "Normal";
-  const isConnected= live.is_connected ?? latest.is_connected ?? false;
+  const heartRate  = v.heart_rate   ?? 0;
+  const hrStatus   = v.heart_rate_status  ?? "Stable";
+  const spo2       = v.spo2         ?? 0;
+  const spo2Status = v.spo2_status  ?? "Stable";
+  const bpSys      = v.bp_systolic  ?? 0;
+  const bpDia      = v.bp_diastolic ?? 0;
+  const bpStatus   = v.bp_status    ?? "Stable";
+  const afWarning  = v.af_warning   ?? "Normal";
+  const isConnected= v.is_connected ?? false;
 
   /* ── overall triage ── */
   const overall = (() => {
@@ -283,7 +300,7 @@ export default function ShareVitalsPage() {
 
   /* ── last sync ── */
   const lastSync = (() => {
-    const ts = live.recorded_at || latest.recorded_at;
+    const ts = v.recorded_at;
     if (!ts) return null;
     return new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   })();
@@ -301,9 +318,9 @@ export default function ShareVitalsPage() {
       className="min-h-screen"
       style={{ background: "#111113", fontFamily: "'Inter', system-ui, sans-serif" }}
     >
-      {/* ── WhatsApp banner ── */}
+      {/* ── error banner ── */}
       <AnimatePresence>
-        {(shared || shareErr) && (
+        {shareErr && (
           <motion.div
             initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
@@ -311,18 +328,11 @@ export default function ShareVitalsPage() {
             transition={{ duration: 0.3 }}
             className="px-4 py-2.5 flex items-center gap-2 text-[12px]"
             style={{
-              background: shared ? "rgba(44,209,85,0.08)" : "rgba(229,77,77,0.08)",
-              borderBottom: `1px solid ${shared ? "rgba(44,209,85,0.2)" : "rgba(229,77,77,0.2)"}`,
+              background: "rgba(229,77,77,0.08)",
+              borderBottom: "1px solid rgba(229,77,77,0.2)",
             }}
           >
-            {shared ? (
-              <>
-                <IWA />
-                <span className="text-[#2CD155] font-medium">Doctor alert sent via WhatsApp</span>
-              </>
-            ) : (
-              <span className="text-[#E54D4D]">{shareErr}</span>
-            )}
+            <span className="text-[#E54D4D]">{shareErr}</span>
           </motion.div>
         )}
       </AnimatePresence>
@@ -347,8 +357,6 @@ export default function ShareVitalsPage() {
             transition={{ duration: 0.42, ease: "easeOut" }}
             className="rounded-3xl overflow-hidden"
             style={{
-              border: `3px solid ${glow.border}`,
-              boxShadow: `0 0 28px ${glow.glow}`,
               background: "#1E1E20",
             }}
           >
@@ -404,13 +412,20 @@ export default function ShareVitalsPage() {
           {/* ── VITALS — all vertical ── */}
           <div className="flex flex-col gap-3">
             {vitals.map((vital, vIndex) => {
+              /* pick the right history slice per metric */
+              const hData =
+                vital.title === "Heart Rate" ? history.heart_rate :
+                vital.title === "SpO2"       ? history.spo2 :
+                vital.title === "BP Trend"   ? history.bp_systolic :
+                [];
+
               if (vital.title === "AF Warning") {
                 return (
                   <AFCard
                     key={vIndex}
                     vital={vital}
                     delay={0.1 + vIndex * 0.07}
-                    historyData={h}
+                    historyData={hData}
                   />
                 );
               }
@@ -420,7 +435,7 @@ export default function ShareVitalsPage() {
                   vital={vital}
                   vIndex={vIndex}
                   delay={0.1 + vIndex * 0.07}
-                  historyData={h}
+                  historyData={hData}
                 />
               );
             })}
