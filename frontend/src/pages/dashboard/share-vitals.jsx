@@ -245,6 +245,7 @@ export default function ShareVitalsPage() {
 
   const [patient,   setPatient]   = useState(null);
   const [vitalsData,setVitalsData]= useState(null);
+  const [alerts,    setAlerts]    = useState([]);
   const [history,   setHistory]   = useState({});
   const [loading,   setLoading]   = useState(true);
   const [shared,    setShared]    = useState(false);
@@ -261,6 +262,7 @@ export default function ShareVitalsPage() {
       if (res.success && res.data) {
         setPatient(res.data.patient ?? res.data);
         setVitalsData(res.data.vitals ?? res.data);
+        setAlerts(res.data.recent_alerts || []);
         setShared(true);
       } else {
         setShareErr(res.message || "Could not load shared vitals");
@@ -450,6 +452,45 @@ export default function ShareVitalsPage() {
               );
             })}
           </div>
+
+          {/* ── ALERTS ── */}
+          {alerts.length > 0 && (
+            <div className="flex flex-col gap-3 mt-2">
+              <h3 className="text-white/60 text-[13px] font-medium uppercase tracking-widest pl-1">Recent Alerts (10m)</h3>
+              {alerts.map((alert, idx) => {
+                const isCritical = alert.severity?.toLowerCase() === "critical";
+                const bgColors = isCritical ? "bg-[rgba(229,77,77,0.1)] border-[#E54D4D]/40" : "bg-[rgba(229,219,76,0.1)] border-[#E5DB4C]/40";
+                const textColors = isCritical ? "text-[#E54D4D]" : "text-[#E5DB4C]";
+                
+                const timeStr = alert.created_at ? new Date(alert.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+                
+                return (
+                  <motion.div
+                    key={idx}
+                    initial={{ opacity: 0, y: 18 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 + idx * 0.1 }}
+                    className={`border rounded-[16px] p-3.5 flex items-center justify-between ${bgColors}`}
+                  >
+                    <div className="flex flex-col">
+                      <span className={`text-[15px] font-semibold ${textColors}`}>
+                        {alert.vital_type}
+                      </span>
+                      <span className="text-[12px] text-white/60 mt-0.5">
+                        {alert.triggered_value}
+                      </span>
+                    </div>
+                    <div className="flex flex-col items-end gap-1">
+                      <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-sm ${isCritical ? 'bg-[#E54D4D]/20 text-[#E54D4D]' : 'bg-[#E5DB4C]/20 text-[#E5DB4C]'}`}>
+                        {alert.severity}
+                      </span>
+                      <span className="text-[11px] text-white/40">{timeStr}</span>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          )}
 
           {/* footer */}
           <motion.p

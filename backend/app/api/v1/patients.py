@@ -16,7 +16,7 @@ from app.api.deps import get_current_user, allow_admins
 from sqlalchemy import func, and_, text, or_
 from app.models.clinical import Alert, Action, ClinicalNote
 from app.schemas.clinical_audit import PatientClinicalTimelineResponse
-from datetime import datetime
+from datetime import datetime, timedelta
 from sqlalchemy import func, and_, text, select, inspect, Integer, Float, String, Boolean
 import json
 import random
@@ -564,6 +564,31 @@ async def get_patient_shared_overview(
             "recorded_at": latest.created_at.isoformat() if latest.created_at else None
         }
 
+    # 3. Fetch Recent Alerts (Last 10 minutes)
+    ten_mins_ago = datetime.utcnow() - timedelta(minutes=10)
+    alerts_query = (
+        select(Alert)
+        .where(
+            Alert.patient_id == patient.id,
+            Alert.created_at >= ten_mins_ago,
+            Alert.severity.in_(["critical", "warning"])
+        )
+        .order_by(Alert.created_at.desc())
+    )
+    alerts_result = await db.execute(alerts_query)
+    recent_alerts = alerts_result.scalars().all()
+    
+    alerts_data = [
+        {
+            "vital_type": a.vital_type,
+            "triggered_value": a.triggered_value,
+            "severity": a.severity,
+            "status": a.status,
+            "created_at": a.created_at.isoformat() if a.created_at else None,
+        }
+        for a in recent_alerts
+    ]
+
     return {
         "patient": {
             "full_name": patient.full_name,
@@ -572,7 +597,8 @@ async def get_patient_shared_overview(
             "phone_number": patient.phone_number or "",
             "alt_phone": patient.alt_phone or "",
         },
-        "vitals": vitals_data
+        "vitals": vitals_data,
+        "recent_alerts": alerts_data
     }
 
 @router.get("/share/patient/{patient_id}/{metric_name}")
