@@ -158,7 +158,21 @@ export const patientService = {
     try {
       if (!identifier) return { success: false, message: "No identifier provided" };
 
-      // Fetch assigned patients to find the specific one
+      // Try the optimized direct fetch API first
+      try {
+        const directResponse = await apiClient.get(`/api/v1/patients/assigned/${identifier}`);
+        const patient = directResponse.data;
+        if (patient) {
+          if (patient.vitals_history && Array.isArray(patient.vitals_history)) {
+            patient.vitals_history.reverse();
+          }
+          return { success: true, data: patient, message: "Success" };
+        }
+      } catch (err) {
+        console.warn(`Direct fetch failed for identifier: ${identifier}. Falling back to list fetch...`, err?.response?.status || err.message);
+      }
+
+      // Fallback: Fetch assigned patients to find the specific one
       const response = await apiClient.get('/api/v1/patients/assigned');
       const patients = response.data || [];
 
@@ -1132,8 +1146,8 @@ export const patientService = {
       const end_time     = params.end_time     || mappedParams.end_time;
       const scale_minutes = params.scale_minutes || 1;
 
-      const response = await axios.get(
-        `https://vitalvue-api.genesysailabs.com/api/v1/patients/share/patient/${patientId}`,
+      const response = await apiClient.get(
+        `/api/v1/patients/share/patient/${patientId}`,
         { params: { start_time, end_time, scale_minutes } }
       );
       return {
@@ -1167,8 +1181,8 @@ export const patientService = {
       const end_time      = params.end_time      || mappedParams.end_time;
       const scale_minutes = params.scale_minutes || 1;
 
-      const response = await axios.get(
-        `https://vitalvue-api.genesysailabs.com/api/v1/patients/share/patient/${patientId}/${metricName}`,
+      const response = await apiClient.get(
+        `/api/v1/patients/share/patient/${patientId}/${metricName}`,
         { params: { start_time, end_time, scale_minutes } }
       );
       return {

@@ -18,8 +18,8 @@ export const usePatient = (userId) => {
       return response.data || null;
     },
     enabled: !!userId,
-    refetchInterval: 5000, 
-    refetchIntervalInBackground: true,
-    staleTime: 2000,
+    refetchInterval: false, 
+    refetchIntervalInBackground: false,
+    staleTime: 1000 * 60 * 5, // 5 minutes
   });
 };

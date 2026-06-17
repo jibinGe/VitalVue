@@ -72,7 +72,7 @@ export const usePatientHistory = (patientId, filterTab = 'Live') => {
       return transformedHistory;
     },
     enabled: !!patientId && !isNaN(Number(patientId)),
-    refetchInterval: filterTab === 'Live' ? 5000 : false, // Auto-refresh if 'Live'
-    staleTime: filterTab === 'Live' ? 2000 : 1000 * 60,
+    refetchInterval: false, // Disabled polling since SSE handles live updates
+    staleTime: 1000 * 60 * 5, // 5 minutes
   });
 };

@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import Logo from '@/components/logo'
 import { Link } from 'react-router-dom'
 import { authService } from '../../services/authService'
@@ -8,6 +8,8 @@ import { useAuth } from '../../contexts/AuthContext'
 
 export default function Verify() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const from = location.state?.from || '/dashboard/home'
   const { login } = useAuth()
   const length = 6;
   const inputsRef = useRef([]);
@@ -78,7 +80,7 @@ export default function Verify() {
 
       if (result.success && result.data) {
         login(result.data.staff, result.data.token, result.data.refreshToken)
-        navigate('/dashboard/home')
+        navigate(from, { replace: true })
       } else {
         setError(result.message || 'Invalid OTP. Please try again.')
         setOtp(Array(length).fill(""))

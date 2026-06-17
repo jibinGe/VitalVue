@@ -113,16 +113,16 @@ const AFCard = ({ vital, delay, historyData }) => {
       initial={{ opacity: 0, y: 18 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay, duration: 0.38, ease: "easeOut" }}
-      className={`border relative overflow-hidden rounded-[20px] bg-[#2f2f31] shadow-[0_0_60px_rgba(0,0,0,0.12)] flex flex-col justify-between min-h-[120px] p-3.5 ${bdrCls}`}
+      className={`border relative overflow-hidden rounded-[20px] bg-[#2f2f31] shadow-[0_0_60px_rgba(0,0,0,0.12)] flex flex-col justify-between h-[190px] p-3.5 ${bdrCls}`}
     >
       {/* header */}
       <div className="flex items-start justify-between">
         <div className="flex flex-col gap-1">
           <h4 className="text-[13px] text-white/55 font-lufga">AF Warning</h4>
-          <div className="text-[26px] font-medium text-white leading-tight" style={{ textShadow: `0 0 12px ${color}40` }}>
+          <div className="text-[26px] font-medium text-white leading-tight mt-1" style={{ textShadow: `0 0 12px ${color}40` }}>
             {label}
           </div>
-          <p className="text-[11px] text-para">{sub}</p>
+          <p className="text-[11px] text-para mt-1">{sub}</p>
         </div>
         <div className={`size-9 rounded-full flex items-center justify-center shrink-0 ${iconBg}`}>
           <IAF />
@@ -168,51 +168,55 @@ const VitalCard = ({ vital, vIndex, delay, historyData }) => {
       initial={{ opacity: 0, y: 18 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay, duration: 0.38, ease: "easeOut" }}
-      className="bg-[#2F2F31] rounded-[20px] overflow-hidden p-3.5 flex flex-col gap-2 min-h-[120px] relative"
+      className="bg-[#2F2F31] rounded-[20px] overflow-hidden p-3.5 flex flex-col justify-between h-[190px] relative"
     >
-      {/* top row: icon + title + status badge */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className={`size-9 rounded-full flex items-center justify-center shrink-0 ${ICON_BG[vIndex % ICON_BG.length]}`}>
-            {ICON_MAP[vital.title] || vital.icon}
+      <div>
+        {/* top row: icon + title + status badge */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className={`size-9 rounded-full flex items-center justify-center shrink-0 ${ICON_BG[vIndex % ICON_BG.length]}`}>
+              {ICON_MAP[vital.title] || vital.icon}
+            </div>
+            <span className="text-[15px] text-white font-medium">{vital.title}</span>
           </div>
-          <span className="text-[15px] text-white font-medium">{vital.title}</span>
+          {vital.status && (
+            <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full" style={sc}>
+              {vital.status}
+            </span>
+          )}
         </div>
-        {vital.status && (
-          <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full" style={sc}>
-            {vital.status}
-          </span>
-        )}
-      </div>
 
-      {/* value */}
-      <div className="text-[28px] font-semibold text-white pl-0.5">
-        {vital.heartRate !== undefined && (
-          <>{vital.heartRate || "--"}<span className="text-[13px] text-white/40 font-normal ml-1">bpm</span></>
-        )}
-        {vital.spo2 !== undefined && (
-          <>{vital.spo2 || "--"}<span className="text-[13px] text-white/40 font-normal">%</span></>
-        )}
-        {vital.bp && (
-          <>
-            {vital.bp.split("/")[0]}
-            <span className="text-[18px] text-white/60">/{vital.bp.split("/")[1]}</span>
-            <span className="text-[13px] text-white/40 font-normal ml-1">mmHg</span>
-          </>
-        )}
-        {!hasValue && vital.title !== "AF Warning" && (
-          <span className="text-white/30 text-[22px]">--</span>
-        )}
+        {/* value */}
+        <div className="text-[28px] font-semibold text-white pl-0.5 mt-2">
+          {vital.heartRate !== undefined && (
+            <>{vital.heartRate || "--"}<span className="text-[13px] text-white/40 font-normal ml-1">bpm</span></>
+          )}
+          {vital.spo2 !== undefined && (
+            <>{vital.spo2 || "--"}<span className="text-[13px] text-white/40 font-normal">%</span></>
+          )}
+          {vital.bp && (
+            <>
+              {vital.bp.split("/")[0]}
+              <span className="text-[18px] text-white/60">/{vital.bp.split("/")[1]}</span>
+              <span className="text-[13px] text-white/40 font-normal ml-1">mmHg</span>
+            </>
+          )}
+          {!hasValue && vital.title !== "AF Warning" && (
+            <span className="text-white/30 text-[22px]">--</span>
+          )}
+        </div>
       </div>
 
       {/* graph */}
-      <div>{renderGraph(vital, historyData)}</div>
+      <div className="mt-auto">
+        {renderGraph(vital, historyData)}
+      </div>
     </motion.div>
   );
 };
 
 /* ── info row (icon + label + value) ───────────────────── */
-const InfoRow = ({ icon, label, value }) => {
+const InfoRow = ({ icon, label, value, isPhone }) => {
   if (!value) return null;
   return (
     <div className="flex items-center gap-2.5">
@@ -221,7 +225,13 @@ const InfoRow = ({ icon, label, value }) => {
       </div>
       <div className="flex items-center gap-1.5 min-w-0">
         <span className="text-[12px] text-white/40 whitespace-nowrap">{label}:</span>
-        <span className="text-[13px] text-white font-medium truncate">{value}</span>
+        {isPhone ? (
+          <a href={`tel:${value}`} className="text-[13px] text-blue-400 hover:text-blue-300 font-medium truncate underline underline-offset-2">
+            {value}
+          </a>
+        ) : (
+          <span className="text-[13px] text-white font-medium truncate">{value}</span>
+        )}
       </div>
     </div>
   );
@@ -366,7 +376,7 @@ export default function ShareVitalsPage() {
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <p className="text-[11px] text-white/35 uppercase tracking-widest mb-1">Patient</p>
-                  <h1 className="text-[22px] font-bold text-white leading-tight truncate">
+                  <h1 className="text-[28px] font-bold text-white leading-tight truncate">
                     {patient?.full_name || "Unknown"}
                   </h1>
                 </div>
@@ -398,8 +408,8 @@ export default function ShareVitalsPage() {
               <div className="grid grid-cols-1 gap-2.5">
                 <InfoRow icon={<IRoom />}  label="Room"      value={patient?.room_no} />
                 <InfoRow icon={<IWard />}  label="Ward"      value={patient?.ward_name} />
-                <InfoRow icon={<IPhone />} label="Phone"     value={patient?.phone_number} />
-                <InfoRow icon={<IPhone />} label="Alt Phone" value={patient?.alt_phone} />
+                <InfoRow icon={<IPhone />} label="Phone"     value={patient?.phone_number} isPhone />
+                <InfoRow icon={<IPhone />} label="Alt Phone" value={patient?.alt_phone} isPhone />
               </div>
 
               {/* last sync */}
