@@ -1,3 +1,4 @@
+import axios from 'axios';
 import apiClient from '@/config/apiClient';
 
 export const patientService = {
@@ -157,7 +158,21 @@ export const patientService = {
     try {
       if (!identifier) return { success: false, message: "No identifier provided" };
 
-      // Fetch assigned patients to find the specific one
+      // Try the optimized direct fetch API first
+      try {
+        const directResponse = await apiClient.get(`/api/v1/patients/assigned/${identifier}`);
+        const patient = directResponse.data;
+        if (patient) {
+          if (patient.vitals_history && Array.isArray(patient.vitals_history)) {
+            patient.vitals_history.reverse();
+          }
+          return { success: true, data: patient, message: "Success" };
+        }
+      } catch (err) {
+        console.warn(`Direct fetch failed for identifier: ${identifier}. Falling back to list fetch...`, err?.response?.status || err.message);
+      }
+
+      // Fallback: Fetch assigned patients to find the specific one
       const response = await apiClient.get('/api/v1/patients/assigned');
       const patients = response.data || [];
 
@@ -1116,6 +1131,76 @@ export const patientService = {
   },
 
   /**
+   * Get shared patient vitals (PUBLIC — no auth required)
+   * GET /api/v1/patients/share/patient/{patient_id}
+   *
+   * params:
+   *   start_time    – ISO datetime string (required)
+   *   end_time      – ISO datetime string (required)
+   *   scale_minutes – integer 1–10 (default 1)
+   */
+  async getSharedPatientVitals(patientId, params = {}) {
+    try {
+      const mappedParams = this._mapIntervalToParams(params.interval || '1h');
+      const start_time   = params.start_time   || mappedParams.start_time;
+      const end_time     = params.end_time     || mappedParams.end_time;
+      const scale_minutes = params.scale_minutes || 1;
+
+      const response = await apiClient.get(
+        `/api/v1/patients/share/patient/${patientId}`,
+        { params: { start_time, end_time, scale_minutes } }
+      );
+      return {
+        success: true,
+        data: response.data,
+        message: 'Success',
+      };
+    } catch (error) {
+      console.error('Error fetching shared patient vitals:', error);
+      return {
+        success: false,
+        data: null,
+        message: error.response?.data?.detail || error.message || 'Failed to fetch shared vitals',
+      };
+    }
+  },
+
+  /**
+   * Get shared dynamic metric history (PUBLIC — no auth required)
+   * GET /api/v1/patients/share/patient/{patient_id}/{metric_name}
+   *
+   * params:
+   *   start_time    – ISO datetime string (required)
+   *   end_time      – ISO datetime string (required)
+   *   scale_minutes – integer 1–1440 (default 1)
+   */
+  async getSharedMetricHistory(patientId, metricName, params = {}) {
+    try {
+      const mappedParams = this._mapIntervalToParams(params.interval || '1h');
+      const start_time    = params.start_time    || mappedParams.start_time;
+      const end_time      = params.end_time      || mappedParams.end_time;
+      const scale_minutes = params.scale_minutes || 1;
+
+      const response = await apiClient.get(
+        `/api/v1/patients/share/patient/${patientId}/${metricName}`,
+        { params: { start_time, end_time, scale_minutes } }
+      );
+      return {
+        success: true,
+        data: response.data?.data || response.data || [],
+        message: 'Success',
+      };
+    } catch (error) {
+      console.error(`Error fetching shared metric history for ${metricName}:`, error);
+      return {
+        success: false,
+        data: [],
+        message: error.response?.data?.detail || error.message || `Failed to fetch shared history for ${metricName}`,
+      };
+    }
+  },
+
+  /**
    * Get Seizure Risk Assessment for a patient
    */
   async getSeizureRisk(userId) {
@@ -1144,4 +1229,5 @@ export const patientService = {
       return { success: false, data: null, message: error.message || "Failed to fetch seizure risk" };
     }
   },
+
 };

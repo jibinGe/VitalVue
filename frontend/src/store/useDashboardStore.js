@@ -68,4 +68,16 @@ export const useDashboardStore = create((set) => ({
       [patientId]: status
     }
   })),
+
+  // Reset function to clear state on logout
+  reset: () => set({
+    criticalAlarmData: null,
+    acknowledgedAlerts: {},
+    triageFilter: 'All',
+    selectedUserId: null,
+    selectedUserName: null,
+    searchQuery: "",
+    liveVitals: {},
+    liveStatuses: {}
+  }),
 }));

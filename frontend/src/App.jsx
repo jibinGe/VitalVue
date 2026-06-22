@@ -32,6 +32,8 @@ const Control2 = lazy(() => import('./pages/dashboard/control-2'))
 const Control3 = lazy(() => import('./pages/dashboard/control-3'))
 const Profile = lazy(() => import('./pages/dashboard/profile'))
 const NotificationsPage = lazy(() => import('./pages/dashboard/notifications'))
+const ShareVitalsPage   = lazy(() => import('./pages/dashboard/share-vitals'))
+const TvDashboard       = lazy(() => import('./pages/dashboard/tv-dashboard'))
 
 // Minimal themed loading fallback shown between route navigations
 const PageLoader = () => (
@@ -140,7 +142,26 @@ const router = createBrowserRouter([
         element: <Suspense fallback={<PageLoader />}><NotificationsPage /></Suspense>,
       },
     ]
-  }
+  },
+  {
+    // Standalone — no Layout/Header wrapper, pure mobile view
+    path: '/dashboard/share-vitals/:patientId',
+    element: (
+      <ProtectedRoute>
+        <Suspense fallback={<PageLoader />}><ShareVitalsPage /></Suspense>
+      </ProtectedRoute>
+    ),
+    errorElement: <Error />,
+  },
+  {
+    path: '/tv',
+    element: (
+      <ProtectedRoute>
+        <Suspense fallback={<PageLoader />}><TvDashboard /></Suspense>
+      </ProtectedRoute>
+    ),
+    errorElement: <Error />,
+  },
 ])
 
 export default function App() {

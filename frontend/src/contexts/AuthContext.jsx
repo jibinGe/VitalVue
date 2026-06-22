@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { authService } from '../services/authService'
+import { queryClient } from '../lib/query-client'
+import { useDashboardStore } from '../store/useDashboardStore'
 
 const AuthContext = createContext(null)
 
@@ -24,6 +26,10 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setUser(null)
       setIsAuthenticated(false)
+      // Clear React Query cache so the next user doesn't see old data
+      queryClient.clear()
+      // Reset dashboard store
+      useDashboardStore.getState().reset()
     }
   }, [])
 

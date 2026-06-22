@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import Logo from '@/components/logo'
 import { Link } from 'react-router-dom'
 import { Angle, Call, Contact, User } from '../../utilities/icons'
@@ -8,6 +8,8 @@ import { authService } from '../../services/authService'
 
 export default function Login() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const from = location.state?.from || '/dashboard/home'
   const [formData, setFormData] = useState({
     employeeId: '',
     staySignedIn: false,
@@ -18,9 +20,9 @@ export default function Login() {
   // Redirect if already authenticated
   useEffect(() => {
     if (authService.isAuthenticated()) {
-      navigate('/dashboard/home')
+      navigate(from, { replace: true })
     }
-  }, [navigate])
+  }, [navigate, from])
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
@@ -49,7 +51,7 @@ export default function Login() {
       )
 
       if (result.success) {
-        navigate('/verify')
+        navigate('/verify', { state: { from } })
       } else {
         setError(result.message || 'Login failed. Please try again.')
       }

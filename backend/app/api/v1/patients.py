@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks, B
 from app.database import get_db, get_redis
 from app.schemas.user import PatientCreate
 from app.crud.user import patient as crud_patient
-from app.models.organization import Room
+from app.models.organization import Room, Ward
 from app.models.user import Patient, User, Nurse, Doctor, UserRole
 from app.models.vitals import Vitals
 from app.services.alerts import send_consolidated_vitalvue_alert
@@ -16,7 +16,7 @@ from app.api.deps import get_current_user, allow_admins
 from sqlalchemy import func, and_, text, or_
 from app.models.clinical import Alert, Action, ClinicalNote
 from app.schemas.clinical_audit import PatientClinicalTimelineResponse
-from datetime import datetime
+from datetime import datetime, timedelta
 from sqlalchemy import func, and_, text, select, inspect, Integer, Float, String, Boolean
 import json
 import random
@@ -259,7 +259,7 @@ async def get_assigned_patients(
         .options(
             joinedload(Patient.assigned_nurse),
             joinedload(Patient.assigned_doctor),
-            joinedload(Patient.room)  # <--- FIXED: Pre-fetches room object data safely
+            joinedload(Patient.room).joinedload(Room.ward)  # Pre-fetches room + ward name
         )
     )
 
@@ -326,7 +326,10 @@ async def get_assigned_patients(
 
             
             # This line will now evaluate completely in-memory without throwing 500 errors!
-            "room_no": p.room.room_number if p.room else "N/A", 
+            "room_no": p.room.room_number if p.room else "N/A",
+            "ward_name": p.room.ward.name if (p.room and p.room.ward) else "N/A",
+            "phone_number": p.phone_number or "",
+            "alt_phone": p.alt_phone or "",
             
             "assigned_doctor": p.assigned_doctor.full_name if p.assigned_doctor else None,
             "assigned_nurse": p.assigned_nurse.full_name if p.assigned_nurse else None,
@@ -341,6 +344,90 @@ async def get_assigned_patients(
         })
 
     return response_data
+
+@router.get("/assigned/{user_id}", response_model=PatientDetailResponse)
+async def get_assigned_patient_by_user_id(
+    user_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Fetches a specific active patient assigned to the calling medical clinician by their user_id.
+    """
+    query = (
+        select(Patient)
+        .options(
+            joinedload(Patient.assigned_nurse),
+            joinedload(Patient.assigned_doctor),
+            joinedload(Patient.room).joinedload(Room.ward)
+        )
+    )
+
+    query = query.where(User.is_active == True)
+    query = query.where(Patient.is_discharged == False)
+    query = query.where(Patient.archive_status == "active")
+    if user_id.isdigit():
+        query = query.where(or_(Patient.user_id == user_id, Patient.id == int(user_id)))
+    else:
+        query = query.where(Patient.user_id == user_id)
+
+    if current_user.role == UserRole.NURSE:
+        query = query.where(Patient.nurse_id == current_user.id)
+    elif current_user.role == UserRole.DOCTOR:
+        query = query.where(Patient.doctor_id == current_user.id)
+    elif current_user.role in [UserRole.ORG_ADMIN, UserRole.MASTER_ADMIN]:
+        query = query.where(User.organization_id == current_user.organization_id)
+    else:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    result = await db.execute(query)
+    p = result.scalars().first()
+
+    if not p:
+        raise HTTPException(status_code=404, detail="Patient not found or not assigned to you")
+
+    # Fetch the 20 latest vitals logs
+    vitals_query = (
+        select(Vitals)
+        .where(Vitals.patient_id == p.id)
+        .order_by(Vitals.created_at.desc())
+        .limit(20)
+    )
+    vitals_result = await db.execute(vitals_query)
+    latest_20_vitals = vitals_result.scalars().all()
+    
+    latest_20_with_statuses = []
+    for v in latest_20_vitals:
+        v_dict = {c.name: getattr(v, c.name) for c in v.__table__.columns}
+        v_dict.update(get_vital_statuses(v))
+        latest_20_with_statuses.append(v_dict)
+
+    latest = latest_20_vitals[0] if latest_20_vitals else None
+
+    return {
+        "id": p.id,
+        "user_id": p.user_id,
+        "full_name": p.full_name,
+        "age": p.age,
+        "gender": p.gender,
+        "blood_group": p.blood_group,
+
+        "alt_phone": p.alt_phone or "",
+        "phone_number": p.phone_number or "",
+
+        "room_no": p.room.room_number if p.room else "N/A",
+        "ward_name": p.room.ward.name if (p.room and p.room.ward) else "N/A",
+        
+        "assigned_doctor": p.assigned_doctor.full_name if p.assigned_doctor else None,
+        "assigned_nurse": p.assigned_nurse.full_name if p.assigned_nurse else None,
+        "vitals_history": latest_20_with_statuses,
+
+        "news2_score": latest.news2_score if latest else 0,
+        "af_warning": latest.af_warning if latest else "Normal",
+        "is_connected": latest.is_connected if latest else False,
+        "is_removed": latest.is_removed if latest else False,
+        "is_monitoring_paused": p.is_monitoring_paused
+    }
 
 @router.get("/history/{patient_id}")
 async def get_patient_vitals_history(
@@ -430,91 +517,92 @@ async def get_patient_vitals_history(
     ]
 
 @router.get("/share/patient/{patient_id}")
-async def get_patient_shared_vitals(
+async def get_patient_shared_overview(
     patient_id: int,
-    start_time: datetime = Query(...),
-    end_time: datetime = Query(...),
-    scale_minutes: int = Query(1, ge=1, le=10),
+    start_time: Optional[datetime] = None,
+    end_time: Optional[datetime] = None,
+    scale_minutes: Optional[int] = None,
     db: AsyncSession = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
 ):
-    # 1. Security Check: Assigned Doctor or Nurse only
-    result = await db.execute(select(Patient).where(Patient.id == patient_id))
+    # 1. Fetch Patient Information (No auth check since it's a public share link)
+    query = (
+        select(Patient)
+        .options(
+            joinedload(Patient.room).joinedload(Room.ward)
+        )
+        .where(Patient.id == patient_id)
+    )
+    result = await db.execute(query)
     patient = result.scalars().first()
     
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
-    
-    # RBAC: Verify assignment
-    # if current_user.role == UserRole.NURSE and patient.nurse_id != current_user.id:
-    #     raise HTTPException(status_code=403, detail="Not authorized to view this patient")
 
-    # 2. Time-Bucketing Logic
-    bucket_size = scale_minutes * 60
-    time_bucket = func.floor(func.extract('epoch', Vitals.created_at) / bucket_size) * bucket_size
-
-    query = (
-        select(
-            func.to_timestamp(time_bucket).label("timestamp"),
-            # Row 1: Primary Vitals (Averages)
-            func.avg(Vitals.heart_rate).label("hr"),
-            func.avg(Vitals.spo2).label("spo2"),
-            func.avg(Vitals.temp).label("temp"),
-            func.avg(Vitals.bp_systolic).label("sys"),
-            func.avg(Vitals.bp_diastolic).label("dia"),
-            # Row 2: Risk Analysis (Max severity in bucket)
-            func.max(Vitals.news2_score).label("news2"),
-            func.max(Vitals.af_warning).label("af"),
-            func.max(Vitals.stroke_risk).label("stroke"),
-            func.max(Vitals.seizure_risk).label("seizure"),
-            # Row 3: Advanced Metrics & Status
-            func.avg(Vitals.hrv_score).label("hrv"),
-            func.max(Vitals.stress_level).label("stress"),
-            func.avg(Vitals.movement).label("move"),
-            func.avg(Vitals.battery_percent).label("batt"),
-            func.bool_and(Vitals.is_connected).label("conn")
-        )
-        .where(
-            and_(
-                Vitals.patient_id == patient_id,
-                Vitals.created_at >= start_time,
-                Vitals.created_at <= end_time
-            )
-        )
-        .group_by("timestamp")
-        .order_by(text("timestamp ASC"))
+    # 2. Fetch Latest Vitals
+    vitals_query = (
+        select(Vitals)
+        .where(Vitals.patient_id == patient.id)
+        .order_by(Vitals.created_at.desc())
+        .limit(1)
     )
-
-    result = await db.execute(query)
-    rows = result.all()
-
-    return [
-        {
-            "timestamp": row.timestamp,
-            "primary_vitals": {
-                "heart_rate": round(row.hr, 1),
-                "spo2": round(row.spo2, 1),
-                "temp": round(row.temp, 1),
-                "blood_pressure": f"{int(row.sys)}/{int(row.dia)}"
-            },
-            "clinical_risks": {
-                "news2_score": row.news2,
-                "af_warning": row.af,
-                "stroke_risk": row.stroke,
-                "seizure_risk": row.seizure
-            },
-            "advanced_metrics": {
-                "hrv_score": round(row.hrv, 1),
-                "stress_level": row.stress,
-                "movement_index": round(row.move, 1)
-            },
-            "device_status": {
-                "battery": int(row.batt),
-                "is_connected": row.conn
-            }
+    vitals_result = await db.execute(vitals_query)
+    latest = vitals_result.scalars().first()
+    
+    vitals_data = {}
+    if latest:
+        statuses = get_vital_statuses(latest)
+        vitals_data = {
+            "heart_rate": latest.heart_rate,
+            "heart_rate_status": statuses.get("heart_rate_status", "Stable"),
+            "spo2": latest.spo2,
+            "spo2_status": statuses.get("spo2_status", "Stable"),
+            "bp_systolic": latest.bp_systolic,
+            "bp_diastolic": latest.bp_diastolic,
+            "bp_status": statuses.get("bp_status", "Stable"),
+            "af_warning": latest.af_warning,
+            "is_connected": latest.is_connected,
+            "recorded_at": latest.created_at.isoformat() if latest.created_at else None
         }
-        for row in rows
+
+    # 3. Fetch Recent Alerts (Last 24 hours) - Vital Alerts Only
+    one_day_ago = datetime.utcnow() - timedelta(days=1)
+    device_types = ["Connectivity", "Band Status"]
+    
+    alerts_query = (
+        select(Alert)
+        .where(
+            Alert.patient_id == patient.id,
+            Alert.created_at >= one_day_ago,
+            Alert.severity.in_(["critical", "warning"]),
+            Alert.vital_type.not_in(device_types)
+        )
+        .order_by(Alert.created_at.desc())
+    )
+    alerts_result = await db.execute(alerts_query)
+    recent_alerts = alerts_result.scalars().all()
+    
+    alerts_data = [
+        {
+            "vital_type": a.vital_type,
+            "triggered_value": a.triggered_value,
+            "severity": a.severity,
+            "status": a.status,
+            "created_at": a.created_at.isoformat() if a.created_at else None,
+        }
+        for a in recent_alerts
     ]
+
+    return {
+        "patient": {
+            "full_name": patient.full_name,
+            "room_no": patient.room.room_number if patient.room else "N/A",
+            "ward_name": patient.room.ward.name if (patient.room and patient.room.ward) else "N/A",
+            "phone_number": patient.phone_number or "",
+            "alt_phone": patient.alt_phone or "",
+        },
+        "vitals": vitals_data,
+        "recent_alerts": alerts_data
+    }
 
 @router.get("/share/patient/{patient_id}/{metric_name}")
 async def get_shared_dynamic_metric_history(
