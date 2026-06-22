@@ -45,6 +45,9 @@ class PaginatedFilesResponse(BaseModel):
 class BulkDeleteRequest(BaseModel):
     keys: List[str]
 
+class PresignedDownloadResponse(BaseModel):
+    url: str
+    expires_in: int
 
 # --- Routes ---
 
@@ -121,6 +124,33 @@ def delete_single_file(key: str = Query(..., description="The S3 Object Key to d
     except ClientError as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.get("/files/download-url", response_model=PresignedDownloadResponse, status_code=status.HTTP_200_OK)
+def generate_download_url(
+    key: str = Query(..., description="The S3 Object Key to download"),
+    expires_in: int = Query(default=3600, ge=60, le=604800, description="URL expiration time in seconds")
+):
+    """
+    Generates a secure, temporary presigned GET URL for downloading a file.
+    The response header forces the client browser to download the file directly to their machine.
+    """
+    try:
+        # Extract filename from key to suggest a clean filename for download saving
+        filename = os.path.basename(key)
+        
+        response_url = s3_client.generate_presigned_url(
+            'get_object',
+            Params={
+                'Bucket': BUCKET_NAME,
+                'Key': key,
+                # Forces browser download with a clean file name assignment
+                'ResponseContentDisposition': f'attachment; filename="{filename}"'
+            },
+            ExpiresIn=expires_in
+        )
+        return PresignedDownloadResponse(url=response_url, expires_in=expires_in)
+        
+    except ClientError as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.delete("/files/bulk", status_code=status.HTTP_200_OK)
 def bulk_delete_files(payload: BulkDeleteRequest):
