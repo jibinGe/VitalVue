@@ -1,6 +1,6 @@
 import random
 import boto3
-from fastapi import APIRouter, Depends, HTTPException, status, Response, Cookie
+from fastapi import APIRouter, Depends, HTTPException, status, Response, Cookie, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from datetime import datetime, timedelta
@@ -9,11 +9,15 @@ from fastapi.security import OAuth2PasswordRequestForm
 from app.database import get_db, get_redis
 from app.models.user import User , Doctor, Patient, Nurse, OrgAdmin, MasterAdmin, UserRole
 from app.core.config import settings
-from app.schemas.auth import OTPRequest, OTPVerify
+from app.schemas.auth import OTPRequest, OTPVerify, QRGenerateResponse, QRAuthorizeRequest
 from sqlalchemy import func # Import func for lower()
 from app.api.deps import get_current_user
 from app.models.organization import Room, Ward, Department
 from sqlalchemy.orm import joinedload
+import json
+from sse_starlette.sse import EventSourceResponse
+import secrets
+import asyncio
 
 router = APIRouter()
 
@@ -291,4 +295,102 @@ async def refresh_access_token(
     except jwt.JWTError:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
     
+@router.post("/generate", response_model=QRGenerateResponse)
+async def generate_qr_session(redis_conn = Depends(get_redis)):
+    """
+    Step 1: Called by the unauthenticated Monitor display.
+    Generates a unique random session string and caches it in Redis.
+    """
+    qr_token = secrets.token_urlsafe(32)
+    
+    # Store session state with a short lifetime (2 minutes) to prevent replay attacks
+    await redis_conn.set(f"qr_session:{qr_token}", "pending", ex=120)
+    
+    return {"qr_token": qr_token, "expires_in": 120}
 
+
+@router.get("/stream/{qr_token}")
+async def stream_qr_login_status(qr_token: str, request: Request, redis_conn = Depends(get_redis)):
+    """
+    Step 2: Called by the Monitor display immediately after getting its token.
+    Opens an SSE channel waiting for the mobile application to authorize this session.
+    """
+    # Verify token exists and hasn't expired yet
+    session_exists = await redis_conn.get(f"qr_session:{qr_token}")
+    if not session_exists:
+        raise HTTPException(status_code=400, detail="QR session expired or invalid")
+
+    async def event_generator():
+        pubsub = redis_conn.pubsub()
+        await pubsub.subscribe(f"qr_channel:{qr_token}")
+        
+        try:
+            while True:
+                # Disconnect listener if client closes tab
+                if await request.is_disconnected():
+                    break
+                
+                message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
+                if message:
+                    payload = json.loads(message['data'])
+                    
+                    if payload.get("status") == "authorized":
+                        # Return token payloads directly over the stream
+                        yield {
+                            "event": "login_success",
+                            "data": json.dumps(payload["tokens"])
+                        }
+                        break # Close SSE stream safely after login fulfillment
+                        
+                await asyncio.sleep(0.5)
+        finally:
+            await pubsub.unsubscribe(f"qr_channel:{qr_token}")
+
+    return EventSourceResponse(event_generator())
+
+
+@router.post("/authorize")
+async def authorize_qr_session(
+    payload: QRAuthorizeRequest,
+    db: AsyncSession = Depends(get_db),
+    redis_conn = Depends(get_redis),
+    current_user: User = Depends(get_current_user) # Mobile app must supply its active valid JWT
+):
+    """
+    Step 3: Called by the Mobile Application after scanning the physical QR screen.
+    Uses the mobile's current token authorization context to unlock the terminal session.
+    """
+    qr_token = payload.qr_token
+    
+    # 1. Ensure monitor session exists and is still pending
+    session_state = await redis_conn.get(f"qr_session:{qr_token}")
+    if not session_state:
+        raise HTTPException(status_code=404, detail="QR code expired or session unavailable")
+    if session_state.decode('utf-8') != "pending":
+        raise HTTPException(status_code=400, detail="QR session already consumed")
+
+    # 2. Generate a fresh matching token matrix for the target user profile context
+    access_expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    
+    # Mirror exactly the matching claims from your standard login workflows
+    new_access_token = jwt.encode(
+        {"sub": current_user.user_id, "role": current_user.role.value, "exp": access_expire, "type": "access"},
+        settings.SECRET_KEY,
+        algorithm=settings.ALGORITHM
+    )
+
+    # 3. Compile token packets to broadcast down to the terminal
+    token_payload = {
+        "status": "authorized",
+        "tokens": {
+            "access_token": new_access_token,
+            "user_id": current_user.user_id,
+            "role": current_user.role.value
+        }
+    }
+    
+    # 4. Update state flag to consumed and publish token downstream to terminal listener
+    await redis_conn.set(f"qr_session:{qr_token}", "consumed", ex=10)
+    await redis_conn.publish(f"qr_channel:{qr_token}", json.dumps(token_payload))
+    
+    return {"status": "success", "detail": "Terminal authenticated successfully"}
