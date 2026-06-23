@@ -10,8 +10,12 @@ export default function QRLoginPanel({ onSuccess }) {
   const eventSourceRef = useRef(null)
   const timerRef = useRef(null)
   const refreshTimerRef = useRef(null)
+  const abortRef = useRef(null)       // cancels in-flight /generate HTTP request
+  const isRunningRef = useRef(false)  // blocks concurrent startSession calls
+  // Keep a stable ref to onSuccess so startSession never needs to change
+  const onSuccessRef = useRef(onSuccess)
+  useEffect(() => { onSuccessRef.current = onSuccess }, [onSuccess])
 
-  const [qrToken, setQrToken] = useState(null)
   const [timeLeft, setTimeLeft] = useState(QR_TTL)
   const [phase, setPhase] = useState('loading') // loading | ready | scanned | error
   const [dots, setDots] = useState('.')
@@ -24,8 +28,18 @@ export default function QRLoginPanel({ onSuccess }) {
   }, [phase])
 
   // --- Core: generate token → render QR → open SSE stream ---
+  // useCallback with [] so this function is created ONCE and never changes.
+  // onSuccess is accessed via onSuccessRef so the stable reference is always current.
   const startSession = useCallback(async () => {
-    // Tear down any previous session cleanly
+    // Guard: if a session is already starting, do nothing
+    if (isRunningRef.current) return
+    isRunningRef.current = true
+
+    // Cancel any previous in-flight /generate request
+    if (abortRef.current) abortRef.current.abort()
+    abortRef.current = new AbortController()
+
+    // Tear down any previous SSE + timers
     if (eventSourceRef.current) {
       eventSourceRef.current.close()
       eventSourceRef.current = null
@@ -37,27 +51,24 @@ export default function QRLoginPanel({ onSuccess }) {
     setTimeLeft(QR_TTL)
 
     try {
-      // Step 1: Request a fresh qr_token from the backend
-      const res = await apiClient.post('/api/v1/auth/generate')
+      // Step 1: Request a fresh qr_token, pass abort signal so cleanup can cancel it
+      const res = await apiClient.post('/api/v1/auth/generate', {}, {
+        signal: abortRef.current.signal,
+      })
       const token = res.data.qr_token
-      setQrToken(token)
 
       // Step 2: Encode the token as a QR code on the canvas
-      // The QR payload is the token string itself – the mobile app reads this
-      // and calls POST /api/v1/auth/qr/authorize with it.
       if (canvasRef.current) {
         await QRCode.toCanvas(canvasRef.current, token, {
           width: 200,
           margin: 2,
-          color: {
-            dark: '#000000',
-            light: '#ffffff',
-          },
+          color: { dark: '#000000', light: '#ffffff' },
           errorCorrectionLevel: 'M',
         })
       }
 
       setPhase('ready')
+      isRunningRef.current = false  // session established, lock released
 
       // Step 3: Open SSE stream to listen for login_success event
       const sseUrl = `${API_BASE_URL}/api/v1/auth/stream/${token}`
@@ -70,24 +81,19 @@ export default function QRLoginPanel({ onSuccess }) {
         clearInterval(timerRef.current)
         try {
           const payload = JSON.parse(event.data)
-          onSuccess(payload)
+          onSuccessRef.current(payload)
         } catch {
           setPhase('error')
         }
       })
 
-      es.onerror = () => {
-        // SSE connection dropped (token expired on backend, or network issue)
-        es.close()
-        // Don't auto-refresh here – the countdown will handle that
-      }
+      es.onerror = () => { es.close() }
 
-      // Step 4: Count down the TTL and auto-refresh when it expires
+      // Step 4: Count down the TTL — ONE interval per session
       timerRef.current = setInterval(() => {
         setTimeLeft(prev => {
           if (prev <= 1) {
             clearInterval(timerRef.current)
-            // Regenerate after a short pause
             refreshTimerRef.current = setTimeout(startSession, 400)
             return 0
           }
@@ -96,18 +102,27 @@ export default function QRLoginPanel({ onSuccess }) {
       }, 1000)
 
     } catch (err) {
+      // Ignore cancelled requests (StrictMode cleanup or user navigating away)
+      if (err.code === 'ERR_CANCELED' || err.name === 'CanceledError') {
+        isRunningRef.current = false
+        return
+      }
       console.error('[QR] Session init failed', err)
+      isRunningRef.current = false
       setPhase('error')
     }
-  }, [onSuccess])
+  }, [])  // ← empty deps: created once, never recreated
 
-  // Start on mount
+  // Start on mount — cleanup aborts the in-flight request, handling StrictMode's
+  // intentional mount → unmount → remount cycle without duplicate API calls.
   useEffect(() => {
     startSession()
     return () => {
+      if (abortRef.current) abortRef.current.abort()  // cancel pending /generate
       if (eventSourceRef.current) eventSourceRef.current.close()
       clearInterval(timerRef.current)
       clearTimeout(refreshTimerRef.current)
+      isRunningRef.current = false
     }
   }, [startSession])
 
@@ -136,73 +151,106 @@ export default function QRLoginPanel({ onSuccess }) {
         </div>
       </div>
 
-      {/* QR + Overlay states */}
-      <div className="qr-panel__canvas-wrap">
-        {/* The canvas is always rendered; QRCode.toCanvas writes into it */}
-        <canvas
-          ref={canvasRef}
-          className="qr-panel__canvas"
-          style={{ opacity: phase === 'ready' ? 1 : 0.08 }}
-        />
+      {/* QR + Overlay states — outer has position:relative but NO overflow:hidden so the timer badge isn't clipped */}
+      <div className="qr-panel__canvas-outer">
+        <div className="qr-panel__canvas-wrap">
+          {/* The canvas is always rendered; QRCode.toCanvas writes into it */}
+          <canvas
+            ref={canvasRef}
+            className="qr-panel__canvas"
+            style={{ opacity: phase === 'ready' ? 1 : 0.08 }}
+          />
 
-        {/* Loading overlay */}
-        {phase === 'loading' && (
-          <div className="qr-panel__overlay">
-            <div className="qr-panel__spinner" />
-            <span className="qr-panel__overlay-text">Generating{dots}</span>
-          </div>
-        )}
-
-        {/* Scanned overlay */}
-        {phase === 'scanned' && (
-          <div className="qr-panel__overlay qr-panel__overlay--success">
-            <div className="qr-panel__success-ring">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="20 6 9 17 4 12"/>
-              </svg>
+          {/* Loading overlay */}
+          {phase === 'loading' && (
+            <div className="qr-panel__overlay">
+              <div className="qr-panel__spinner" />
+              <span className="qr-panel__overlay-text">Generating{dots}</span>
             </div>
-            <span className="qr-panel__overlay-text" style={{ color: '#4ade80' }}>Authenticated!</span>
-          </div>
-        )}
+          )}
 
-        {/* Error overlay */}
-        {phase === 'error' && (
-          <div className="qr-panel__overlay">
-            <button className="qr-panel__retry-btn" onClick={startSession}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-                <path d="M3 3v5h5"/>
-              </svg>
-              Retry
-            </button>
-          </div>
-        )}
+          {/* Scanned overlay */}
+          {phase === 'scanned' && (
+            <div className="qr-panel__overlay qr-panel__overlay--success">
+              <div className="qr-panel__success-ring">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              </div>
+              <span className="qr-panel__overlay-text" style={{ color: '#4ade80' }}>Authenticated!</span>
+            </div>
+          )}
 
-        {/* Circular countdown — only when ready */}
+          {/* Error overlay */}
+          {phase === 'error' && (
+            <div className="qr-panel__overlay">
+              <button className="qr-panel__retry-btn" onClick={startSession}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                  <path d="M3 3v5h5"/>
+                </svg>
+                Retry
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Circular countdown — lives OUTSIDE canvas-wrap so overflow:hidden doesn't clip it */}
         {phase === 'ready' && (
           <div className="qr-panel__timer-ring">
-            <svg width="56" height="56" viewBox="0 0 56 56">
+            <svg width="52" height="52" viewBox="0 0 52 52">
+              {/* Dark background pill so the arc is always legible */}
+              <circle cx="26" cy="26" r="24" fill="rgba(30,30,32,0.92)" />
               {/* Track */}
-              <circle cx="28" cy="28" r={radius} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="3"/>
-              {/* Progress */}
+              <circle cx="26" cy="26" r={radius} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="3"/>
+              {/* Progress arc */}
               <circle
-                cx="28" cy="28" r={radius}
+                cx="26" cy="26" r={radius}
                 fill="none"
-                stroke={isExpiring ? '#f87171' : 'rgba(204,161,102,0.8)'}
+                stroke={isExpiring ? '#f87171' : '#CCA166'}
                 strokeWidth="3"
                 strokeLinecap="round"
                 strokeDasharray={circ}
                 strokeDashoffset={dashOffset}
-                transform="rotate(-90 28 28)"
+                transform="rotate(-90 26 26)"
                 style={{ transition: 'stroke-dashoffset 1s linear, stroke 0.5s ease' }}
               />
             </svg>
-            <span className="qr-panel__timer-num" style={{ color: isExpiring ? '#f87171' : 'rgba(255,255,255,0.7)' }}>
+            <span className="qr-panel__timer-num" style={{ color: isExpiring ? '#f87171' : '#e8d5b0' }}>
               {timeLeft}
             </span>
           </div>
         )}
       </div>
+
+      {/* Timer row — sits cleanly below the QR, never overlaps */}
+      {phase === 'ready' && (
+        <div className="qr-panel__timer-row">
+          <div className="qr-panel__timer-badge">
+            <svg width="44" height="44" viewBox="0 0 44 44">
+              <circle cx="22" cy="22" r="20" fill="rgba(30,30,32,0.9)" />
+              <circle cx="22" cy="22" r="17" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="2.5"/>
+              <circle
+                cx="22" cy="22" r="17"
+                fill="none"
+                stroke={isExpiring ? '#f87171' : '#CCA166'}
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeDasharray={2 * Math.PI * 17}
+                strokeDashoffset={2 * Math.PI * 17 * (1 - progress)}
+                transform="rotate(-90 22 22)"
+                style={{ transition: 'stroke-dashoffset 1s linear, stroke 0.5s ease' }}
+              />
+            </svg>
+            <span className="qr-panel__badge-num" style={{ color: isExpiring ? '#f87171' : '#e8d5b0' }}>
+              {timeLeft}
+            </span>
+          </div>
+          <span className="qr-panel__timer-label" style={{ color: isExpiring ? '#f87171' : 'rgba(255,255,255,0.4)' }}>
+            {isExpiring ? 'Expiring soon — refreshes automatically' : 'Refreshes automatically when expired'}
+          </span>
+        </div>
+      )}
 
       {/* Footer hint */}
       <p className="qr-panel__footer">
@@ -262,6 +310,13 @@ export default function QRLoginPanel({ onSuccess }) {
           line-height: 1.3;
         }
 
+        /* Outer wrapper: position:relative with NO overflow:hidden so the timer badge can peek out */
+        .qr-panel__canvas-outer {
+          position: relative;
+          width: 200px;
+          flex-shrink: 0;
+        }
+
         .qr-panel__canvas-wrap {
           position: relative;
           width: 200px;
@@ -270,7 +325,6 @@ export default function QRLoginPanel({ onSuccess }) {
           overflow: hidden;
           background: #fff;
           box-shadow: 0 0 0 6px rgba(204,161,102,0.12), 0 0 0 1px rgba(204,161,102,0.3);
-          flex-shrink: 0;
         }
 
         .qr-panel__canvas {
@@ -352,25 +406,42 @@ export default function QRLoginPanel({ onSuccess }) {
           background: rgba(204,161,102,0.25);
         }
 
-        .qr-panel__timer-ring {
-          position: absolute;
-          bottom: -6px;
-          right: -6px;
-          width: 56px;
-          height: 56px;
+        /* Timer row — sits below the QR image, no absolute positioning */
+        .qr-panel__timer-row {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          width: 100%;
+          padding: 6px 4px 2px;
+        }
+
+        .qr-panel__timer-badge {
+          position: relative;
+          width: 44px;
+          height: 44px;
+          flex-shrink: 0;
           display: flex;
           align-items: center;
           justify-content: center;
-          pointer-events: none;
         }
 
-        .qr-panel__timer-num {
+        .qr-panel__badge-num {
           position: absolute;
-          font-size: 11px;
-          font-weight: 600;
+          font-size: 10px;
+          font-weight: 700;
           font-variant-numeric: tabular-nums;
           line-height: 1;
+          letter-spacing: -0.02em;
         }
+
+        .qr-panel__timer-label {
+          font-size: 10px;
+          line-height: 1.4;
+          transition: color 0.5s ease;
+        }
+
+        /* Keep old timer-ring class so nothing breaks if referenced */
+        .qr-panel__timer-ring { display: none; }
 
         .qr-panel__footer {
           font-size: 11px;
