@@ -563,7 +563,11 @@ export const patientService = {
         break;
       case '7d':
         start.setDate(start.getDate() - 7);
-        params.scale_minutes = 6;
+        params.scale_minutes = 60; // 1 hour buckets
+        break;
+      case '30d':
+        start.setDate(start.getDate() - 30);
+        params.scale_minutes = 1440; // 1 day buckets
         break;
       default:
         start.setHours(start.getHours() - 24);

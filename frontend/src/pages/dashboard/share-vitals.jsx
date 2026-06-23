@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { patientService } from "@/services/patientService";
 import HeartRateLive from "@/components/charts/HeartRateLive";
@@ -156,19 +156,33 @@ const AFCard = ({ vital, delay, historyData }) => {
 const ICON_BG = ["bg-green", "bg-purple", "bg-pink", "bg-blue"];
 const ICON_MAP = { "Heart Rate": <IHeart />, SpO2: <ISpo />, "BP Trend": <IBp />, "AF Warning": <IAF /> };
 
-const VitalCard = ({ vital, vIndex, delay, historyData }) => {
+const VitalCard = ({ vital, vIndex, delay, historyData, patientId }) => {
+  const navigate = useNavigate();
   const sc = statusChip(vital.status);
   const hasValue =
     (vital.heartRate !== undefined && vital.heartRate !== 0) ||
     (vital.spo2 !== undefined && vital.spo2 !== 0) ||
     (vital.bp && vital.bp !== "--/--");
 
+  const handleClick = () => {
+    if (!patientId) return;
+    let metricSlug = '';
+    if (vital.title === "Heart Rate") metricSlug = "heart-rate";
+    else if (vital.title === "SpO2") metricSlug = "spo2";
+    else if (vital.title === "BP Trend") metricSlug = "bp-trend";
+    
+    if (metricSlug) {
+      navigate(`/dashboard/share-vitals/${patientId}/${metricSlug}`);
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 18 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay, duration: 0.38, ease: "easeOut" }}
-      className="bg-[#2F2F31] rounded-[20px] overflow-hidden p-3.5 flex flex-col justify-between h-[190px] relative"
+      onClick={handleClick}
+      className="bg-[#2F2F31] rounded-[20px] overflow-hidden p-3.5 flex flex-col justify-between h-[190px] relative cursor-pointer hover:bg-[#343437] transition-colors"
     >
       <div>
         {/* top row: icon + title + status badge */}
@@ -448,6 +462,7 @@ export default function ShareVitalsPage() {
                   vIndex={vIndex}
                   delay={0.1 + vIndex * 0.07}
                   historyData={hData}
+                  patientId={patientId}
                 />
               );
             })}
@@ -456,7 +471,7 @@ export default function ShareVitalsPage() {
           {/* ── ALERTS ── */}
           {alerts.length > 0 && (
             <div className="flex flex-col gap-3 mt-2">
-              <h3 className="text-white/60 text-[13px] font-medium uppercase tracking-widest pl-1">Recent Alerts (10m)</h3>
+              <h3 className="text-white/60 text-[13px] font-medium uppercase tracking-widest pl-1">Recent Alerts (24h)</h3>
               {alerts.map((alert, idx) => {
                 const isCritical = alert.severity?.toLowerCase() === "critical";
                 const bgColors = isCritical ? "bg-[rgba(229,77,77,0.1)] border-[#E54D4D]/40" : "bg-[rgba(229,219,76,0.1)] border-[#E5DB4C]/40";

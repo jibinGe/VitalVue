@@ -206,7 +206,7 @@ export default function TvDashboard() {
         </div>
       </div>
 
-      <div className="flex flex-col gap-4 lg:gap-6 w-full">
+      <div className="flex flex-col gap-2 w-full">
         {loading ? (
           <div className="text-white text-2xl p-10 flex items-center justify-center h-[50vh]">
             Loading Patients...
@@ -271,6 +271,7 @@ export default function TvDashboard() {
         onSnooze={() => clearCriticalAlarm()}
         onTakeAction={() => clearCriticalAlarm()}
         onViewPatient={() => {}}
+        isTvMode={true}
       />
     </div>
   );

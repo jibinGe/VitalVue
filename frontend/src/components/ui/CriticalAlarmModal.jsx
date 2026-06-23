@@ -37,6 +37,7 @@ export default function CriticalAlarmModal({
   onSnooze,
   onTakeAction,
   onViewPatient,
+  isTvMode = false,
 }) {
   const isWarning = alert?.severity?.toLowerCase() === 'warning';
 
@@ -169,7 +170,7 @@ export default function CriticalAlarmModal({
                   <motion.p
                     animate={{ opacity: [1, 0.5, 1] }}
                     transition={{ duration: 1, repeat: Infinity }}
-                    className="text-lg font-semibold tracking-[0.2em] uppercase"
+                    className={`${isTvMode ? 'text-base' : 'text-lg'} font-semibold tracking-[0.2em] uppercase`}
                     style={{ color: themeColor }}
                   >
                     {isDeviceAlarm
@@ -197,7 +198,7 @@ export default function CriticalAlarmModal({
                 </div>
 
                 {/* Patient name + Room number + Ward */}
-                <h2 className="text-2xl font-bold text-white mb-2">
+                <h2 className={`${isTvMode ? 'text-xl' : 'text-2xl'} font-bold text-white mb-2`}>
                   {patientName || "Patient"}
                 </h2>
                 {(room || ward) && (
@@ -249,7 +250,7 @@ export default function CriticalAlarmModal({
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
                         <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 014.52 12 19.79 19.79 0 011.47 3.42 2 2 0 013.44 1h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L7.91 8.42A16 16 0 0015.57 16.08l.78-.78a2 2 0 012.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0122 16.92z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
-                      <span className="text-xl font-semibold" >{phoneNumber}</span>
+                      <span className={`${isTvMode ? 'text-base' : 'text-xl'} font-semibold`} >{phoneNumber}</span>
                     </div>
                   </div>
                 )}
@@ -354,10 +355,10 @@ export default function CriticalAlarmModal({
                         <circle cx="12" cy="12" r="2" stroke="#F8FD1E" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                     )}
-                    <p className="text-sm font-bold" style={{ color: isNetworkDisconnected ? '#3B9EFF' : '#F8FD1E' }}>
+                    <p className={`${isTvMode ? 'text-sm' : 'text-sm'} font-bold`} style={{ color: isNetworkDisconnected ? '#3B9EFF' : '#F8FD1E' }}>
                       {isNetworkDisconnected ? "Network Disconnected" : currentIsConnected === false ? "Bluetooth Disconnected" : "Band Removed"}
                     </p>
-                    <p className="text-lg text-[#aaa] leading-relaxed">
+                    <p className={`${isTvMode ? 'text-base' : 'text-lg'} text-[#aaa] leading-relaxed`}>
                       {isNetworkDisconnected
                         ? "The device has lost its network connection. Please check the WiFi or network settings."
                         : currentIsConnected === false
@@ -403,38 +404,42 @@ export default function CriticalAlarmModal({
 
                 {/* Actions */}
                 <div className="flex gap-3 w-full">
-                  <button
-                    onClick={onSnooze || onDismiss}
-                    className="flex-1 py-3 rounded-2xl text-sm font-medium transition-all"
-                    style={{
-                      background: "rgba(255,255,255,0.05)",
-                      border: "1px solid rgba(255,255,255,0.08)",
-                      color: "#aaa",
-                      textTransform: "uppercase",
-                      letterSpacing: "1px",
-                      fontSize: "16px",
-                      fontWeight: 600,
-                      fontFamily: "Open Sans",
-                    }}
-                  >
-                    SNOOZE
-                  </button>
-                  <button
-                    onClick={onTakeAction || onDismiss}
-                    className="flex-1 py-3 rounded-2xl text-sm font-medium transition-all"
-                    style={{
-                      background: `rgba(${themeColorRgba},0.2)`,
-                      border: `1px solid rgba(${themeColorRgba},0.4)`,
-                      color: themeColor,
-                      textTransform: "uppercase",
-                      letterSpacing: "1px",
-                      fontSize: "16px",
-                      fontWeight: 600,
-                      fontFamily: "Open Sans",
-                    }}
-                  >
-                    TAKE ACTION
-                  </button>
+                  {!isTvMode && (
+                    <button
+                      onClick={onSnooze || onDismiss}
+                      className="flex-1 py-3 rounded-2xl text-sm font-medium transition-all"
+                      style={{
+                        background: "rgba(255,255,255,0.05)",
+                        border: "1px solid rgba(255,255,255,0.08)",
+                        color: "#aaa",
+                        textTransform: "uppercase",
+                        letterSpacing: "1px",
+                        fontSize: isTvMode ? '14px' : '16px',
+                        fontWeight: 600,
+                        fontFamily: "Open Sans",
+                      }}
+                    >
+                      SNOOZE
+                    </button>
+                  )}
+                  {!isTvMode && (
+                    <button
+                      onClick={onTakeAction || onDismiss}
+                      className="flex-1 py-3 rounded-2xl text-sm font-medium transition-all"
+                      style={{
+                        background: `rgba(${themeColorRgba},0.2)`,
+                        border: `1px solid rgba(${themeColorRgba},0.4)`,
+                        color: themeColor,
+                        textTransform: "uppercase",
+                        letterSpacing: "1px",
+                        fontSize: '16px',
+                        fontWeight: 600,
+                        fontFamily: "Open Sans",
+                      }}
+                    >
+                      TAKE ACTION
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

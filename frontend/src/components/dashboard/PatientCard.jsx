@@ -121,10 +121,10 @@ const PatientCard = memo(({
                 damping: 20,
                 opacity: { duration: 0.2 }
             }}
-            className={`relative bg-[#252527] rounded-3xl overflow-visible shadow-2xl border ${!isTvMode ? 'cursor-pointer' : ''} transition-all duration-300 ${isExpanded ? 'min-h-[300px]' : 'min-h-[185px]'} ${getCardGlowClass(item.status)}`}
+            className={`relative bg-[#252527] rounded-3xl overflow-visible shadow-2xl border ${!isTvMode ? 'cursor-pointer' : ''} transition-all duration-300 ${isTvMode ? 'min-h-0' : isExpanded ? 'min-h-[300px]' : 'min-h-[185px]'} ${getCardGlowClass(item.status)}`}
             onClick={() => !isTvMode && setIsExpanded(!isExpanded)}
         >
-            <div className={`flex flex-col ${isTvMode ? 'p-3' : 'p-5'} text-white w-full min-h-full`}>
+            <div className={`flex flex-col ${isTvMode ? 'p-2' : 'p-5'} text-white w-full min-h-full`}>
                 {/* --- TOP ROW: Patient Info (Left) & Vitals Grid (Right) --- */}
                 <div className={`flex ${isTvMode ? 'flex-row items-center' : 'flex-col xl:flex-row'} gap-4 ${isTvMode ? 'lg:gap-6' : 'xl:gap-12'} w-full`}>
 
@@ -179,7 +179,7 @@ const PatientCard = memo(({
 
                     {/* RIGHT SUB-SECTION: Vitals Grid */}
                     <div className="flex-1">
-                        <div className={`grid ${isTvMode ? 'grid-cols-5' : 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5'} gap-4`}>
+                        <div className={`grid ${isTvMode ? 'grid-cols-5' : 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5'} ${isTvMode ? 'gap-2' : 'gap-4'}`}>
                             {/* Vitals items */}
                             {item.vitals.map((vital, vIndex) => {
                                 if (vital.title === "AF Warning") {
@@ -192,22 +192,22 @@ const PatientCard = memo(({
                                     return (
                                         <div
                                             key={vIndex}
-                                            className={`border relative z-1 overflow-hidden rounded-[20px] bg-[#2f2f31] shadow-[0_0_100px_0_rgba(0,0,0,0.08)] flex flex-col justify-between ${isTvMode ? 'min-h-[110px]' : 'min-h-[140px]'} p-2.5 ${borderColorClass}`}
+                                            className={`border relative z-1 overflow-hidden rounded-[20px] bg-[#2f2f31] shadow-[0_0_100px_0_rgba(0,0,0,0.08)] flex flex-col justify-between ${isTvMode ? 'min-h-[90px] p-2' : 'min-h-[140px] p-2.5'} ${borderColorClass}`}
                                             onClick={(e) => { e.stopPropagation(); }}
                                         >
                                             <div className="flex items-start justify-between gap-2 relative z-10">
                                                 <div className="flex flex-col gap-1 mt-1 ml-1">
-                                                    <h4 className={`${isTvMode ? 'text-sm' : 'text-lg'} text-white/60 font-lufga mb-1`}>
+                                                    <h4 className={`${isTvMode ? 'text-xs' : 'text-lg'} text-white/60 font-lufga mb-0.5`}>
                                                         AF Warning
                                                     </h4>
-                                                    <div className={`${isTvMode ? 'text-lg' : 'text-2xl'} text-white font-medium`} style={{ textShadow: `0 0 10px ${color}40` }}>
+                                                    <div className={`${isTvMode ? 'text-base' : 'text-2xl'} text-white font-medium`} style={{ textShadow: `0 0 10px ${color}40` }}>
                                                         {statusLabel}
                                                     </div>
                                                     <p className="text-[11px] text-para mt-0.5">
                                                         {isHigh ? "Irregular Rhythm" : "Regular Rhythm"}
                                                     </p>
                                                 </div>
-                                                <div className={`${isTvMode ? 'size-6 [&_svg]:size-3.5' : 'size-9'} rounded-full flex items-center justify-center shrink-0 ${iconBgClass}`}>
+                                                <div className={`${isTvMode ? 'size-5 [&_svg]:size-3' : 'size-9'} rounded-full flex items-center justify-center shrink-0 ${iconBgClass}`}>
                                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                         <path d="M22 12h-4l-3 9L9 3l-3 9H2" stroke="white" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
                                                     </svg>
@@ -275,17 +275,17 @@ const PatientCard = memo(({
                                         target="_blank"
                                         state={{ patientName: item.name, patientId: item.patientId || item.userId, room: item.room }}
                                         onClick={(e) => e.stopPropagation()}
-                                        className={`bg-[#2F2F31] rounded-[20px] overflow-hidden p-2.5 flex flex-col justify-between relative z-1 ${isTvMode ? 'min-h-[110px]' : 'min-h-[140px]'}`}
+                                        className={`bg-[#2F2F31] rounded-[20px] overflow-hidden ${isTvMode ? 'p-2' : 'p-2.5'} flex flex-col justify-between relative z-1 ${isTvMode ? 'min-h-[90px]' : 'min-h-[140px]'}`}
                                     >
                                         <div className="">
-                                            <div className="flex items-center gap-2 mb-3">
-                                                <div className={`${isTvMode ? 'size-6 [&_svg]:size-3.5' : 'size-9'} rounded-full flex items-center justify-center shrink-0 ${vIndex === 0 ? "bg-green" : vIndex === 1 ? "bg-purple" : vIndex === 2 ? "bg-pink" : "bg-blue"
+                                            <div className={`flex items-center ${isTvMode ? 'gap-1.5 mb-1.5' : 'gap-2 mb-3'}`}>
+                                                <div className={`${isTvMode ? 'size-5 [&_svg]:size-3' : 'size-9'} rounded-full flex items-center justify-center shrink-0 ${vIndex === 0 ? "bg-green" : vIndex === 1 ? "bg-purple" : vIndex === 2 ? "bg-pink" : "bg-blue"
                                                     }`}>
                                                     {vitalIcons[vital.title] || vital.icon}
                                                 </div>
-                                                <span className={`${isTvMode ? 'text-sm' : 'text-lg'} text-white font-medium`}>{vital.title}</span>
+                                                <span className={`${isTvMode ? 'text-xs' : 'text-lg'} text-white font-medium`}>{vital.title}</span>
                                             </div>
-                                            <div className={`${isTvMode ? 'text-xl' : 'text-2xl'} font-medium [text-shadow:1px_1px_5px_rgba(255,0,0,0.16),-1px_-1px_5px_rgba(0,170,255,0.16) ]`}>
+                                            <div className={`${isTvMode ? 'text-base' : 'text-2xl'} font-medium [text-shadow:1px_1px_5px_rgba(255,0,0,0.16),-1px_-1px_5px_rgba(0,170,255,0.16) ]`}>
                                                 {vital.heartRate !== undefined && <>{vital.heartRate || '--'} <span className="text-xs text-para">bpm</span></>}
                                                 {vital.spo2 !== undefined && <>{vital.spo2 || '--'}%</>}
                                                 {vital.bp && <>{vital.bp.split("/")[0]}<span className="text-sm">/{vital.bp.split("/")[1]}</span> <span className="text-xs text-para">mmHg</span></>}
@@ -299,12 +299,12 @@ const PatientCard = memo(({
                             })}
 
                             {/* Device card — Status, WiFi indicator (header), Battery */}
-                            <div className={`bg-[#2F2F31] rounded-[20px] p-2.5 flex flex-col justify-between items-start overflow-hidden relative shadow-[0px_0px_50px_0px_rgba(0,0,0,0.08)] z-2 ${isTvMode ? 'min-h-[110px]' : 'min-h-[140px]'}`}>
+                            <div className={`bg-[#2F2F31] rounded-[20px] ${isTvMode ? 'p-2' : 'p-2.5'} flex flex-col justify-between items-start overflow-hidden relative shadow-[0px_0px_50px_0px_rgba(0,0,0,0.08)] z-2 ${isTvMode ? 'min-h-[90px]' : 'min-h-[140px]'}`}>
                                 <div className="w-full relative z-10">
                                     {/* Header row: Device icon + label + WiFi status icon */}
                                     <div className="flex items-center justify-between gap-2 mb-2">
                                         <div className="flex items-center gap-2">
-                                            <div className={`${isTvMode ? 'size-6 [&_svg]:size-3.5' : 'size-8'} rounded-full flex items-center justify-center shrink-0 bg-yellow`}>
+                                            <div className={`${isTvMode ? 'size-5 [&_svg]:size-3' : 'size-8'} rounded-full flex items-center justify-center shrink-0 bg-yellow`}>
                                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                     <path d="M4 7C4 5.34315 5.34315 4 7 4H17C18.6569 4 20 5.34315 20 7V17C20 18.6569 18.6569 20 17 20H7C5.34315 20 4 18.6569 4 17V7Z" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
                                                     <path d="M12 16V16.01" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
@@ -318,7 +318,7 @@ const PatientCard = memo(({
                                                     <path d="M22 16H20" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
                                                 </svg>
                                             </div>
-                                            <span className={`${isTvMode ? 'text-sm' : 'text-lg'} text-white font-medium`}>Device</span>
+                                            <span className={`${isTvMode ? 'text-xs' : 'text-lg'} text-white font-medium`}>Device</span>
                                         </div>
                                         {/* WiFi status indicator — icon only, no extra row */}
                                         <div title={item.isConnected ? 'WiFi Connected' : 'WiFi — No Signal'} style={{ color: item.isConnected ? '#4DE573' : '#E54D4D' }}>
@@ -347,7 +347,7 @@ const PatientCard = memo(({
                                             <span className="font-lufga font-medium text-[13px] xl:text-[14px] text-white flex items-center gap-1">
                                                 Status
                                             </span>
-                                            <div className={`px-2 py-[2px] flex items-center justify-center font-lufga font-normal rounded-full text-[11px] xl:text-[12px] whitespace-nowrap mt-0.5 gap-1 ${item.isConnected ? 'text-[#4DE573] bg-[#4DE573]/10' : 'text-[#E54D4D] bg-[#E54D4D]/20'}`}>
+                                            <div className={`px-2 py-[2px] flex items-center justify-center font-lufga font-normal rounded-full ${isTvMode ? 'text-[10px]' : 'text-[11px] xl:text-[12px]'} whitespace-nowrap mt-0.5 gap-1 ${item.isConnected ? 'text-[#4DE573] bg-[#4DE573]/10' : 'text-[#E54D4D] bg-[#E54D4D]/20'}`}>
                                                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
                                                     <path d="M7 7l10 10-5 5V2l5 5L7 17" />
                                                 </svg>

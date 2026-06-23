@@ -33,6 +33,7 @@ const Control3 = lazy(() => import('./pages/dashboard/control-3'))
 const Profile = lazy(() => import('./pages/dashboard/profile'))
 const NotificationsPage = lazy(() => import('./pages/dashboard/notifications'))
 const ShareVitalsPage   = lazy(() => import('./pages/dashboard/share-vitals'))
+const ShareVitalDetailPage = lazy(() => import('./pages/dashboard/share-vital-detail'))
 const TvDashboard       = lazy(() => import('./pages/dashboard/tv-dashboard'))
 
 // Minimal themed loading fallback shown between route navigations
@@ -147,9 +148,14 @@ const router = createBrowserRouter([
     // Standalone — no Layout/Header wrapper, pure mobile view
     path: '/dashboard/share-vitals/:patientId',
     element: (
-      <ProtectedRoute>
-        <Suspense fallback={<PageLoader />}><ShareVitalsPage /></Suspense>
-      </ProtectedRoute>
+      <Suspense fallback={<PageLoader />}><ShareVitalsPage /></Suspense>
+    ),
+    errorElement: <Error />,
+  },
+  {
+    path: '/dashboard/share-vitals/:patientId/:metric',
+    element: (
+      <Suspense fallback={<PageLoader />}><ShareVitalDetailPage /></Suspense>
     ),
     errorElement: <Error />,
   },
