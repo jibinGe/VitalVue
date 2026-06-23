@@ -127,6 +127,23 @@ export const authService = {
   },
 
   /**
+   * Handle QR Login Success
+   * Called when the SSE stream delivers a login_success event payload.
+   * Stores the token + synthetic user object so AuthContext can react.
+   */
+  handleQRLoginSuccess(payload) {
+    const { access_token, user_id, role, full_name } = payload
+    const user = {
+      id: user_id,
+      name: full_name || user_id,
+      role: role,
+    }
+    localStorage.setItem('accessToken', access_token)
+    localStorage.setItem('user', JSON.stringify(user))
+    return { token: access_token, staff: user }
+  },
+
+  /**
    * Logout
    */
   async logout() {
