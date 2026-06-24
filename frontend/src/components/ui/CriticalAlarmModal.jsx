@@ -53,12 +53,13 @@ export default function CriticalAlarmModal({
 
   const isDeviceAlarm = !currentIsConnected || currentIsRemoved;
 
-  // Theme: blue for network disconnected, yellow for other device alarms, orange for warning, red for critical
-  const themeColor = isNetworkDisconnected ? '#3B9EFF' : isDeviceAlarm ? '#F8FD1E' : (isWarning ? '#E5A54D' : '#E54D4D');
-  const themeColorRgba = isNetworkDisconnected ? '59,158,255' : isDeviceAlarm ? '248,253,30' : (isWarning ? '229,165,77' : '229,77,77');
+  // Theme: blue for network/bluetooth disconnected, yellow for band removed, orange for warning, red for critical
+  const isBlueAlert = isNetworkDisconnected || isAlertBluetoothDisconnected;
+  const themeColor = isBlueAlert ? '#3B9EFF' : isDeviceAlarm ? '#F8FD1E' : (isWarning ? '#E5A54D' : '#E54D4D');
+  const themeColorRgba = isBlueAlert ? '59,158,255' : isDeviceAlarm ? '248,253,30' : (isWarning ? '229,165,77' : '229,77,77');
 
-  // Border: solid blue for network disconnected, solid yellow for other device alarms, else semi-transparent
-  const borderStyle = isNetworkDisconnected
+  // Border: solid blue for network/bluetooth disconnected, solid yellow for band removed, else semi-transparent
+  const borderStyle = isBlueAlert
     ? '6px solid rgb(59 158 255)'
     : isDeviceAlarm
       ? '6px solid rgb(248 253 30)'
@@ -322,8 +323,8 @@ export default function CriticalAlarmModal({
                     animate={{ opacity: 1, y: 0 }}
                     className="w-full rounded-2xl px-5 py-5 mb-6 flex flex-col items-center gap-3 text-center"
                     style={{
-                      background: isNetworkDisconnected ? 'rgba(59,158,255,0.08)' : 'rgba(248,253,30,0.06)',
-                      border: isNetworkDisconnected ? '1px solid rgba(59,158,255,0.3)' : '1px solid rgba(248,253,30,0.25)',
+                      background: isBlueAlert ? 'rgba(59,158,255,0.08)' : 'rgba(248,253,30,0.06)',
+                      border: isBlueAlert ? '1px solid rgba(59,158,255,0.3)' : '1px solid rgba(248,253,30,0.25)',
                     }}
                   >
                     {isNetworkDisconnected ? (
@@ -355,7 +356,7 @@ export default function CriticalAlarmModal({
                         <circle cx="12" cy="12" r="2" stroke="#F8FD1E" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                     )}
-                    <p className={`${isTvMode ? 'text-sm' : 'text-sm'} font-bold`} style={{ color: isNetworkDisconnected ? '#3B9EFF' : '#F8FD1E' }}>
+                    <p className={`${isTvMode ? 'text-sm' : 'text-sm'} font-bold`} style={{ color: isBlueAlert ? '#3B9EFF' : '#F8FD1E' }}>
                       {isNetworkDisconnected ? "Network Disconnected" : currentIsConnected === false ? "Bluetooth Disconnected" : "Band Removed"}
                     </p>
                     <p className={`${isTvMode ? 'text-base' : 'text-lg'} text-[#aaa] leading-relaxed`}>
