@@ -56,7 +56,7 @@ export const authService = {
         },
       });
 
-      const { access_token, role, full_name } = response.data;
+      const { access_token, refresh_token, role, full_name } = response.data;
 
       const user = {
         id: employeeId,
@@ -67,9 +67,11 @@ export const authService = {
       // Store auth state
       localStorage.setItem('accessToken', access_token);
       localStorage.setItem('user', JSON.stringify(user));
-      
-      // Note: Backend also sets an HttpOnly cookie 'access_token'
-      // but we store it in localStorage for frontend compatibility.
+      // Store refresh_token so apiClient can send it as a body fallback
+      // when the HttpOnly cookie isn't forwarded (e.g. different port in dev)
+      if (refresh_token) {
+        localStorage.setItem('refreshToken', refresh_token);
+      }
 
       return {
         success: true,
@@ -101,18 +103,13 @@ export const authService = {
   },
 
   /**
-   * Refresh access token (Legacy/Placeholder)
+   * Refresh access token
+   * Sends refresh_token in the JSON body as a fallback when the
+   * HttpOnly cookie is not forwarded (cross-origin dev setups).
    */
-  async refreshToken(refreshToken) {
-    // Currently backend uses a single token and cookie
-    // This can be expanded later if refresh tokens are added.
-    return {
-      success: true,
-      data: {
-        token: localStorage.getItem('accessToken'),
-        expiresIn: 3600
-      },
-    };
+  async refreshToken() {
+    const storedRefreshToken = localStorage.getItem('refreshToken');
+    return storedRefreshToken ? storedRefreshToken : null;
   },
 
   /**

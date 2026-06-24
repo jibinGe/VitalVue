@@ -209,25 +209,15 @@ async def verify_otp(
     await redis_conn.setex(f"refresh_token:{user.user_id}", 604800, refresh_token)
     await redis_conn.delete(f"otp:{user.user_id}")
 
-    # 6. Set HttpOnly Cookies
+    # 6. Set HttpOnly Refresh Token Cookie (single cookie, path="/")
     response.set_cookie(
         key="refresh_token",
         value=refresh_token,
         httponly=True,
-        max_age=604800,
-        path="/api/v1/auth/refresh",
+        max_age=604800,       # 7 days
+        path="/",
         samesite="lax",
-        secure=False
-    )
-    
-    response.set_cookie(
-        key="refresh_token",
-        value=refresh_token,
-        httponly=True,
-        max_age=604800,
-        path="/",  # <-- Change this from "/api/v1/auth/refresh" to "/"
-        samesite="lax",
-        secure=False 
+        secure=False          # Set to True in production with HTTPS
     )
 
     return {
@@ -241,12 +231,24 @@ async def verify_otp(
 
 @router.post("/refresh")
 async def refresh_access_token(
+    request: Request,
     response: Response,
-    refresh_token: str = Cookie(None), # Extract from HttpOnly cookie
+    refresh_token: str = Cookie(None),  # Primary: HttpOnly cookie
     db: AsyncSession = Depends(get_db),
     redis_conn = Depends(get_redis)
 ):
-    """Exchange a valid Refresh Token for a new Access Token"""
+    """Exchange a valid Refresh Token for a new Access Token.
+    Accepts refresh_token from the HttpOnly cookie (primary) or 
+    JSON request body (fallback for cross-origin dev environments).
+    """
+    # Fallback: if cookie wasn't sent, try reading from JSON body
+    if not refresh_token:
+        try:
+            body = await request.json()
+            refresh_token = body.get("refresh_token")
+        except Exception:
+            pass
+
     if not refresh_token:
         raise HTTPException(status_code=401, detail="Refresh token missing")
 
@@ -279,13 +281,14 @@ async def refresh_access_token(
             settings.SECRET_KEY, algorithm=settings.ALGORITHM
         )
 
-        # 5. Drop the new Access Token in a cookie
+        # 5. Refresh the cookie too (sliding window)
         response.set_cookie(
             key="access_token",
             value=new_access_token,
             httponly=True,
-            path="/",  # <-- Explicitly set to root
-            samesite="lax"
+            path="/",
+            samesite="lax",
+            secure=False  # Set to True in production with HTTPS
         )
 
         return {"access_token": new_access_token, "token_type": "bearer"}
@@ -294,7 +297,7 @@ async def refresh_access_token(
         raise HTTPException(status_code=401, detail="Refresh token expired")
     except jwt.JWTError:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
-    
+
 @router.post("/generate", response_model=QRGenerateResponse)
 async def generate_qr_session(redis_conn = Depends(get_redis)):
     """

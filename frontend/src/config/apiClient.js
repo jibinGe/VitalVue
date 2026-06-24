@@ -43,14 +43,17 @@ apiClient.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        // Attempt to refresh the token
-        // Use axios directly or the apiClient. 
-        // We use a separate axios call to avoid interceptor issues and ensure withCredentials
-        // withCredentials must be true here so the browser sends the
-        // HttpOnly refresh_token cookie set by the backend at login.
-        const response = await axios.post(`${API_BASE_URL}/api/v1/auth/refresh`, {}, {
-          withCredentials: true
-        });
+        // Attempt to refresh the token.
+        // withCredentials sends the HttpOnly refresh_token cookie (production).
+        // The body fallback handles cross-origin dev where cookies may not be forwarded.
+        const storedRefreshToken = localStorage.getItem('refreshToken');
+        const refreshPayload = storedRefreshToken ? { refresh_token: storedRefreshToken } : {};
+
+        const response = await axios.post(
+          `${API_BASE_URL}/api/v1/auth/refresh`,
+          refreshPayload,
+          { withCredentials: true }
+        );
 
         // The backend swagger response shows example: "string" or an object. 
         // We handle both possibilities for safety.

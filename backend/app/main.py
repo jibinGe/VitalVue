@@ -45,12 +45,15 @@ app = FastAPI(
 # 2. CORS Configuration
 # Set this to your frontend/mobile origin in production via .env
 # Dynamically handle origins from environment or default to local development
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",")
+ALLOWED_ORIGINS = os.getenv(
+    "ALLOWED_ORIGINS",
+    "http://localhost:5173,http://localhost:3000,https://vitalvue.genesysailabs.com"
+).split(",")
 origins = [origin.strip() for origin in ALLOWED_ORIGINS]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,          # Must be explicit origins (not "*") for credentialed requests
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
