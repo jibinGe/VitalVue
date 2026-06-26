@@ -6,3 +6,7 @@ backend/simulator.py
 backend/key.pem
 backend/deploy.sh
 backend/deploy.sh
+
+# Firebase service-account key + local secrets (NEVER commit)
+secrets/
+.env
