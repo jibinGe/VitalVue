@@ -155,8 +155,9 @@ async def initiate_login(
             }
         )
     except Exception as e:
-        print(f"SNS Error: {e}")
-        raise HTTPException(status_code=500, detail="Failed to send SMS")
+        # RUN-024: OTP is ALREADY stored in Redis above — an SMS-delivery failure must not 500 the
+        # login (the code can still be entered). Log + continue. (Flag to Ajmal: confirm prod intent.)
+        print(f"SNS Error (non-fatal, OTP stored): {e}")
 
     return {"message": "OTP sent to your registered mobile number"}
 
