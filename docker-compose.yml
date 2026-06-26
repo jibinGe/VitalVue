@@ -2,8 +2,7 @@ services:
   db:
     image: postgres:15.5-alpine
     container_name: vitalvue_db
-    ports:
-      - "5432:5432"
+    # host port intentionally not published (internal network only; restore via docker exec) — avoids 5432/5433 clashes
     environment:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASS}
@@ -22,8 +21,7 @@ services:
   redis:
     image: redis:7.2-alpine
     container_name: vitalvue_redis
-    ports:
-      - "6379:6379"
+    # host port not published (internal only) — avoids 6379 clash
     command: >
       redis-server --requirepass ${REDIS_PASS}  --rename-command FLUSHALL ""  --save 60 1
     healthcheck:
@@ -42,10 +40,12 @@ services:
       - "8000:8000"
     volumes:
       - ./backend:/app
+      - ./secrets/fcm-sa.json:/run/secrets/fcm-sa.json:ro   # FCM service account (gitignored) — Plan D
     env_file: .env
     environment:
       - DATABASE_URL=postgresql://${DB_USER}:${DB_PASS}@db:5432/${DB_NAME}
       - REDIS_URL=redis://:${REDIS_PASS}@redis:6379/0
+      - GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/fcm-sa.json
     depends_on:
       db: { condition: service_healthy }
       redis: { condition: service_healthy }

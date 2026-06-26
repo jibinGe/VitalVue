@@ -10,8 +10,10 @@ from app.database import get_db, get_redis
 from app.models.user import User , Doctor, Patient, Nurse, OrgAdmin, MasterAdmin, UserRole
 from app.core.config import settings
 from app.schemas.auth import OTPRequest, OTPVerify, QRGenerateResponse, QRAuthorizeRequest
-from sqlalchemy import func # Import func for lower()
+from sqlalchemy import func, delete # Import func for lower()
 from app.api.deps import get_current_user
+from app.models.notification import DeviceToken
+from app.schemas.notification import DeviceTokenIn
 from app.models.organization import Room, Ward, Department
 from sqlalchemy.orm import joinedload
 import json
@@ -397,3 +399,32 @@ async def authorize_qr_session(
     await redis_conn.publish(f"qr_channel:{qr_token}", json.dumps(token_payload))
     
     return {"status": "success", "detail": "Terminal authenticated successfully"}
+
+
+# --- FCM device-token lifecycle (Plan D, RUN-024) — staff push registration ---
+@router.post("/register-device")
+async def register_device(body: DeviceTokenIn, db: AsyncSession = Depends(get_db), me=Depends(get_current_user)):
+    existing = (await db.execute(select(DeviceToken).where(DeviceToken.token == body.token))).scalar_one_or_none()
+    if existing:
+        existing.user_id = me.id          # rebind device to the current caller (device changed hands)
+        existing.platform = body.platform
+        existing.updated_at = func.now()
+    else:
+        db.add(DeviceToken(user_id=me.id, token=body.token, platform=body.platform))
+    await db.commit()
+    return {"status": "ok"}
+
+
+@router.post("/unregister-device")
+async def unregister_device(body: DeviceTokenIn, db: AsyncSession = Depends(get_db), me=Depends(get_current_user)):
+    await db.execute(delete(DeviceToken).where(DeviceToken.token == body.token))
+    await db.commit()
+    return {"status": "ok"}
+
+
+@router.post("/logout")
+async def logout(body: DeviceTokenIn | None = None, db: AsyncSession = Depends(get_db), me=Depends(get_current_user)):
+    if body and body.token:
+        await db.execute(delete(DeviceToken).where(DeviceToken.token == body.token))
+        await db.commit()
+    return {"status": "ok"}

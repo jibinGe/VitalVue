@@ -1,7 +1,9 @@
 import json
+import asyncio
 from datetime import datetime
 from argparse import Namespace
 from sqlalchemy import select
+from app.services.push import send_critical_push, staff_tokens_for_patient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db, get_redis
@@ -120,6 +122,12 @@ async def monitor_device_heartbeats():
                     stream_channel = f"patient:{patient.id}:stream"
                     
                     await redis.publish(alert_channel, json.dumps(alert_meta))
+
+                    # Plan D (RUN-024): push the device-offline alert to the patient's staff.
+                    _push_tokens = await staff_tokens_for_patient(db, patient.id)
+                    if _push_tokens:
+                        asyncio.create_task(asyncio.to_thread(send_critical_push, _push_tokens, alert_meta))
+
                     await redis.publish(stream_channel, json.dumps({
                         "patient_id": patient.id,
                         "vitals": serializable_vitals,

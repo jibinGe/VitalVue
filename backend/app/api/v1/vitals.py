@@ -14,6 +14,8 @@ from fastapi.security import OAuth2PasswordBearer
 from app.models.user import User
 from app.api.deps import get_current_user
 from app.services.alerts import send_consolidated_vitalvue_alert
+import asyncio
+from app.services.push import send_critical_push, staff_tokens_for_patient
 from sqlalchemy.orm import joinedload
 from datetime import datetime, timedelta
 from argparse import Namespace
@@ -305,9 +307,15 @@ async def ingest_vitals(
                 
                 # Publish event via Server-Sent Events channel
                 await redis.publish(
-                    f"patient:{payload.patient_id}:alerts", 
+                    f"patient:{payload.patient_id}:alerts",
                     json.dumps(alert_data)
                 )
+
+                # Plan D (RUN-024): also push to the patient's staff phones (offline delivery).
+                # Fetched here (needs db), sent off-thread so a slow FCM call never blocks ingest.
+                _push_tokens = await staff_tokens_for_patient(db, payload.patient_id)
+                if _push_tokens:
+                    asyncio.create_task(asyncio.to_thread(send_critical_push, _push_tokens, alert_data))
 
     # 8. Reset Asymmetric State Transitions
     # ANY active API ingest ping drops the background task's dead lock
