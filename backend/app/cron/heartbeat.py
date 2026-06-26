@@ -1,9 +1,11 @@
 import json
 import asyncio
-from datetime import datetime
+from datetime import datetime, timedelta
 from argparse import Namespace
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from app.services.push import send_critical_push, staff_tokens_for_patient
+from app.models.api_log import ApiLog
+from app.core.config import settings
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db, get_redis
@@ -135,7 +137,14 @@ async def monitor_device_heartbeats():
                         "room_number": room_number,
                         "timestamp": timestamp_str
                     }))
-                    
+
+        # API-log retention (RUN-024): purge entries older than the configured window (default 48h).
+        try:
+            cutoff = datetime.utcnow() - timedelta(hours=settings.API_LOG_RETENTION_HOURS)
+            await db.execute(delete(ApiLog).where(ApiLog.created_at < cutoff))
+        except Exception as e:
+            print(f"api_log purge error: {e}")
+
         await db.commit()
         
 

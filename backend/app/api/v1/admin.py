@@ -100,3 +100,21 @@ async def create_nurse(body: dict, db: AsyncSession = Depends(get_db)):
     except IntegrityError:
         await db.rollback()
         raise HTTPException(status_code=409, detail="user_id or phone already exists")
+
+
+# --- API logging toggle (RUN-024) ---
+from app.core.log_config import logging_enabled, set_logging
+
+@router.post("/logging/on", dependencies=[Depends(allow_admins)])
+async def logging_on():
+    await set_logging(True)
+    return {"enabled": True}
+
+@router.post("/logging/off", dependencies=[Depends(allow_admins)])
+async def logging_off():
+    await set_logging(False)
+    return {"enabled": False}
+
+@router.get("/logging/status", dependencies=[Depends(allow_admins)])
+async def logging_status():
+    return {"enabled": await logging_enabled()}

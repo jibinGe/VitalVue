@@ -59,6 +59,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# API error logging (RUN-024) — records every request + tracebacks for forensics (toggle in Redis/env)
+from starlette.middleware.base import BaseHTTPMiddleware
+from app.middleware.api_logger import api_log_middleware
+app.add_middleware(BaseHTTPMiddleware, dispatch=api_log_middleware)
+
 # 3. Include Routers
 # We use prefixes to version the API (v1)
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
