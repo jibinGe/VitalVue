@@ -2,9 +2,11 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.database import get_db
-from app.models.organization import Organization, Department, Ward, Room
+from app.models.organization import Organization, Department, Ward, Room, Station, Bed
 from app.models.user import Doctor
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.services.geo import haversine_m
+from app.core.comorbidities import COMORBIDITIES
 
 router = APIRouter()
 
@@ -55,3 +57,43 @@ async def get_rooms(ward_id: int, db: AsyncSession = Depends(get_db)):
         select(Room).where(Room.ward_id == ward_id)
     )
     return result.scalars().all()
+
+# --- org-hierarchy v2 (RUN-024) ---
+
+@router.get("/organizations/nearby")
+async def nearby(lat: float, lon: float, radius_m: float = 200, db: AsyncSession = Depends(get_db)):
+    orgs = (await db.execute(
+        select(Organization).where(Organization.latitude.isnot(None), Organization.longitude.isnot(None))
+    )).scalars().all()
+    nearby_orgs = []
+    for o in orgs:
+        dist = haversine_m(lat, lon, o.latitude, o.longitude)
+        if dist <= radius_m:
+            nearby_orgs.append({
+                "id": o.id, "name": o.name, "city": o.city,
+                "latitude": o.latitude, "longitude": o.longitude, "distance_m": round(dist, 1),
+            })
+    return sorted(nearby_orgs, key=lambda x: x["distance_m"])
+
+@router.get("/departments/{dept_id}/doctors")
+async def doctors_by_dept(dept_id: int, db: AsyncSession = Depends(get_db)):
+    return (await db.execute(select(Doctor).where(Doctor.department_id == dept_id))).scalars().all()
+
+@router.get("/departments/{dept_id}/stations")
+async def stations_by_dept(dept_id: int, db: AsyncSession = Depends(get_db)):
+    return (await db.execute(select(Station).where(Station.department_id == dept_id))).scalars().all()
+
+@router.get("/stations/{station_id}/wards")
+async def wards_by_station(station_id: int, db: AsyncSession = Depends(get_db)):
+    return (await db.execute(select(Ward).where(Ward.station_id == station_id))).scalars().all()
+
+@router.get("/wards/{ward_id}/beds")
+async def beds_by_ward(ward_id: int, include_occupied: bool = False, db: AsyncSession = Depends(get_db)):
+    q = select(Bed).where(Bed.ward_id == ward_id)
+    if not include_occupied:
+        q = q.where(Bed.is_occupied == False)
+    return (await db.execute(q)).scalars().all()
+
+@router.get("/comorbidities")
+async def comorbidities():
+    return COMORBIDITIES

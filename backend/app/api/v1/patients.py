@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks, Body, status
 from app.database import get_db, get_redis
-from app.schemas.user import PatientCreate
+from app.schemas.user import PatientCreate, PatientAdmit
 from app.crud.user import patient as crud_patient
-from app.models.organization import Room, Ward
+from app.models.organization import Room, Ward, Bed
+from app.core.comorbidities import validate_comorbidities
 from app.models.user import Patient, User, Nurse, Doctor, UserRole
 from app.models.vitals import Vitals
 from app.services.alerts import send_consolidated_vitalvue_alert
@@ -12,7 +13,7 @@ from app.schemas.patient import PaginatedPatientArchiveResponse, PatientDetailRe
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from sqlalchemy.future import select
-from app.api.deps import get_current_user, allow_admins
+from app.api.deps import get_current_user, allow_admins, allow_clinical_staff
 from sqlalchemy import func, and_, text, or_
 from app.models.clinical import Alert, Action, ClinicalNote
 from app.schemas.clinical_audit import PatientClinicalTimelineResponse
@@ -34,6 +35,26 @@ def generate_random_device_id():
     # Generate 6 random alphanumeric characters
     suffix = ''.join(random.choices(string.ascii_letters + string.digits, k=6))
     return f"random_{suffix}"
+
+@router.post("/admit", status_code=201, dependencies=[Depends(allow_clinical_staff)])
+async def admit(body: PatientAdmit, db: AsyncSession = Depends(get_db), me=Depends(get_current_user)):
+    # org-hierarchy v2 (RUN-024): authenticated bed admission with dept-doctor + comorbidities.
+    bed = await db.get(Bed, body.bed_id)
+    if not bed:
+        raise HTTPException(status_code=404, detail="Bed not found")
+    if bed.is_occupied:
+        raise HTTPException(status_code=409, detail="Bed already occupied")
+    data = body.model_dump()
+    data["comorbidities"] = validate_comorbidities(data.get("comorbidities"))
+    data["organization_id"] = me.organization_id
+    data["device_id"] = generate_random_device_id()
+    data["role"] = UserRole.PATIENT
+    patient = Patient(**data)
+    db.add(patient)
+    bed.is_occupied = True
+    await db.commit()
+    await db.refresh(patient)
+    return patient
 
 @router.post("/register")
 async def register_patient(
@@ -1175,6 +1196,12 @@ async def discharge_and_archive_patient(
     patient.archive_status = "archived"  # Transitioning profile lifecycle to immutable reference track
     
     # 3. Asymmetric Asset Liberation Actions (Safely setting fields to None)
+    # org-hierarchy v2 (RUN-024): free the occupied bed before severing the link
+    if patient.bed_id:
+        freed_bed = await db.get(Bed, patient.bed_id)
+        if freed_bed:
+            freed_bed.is_occupied = False
+    patient.bed_id = None             # v2 leaf link
     patient.room_id = None            # Free up room/bed mapping for incoming active admissions
     patient.device_id = None          # Unbind physical telemetry hardware band for redevelopment
     patient.is_monitoring_paused = False # Reset pause parameter

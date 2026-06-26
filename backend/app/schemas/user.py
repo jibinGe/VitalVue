@@ -78,3 +78,20 @@ class DoctorUpdate(DoctorBase):
 class DoctorResponse(DoctorBase):
     id: int
     created_at: datetime
+
+# --- Patient Admit (org-hierarchy v2, RUN-024) — bed + dept-doctor + comorbidities ---
+class PatientAdmit(BaseModel):
+    user_id: str
+    full_name: str
+    phone_number: str
+    age: Optional[int] = None
+    gender: Optional[str] = None
+    height: Optional[float] = None
+    weight: Optional[float] = None
+    blood_group: Optional[str] = None
+    alt_phone: Optional[str] = None
+    bed_id: int
+    doctor_id: Optional[int] = None
+    nurse_id: Optional[int] = None
+    comorbidities: List[str] = Field(default_factory=list)
+    device_id: Optional[str] = None
