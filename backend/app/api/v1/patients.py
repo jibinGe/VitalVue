@@ -49,6 +49,10 @@ async def admit(body: PatientAdmit, db: AsyncSession = Depends(get_db), me=Depen
     data["organization_id"] = me.organization_id
     data["device_id"] = generate_random_device_id()
     data["role"] = UserRole.PATIENT
+    # patients.{age,gender,blood_group} are NOT NULL but optional at admit → coerce safe defaults
+    data["age"] = data.get("age") or 0
+    data["gender"] = data.get("gender") or ""
+    data["blood_group"] = data.get("blood_group") or ""
     patient = Patient(**data)
     db.add(patient)
     bed.is_occupied = True
