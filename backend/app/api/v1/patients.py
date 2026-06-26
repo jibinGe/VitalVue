@@ -280,7 +280,7 @@ async def get_assigned_patients(
         .options(
             joinedload(Patient.assigned_nurse),
             joinedload(Patient.assigned_doctor),
-            joinedload(Patient.room).joinedload(Room.ward)  # Pre-fetches room + ward name
+            joinedload(Patient.room).joinedload(Room.ward), joinedload(Patient.bed).joinedload(Bed.ward)  # Pre-fetches room + ward name
         )
     )
 
@@ -347,8 +347,8 @@ async def get_assigned_patients(
 
             
             # This line will now evaluate completely in-memory without throwing 500 errors!
-            "room_no": p.room.room_number if p.room else "N/A",
-            "ward_name": p.room.ward.name if (p.room and p.room.ward) else "N/A",
+            "room_no": p.room.room_number if p.room else (p.bed.bed_no if p.bed else "N/A"),
+            "ward_name": p.room.ward.name if (p.room and p.room.ward) else (p.bed.ward.name if (p.bed and p.bed.ward) else "N/A"),
             "phone_number": p.phone_number or "",
             "alt_phone": p.alt_phone or "",
             
@@ -380,7 +380,7 @@ async def get_assigned_patient_by_user_id(
         .options(
             joinedload(Patient.assigned_nurse),
             joinedload(Patient.assigned_doctor),
-            joinedload(Patient.room).joinedload(Room.ward)
+            joinedload(Patient.room).joinedload(Room.ward), joinedload(Patient.bed).joinedload(Bed.ward)
         )
     )
 
@@ -549,7 +549,7 @@ async def get_patient_shared_overview(
     query = (
         select(Patient)
         .options(
-            joinedload(Patient.room).joinedload(Room.ward)
+            joinedload(Patient.room).joinedload(Room.ward), joinedload(Patient.bed).joinedload(Bed.ward)
         )
         .where(Patient.id == patient_id)
     )
@@ -616,8 +616,8 @@ async def get_patient_shared_overview(
     return {
         "patient": {
             "full_name": patient.full_name,
-            "room_no": patient.room.room_number if patient.room else "N/A",
-            "ward_name": patient.room.ward.name if (patient.room and patient.room.ward) else "N/A",
+            "room_no": patient.room.room_number if patient.room else (patient.bed.bed_no if patient.bed else "N/A"),
+            "ward_name": patient.room.ward.name if (patient.room and patient.room.ward) else (patient.bed.ward.name if (patient.bed and patient.bed.ward) else "N/A"),
             "phone_number": patient.phone_number or "",
             "alt_phone": patient.alt_phone or "",
         },

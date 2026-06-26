@@ -14,7 +14,7 @@ from sqlalchemy import func, delete # Import func for lower()
 from app.api.deps import get_current_user
 from app.models.notification import DeviceToken
 from app.schemas.notification import DeviceTokenIn
-from app.models.organization import Room, Ward, Department
+from app.models.organization import Room, Ward, Department, Bed
 from sqlalchemy.orm import joinedload
 import json
 from sse_starlette.sse import EventSourceResponse
@@ -56,7 +56,8 @@ async def get_profile(
             select(Patient)
             .options(
                 joinedload(Patient.assigned_doctor),
-                joinedload(Patient.room).joinedload(Room.ward).joinedload(Ward.department)
+                joinedload(Patient.room).joinedload(Room.ward).joinedload(Ward.department),
+                joinedload(Patient.bed).joinedload(Bed.ward).joinedload(Ward.department)
             )
             .where(Patient.id == current_user.id)
         )
@@ -78,9 +79,9 @@ async def get_profile(
             
             # Resolved Names
             "doctor_name": patient_full.assigned_doctor.full_name if patient_full.assigned_doctor else None,
-            "room_number": patient_full.room.room_number if patient_full.room else None,
-            "ward_name": patient_full.room.ward.name if (patient_full.room and patient_full.room.ward) else None,
-            "department_name": patient_full.room.ward.department.name if (patient_full.room and patient_full.room.ward and patient_full.room.ward.department) else None
+            "room_number": patient_full.room.room_number if patient_full.room else (patient_full.bed.bed_no if patient_full.bed else None),
+            "ward_name": patient_full.room.ward.name if (patient_full.room and patient_full.room.ward) else (patient_full.bed.ward.name if (patient_full.bed and patient_full.bed.ward) else None),
+            "department_name": patient_full.room.ward.department.name if (patient_full.room and patient_full.room.ward and patient_full.room.ward.department) else (patient_full.bed.ward.department.name if (patient_full.bed and patient_full.bed.ward and patient_full.bed.ward.department) else None)
         })
         
     # 3. Handle Doctor-Specific Details
