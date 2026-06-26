@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Optional
 from sqlalchemy import ForeignKey, String, Enum, DateTime, Boolean, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.dialects.postgresql import JSONB
 from app.database import Base
 
 class UserRole(str, enum.Enum):
@@ -62,7 +63,11 @@ class Patient(User):
     
     # --- Facility Assets Allocation ---
     # Changed to Optional[int]/nullable=True so bed links can be severed immediately upon discharge
-    room_id: Mapped[Optional[int]] = mapped_column(ForeignKey("rooms.id"), nullable=True)
+    room_id: Mapped[Optional[int]] = mapped_column(ForeignKey("rooms.id"), nullable=True)  # DEPRECATED (v2): use bed_id
+    # org-hierarchy v2 — the patient now occupies a Bed (room_id kept for back-compat/rollback)
+    bed_id: Mapped[Optional[int]] = mapped_column(ForeignKey("beds.id"), nullable=True)
+    # Patient comorbidities (the 16-item canon) — stored as a JSON string array
+    comorbidities: Mapped[list] = mapped_column(JSONB, nullable=False, server_default="[]")
 
     # --- NEW COMPLIANCE & LIFECYCLE FIELDS ---
     # Transient State: True if patient is active but temporarily unstrapped (e.g., shower/X-ray)
@@ -78,6 +83,7 @@ class Patient(User):
 
     # --- SQLAlchemy Core Graph Relationships ---
     room: Mapped[Optional["Room"]] = relationship("Room")
+    bed: Mapped[Optional["Bed"]] = relationship("Bed")
     assigned_nurse: Mapped[Optional["Nurse"]] = relationship("Nurse", foreign_keys=[nurse_id])
     assigned_doctor: Mapped[Optional["Doctor"]] = relationship("Doctor", foreign_keys=[doctor_id])
 
@@ -94,6 +100,8 @@ class Doctor(User):
     id: Mapped[int] = mapped_column(ForeignKey("users.id"), primary_key=True)
     specialization: Mapped[str] = mapped_column(String(100))
     is_on_call: Mapped[bool] = mapped_column(Boolean, nullable=True)
+    # org-hierarchy v2 — doctors now belong to a department (doctors-by-department discovery)
+    department_id: Mapped[Optional[int]] = mapped_column(ForeignKey("departments.id"), nullable=True, index=True)
     __mapper_args__ = {"polymorphic_identity": "doctor"}
 
 class OrgAdmin(User):
