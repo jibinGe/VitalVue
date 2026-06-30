@@ -16,6 +16,9 @@ class Organization(Base):
     latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
 
+    # org-hierarchy v2 — soft-disable (hide from pickers without deleting / breaking FKs)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, server_default="true")
+
     # Relationships
     departments: Mapped[list["Department"]] = relationship(back_populates="organization")
     users: Mapped[list["User"]] = relationship(back_populates="organization")
@@ -25,6 +28,7 @@ class Department(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id"))
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, server_default="true")
 
     organization: Mapped["Organization"] = relationship(back_populates="departments")
     wards: Mapped[list["Ward"]] = relationship(back_populates="department")
@@ -37,6 +41,7 @@ class Station(Base):
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     station_no: Mapped[str | None] = mapped_column(String(50), nullable=True)
     department_id: Mapped[int] = mapped_column(ForeignKey("departments.id"), index=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, server_default="true")
 
     department: Mapped["Department"] = relationship(back_populates="stations")
     wards: Mapped[list["Ward"]] = relationship(back_populates="station")
@@ -49,6 +54,7 @@ class Ward(Base):
     department_id: Mapped[int] = mapped_column(ForeignKey("departments.id"))
     # org-hierarchy v2 — ward now lives under a station (nullable for back-compat/backfill)
     station_id: Mapped[int | None] = mapped_column(ForeignKey("stations.id"), nullable=True, index=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, server_default="true")
 
     department: Mapped["Department"] = relationship(back_populates="wards")
     station: Mapped["Station | None"] = relationship(back_populates="wards")
@@ -62,6 +68,7 @@ class Bed(Base):
     bed_no: Mapped[str] = mapped_column(String(50), nullable=False)
     ward_id: Mapped[int] = mapped_column(ForeignKey("wards.id"), index=True)
     is_occupied: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, server_default="true")
 
     ward: Mapped["Ward"] = relationship(back_populates="beds")
 

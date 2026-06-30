@@ -44,6 +44,8 @@ async def admit(body: PatientAdmit, db: AsyncSession = Depends(get_db), me=Depen
         raise HTTPException(status_code=404, detail="Bed not found")
     if bed.is_occupied:
         raise HTTPException(status_code=409, detail="Bed already occupied")
+    if not getattr(bed, "is_active", True):
+        raise HTTPException(status_code=409, detail="Bed is disabled")
     data = body.model_dump()
     data["comorbidities"] = validate_comorbidities(data.get("comorbidities"))
     data["organization_id"] = me.organization_id
