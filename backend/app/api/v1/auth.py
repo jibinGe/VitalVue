@@ -225,12 +225,61 @@ async def verify_otp(
     )
 
     return {
-        "access_token": access_token, 
+        "access_token": access_token,
         "refresh_token": refresh_token,
         "token_type": "bearer",
-        "role": user.role, 
+        "role": user.role,
         "full_name": user.full_name,
         "user_id": user.user_id
+    }
+
+
+@router.post("/patient-login")
+async def patient_login(
+    response: Response,
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: AsyncSession = Depends(get_db),
+    redis_conn = Depends(get_redis),
+):
+    """Patient login with PAT-<id> + 6-digit PIN (set at registration, bcrypt-hashed).
+    Patients do NOT use the OTP path — this replaces the static-OTP backdoor for role=patient."""
+    from app.core.security import verify_password
+    from app.models.user import UserRole
+
+    input_id = form_data.username
+    pin = form_data.password
+
+    result = await db.execute(select(User).where(func.lower(User.user_id) == func.lower(input_id)))
+    user = result.scalars().first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user.role != UserRole.PATIENT:
+        raise HTTPException(status_code=403, detail="Use OTP login for staff accounts")
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="Account is deactivated")
+    if not user.hashed_password or not verify_password(pin, user.hashed_password):
+        raise HTTPException(status_code=400, detail="Invalid ID or PIN")
+
+    access_expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = jwt.encode(
+        {"sub": user.user_id, "role": user.role.value, "exp": access_expire, "type": "access"},
+        settings.SECRET_KEY, algorithm=settings.ALGORITHM
+    )
+    refresh_expire = datetime.utcnow() + timedelta(days=7)
+    refresh_token = jwt.encode(
+        {"sub": user.user_id, "exp": refresh_expire, "type": "refresh"},
+        settings.SECRET_KEY, algorithm=settings.ALGORITHM
+    )
+    await redis_conn.setex(f"refresh_token:{user.user_id}", 604800, refresh_token)
+    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True,
+                        max_age=604800, path="/", samesite="lax", secure=False)
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "role": user.role,
+        "full_name": user.full_name,
+        "user_id": user.user_id,
     }
 
 @router.post("/refresh")

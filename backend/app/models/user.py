@@ -27,6 +27,8 @@ class User(Base):
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[UserRole] = mapped_column(Enum(UserRole), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Patient 6-digit PIN login (bcrypt). Nullable — staff use OTP, only patients set a PIN.
+    hashed_password: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     organization: Mapped[Optional["Organization"]] = relationship("Organization", back_populates="users")

@@ -27,6 +27,8 @@ import secrets
 import string
 import math
 from app.services.analytics import get_vital_statuses
+from app.core.security import get_password_hash
+import uuid
 
 router = APIRouter()
 
@@ -47,6 +49,13 @@ async def admit(body: PatientAdmit, db: AsyncSession = Depends(get_db), me=Depen
     if not getattr(bed, "is_active", True):
         raise HTTPException(status_code=409, detail="Bed is disabled")
     data = body.model_dump()
+    # PIN (6-digit) → bcrypt hash; not a Patient column so pop it out first.
+    pin = data.pop("pin", None)
+    provided_user_id = data.pop("user_id", None)
+    if pin:
+        if not (isinstance(pin, str) and pin.isdigit() and len(pin) == 6):
+            raise HTTPException(status_code=400, detail="PIN must be exactly 6 digits")
+        data["hashed_password"] = get_password_hash(pin)
     data["comorbidities"] = validate_comorbidities(data.get("comorbidities"))
     data["organization_id"] = me.organization_id
     data["device_id"] = generate_random_device_id()
@@ -55,12 +64,25 @@ async def admit(body: PatientAdmit, db: AsyncSession = Depends(get_db), me=Depen
     data["age"] = data.get("age") or 0
     data["gender"] = data.get("gender") or ""
     data["blood_group"] = data.get("blood_group") or ""
+    # user_id: use the one provided (AdmitScreen) else a temp placeholder → auto PAT-<id> after flush
+    # (user_id is NOT NULL + unique, so it must exist at insert; we rename to PAT-<id> once we have the id).
+    auto_id = provided_user_id is None or str(provided_user_id).strip() == ""
+    data["user_id"] = provided_user_id if not auto_id else f"pending-{uuid.uuid4().hex[:12]}"
     patient = Patient(**data)
     db.add(patient)
     bed.is_occupied = True
-    await db.commit()
-    await db.refresh(patient)
-    return patient
+    try:
+        await db.flush()  # assigns patient.id
+        if auto_id:
+            patient.user_id = f"PAT-{patient.id}"
+        await db.commit()
+        await db.refresh(patient)
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(status_code=409, detail="Patient ID or phone number already exists")
+    # Never leak the PIN hash back to the client.
+    return {c.key: getattr(patient, c.key) for c in inspect(patient).mapper.column_attrs
+            if c.key != "hashed_password"}
 
 @router.post("/register")
 async def register_patient(

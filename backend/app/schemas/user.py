@@ -81,7 +81,10 @@ class DoctorResponse(DoctorBase):
 
 # --- Patient Admit (org-hierarchy v2, RUN-024) — bed + dept-doctor + comorbidities ---
 class PatientAdmit(BaseModel):
-    user_id: str
+    # Optional at registration → auto-generated PAT-<id> when omitted (AdmitScreen still passes one).
+    user_id: Optional[str] = None
+    # 6-digit login PIN set at registration (patient logs in with PAT-<id> + this PIN). Hashed server-side.
+    pin: Optional[str] = None
     full_name: str
     phone_number: str
     age: Optional[int] = None
