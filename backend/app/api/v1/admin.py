@@ -160,9 +160,14 @@ _EDITABLE = {
 _FILTER_COLS = ("organization_id", "department_id", "station_id", "ward_id")
 
 
+_SENSITIVE_COLS = {"hashed_password"}
+
+
 def _row(obj) -> dict:
-    """Serialize an ORM row to scalar columns only (avoids async lazy-load on relationships)."""
-    return {c.key: getattr(obj, c.key) for c in sa_inspect(obj).mapper.column_attrs}
+    """Serialize an ORM row to scalar columns only (avoids async lazy-load on relationships).
+    Never emit sensitive columns (e.g. a doctor/nurse PIN hash via joined-table inheritance)."""
+    return {c.key: getattr(obj, c.key) for c in sa_inspect(obj).mapper.column_attrs
+            if c.key not in _SENSITIVE_COLS}
 
 
 @router.get("/{entity}", dependencies=[Depends(allow_admins)])

@@ -181,6 +181,13 @@ async def verify_otp(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    # Patients MUST use PIN login (POST /auth/patient-login). Blocking the OTP path here is what
+    # makes the per-patient 6-digit PIN meaningful — otherwise anyone with a PAT-<id> could log in
+    # with the static OTP and bypass the PIN entirely.
+    from app.models.user import UserRole as _UR
+    if user.role == _UR.PATIENT:
+        raise HTTPException(status_code=403, detail="Patients must log in with their PIN")
+
     # STEP B: Use the DATABASE ID (user.user_id) to check Redis
     # If user typed 'vt-101' but DB has 'VT-101', this looks for 'otp:VT-101'
     stored_otp = await redis_conn.get(f"otp:{user.user_id}")

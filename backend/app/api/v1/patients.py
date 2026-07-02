@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks, B
 from app.database import get_db, get_redis
 from app.schemas.user import PatientCreate, PatientAdmit
 from app.crud.user import patient as crud_patient
-from app.models.organization import Room, Ward, Bed
+from app.models.organization import Room, Ward, Bed, Department
 from app.core.comorbidities import validate_comorbidities
 from app.models.user import Patient, User, Nurse, Doctor, UserRole
 from app.models.vitals import Vitals
@@ -49,15 +49,25 @@ async def admit(body: PatientAdmit, db: AsyncSession = Depends(get_db), me=Depen
     if not getattr(bed, "is_active", True):
         raise HTTPException(status_code=409, detail="Bed is disabled")
     data = body.model_dump()
-    # PIN (6-digit) → bcrypt hash; not a Patient column so pop it out first.
+    # PIN (6-digit) → bcrypt hash. REQUIRED: patients log in with PAT-<id> + PIN (the OTP path is
+    # blocked for role=patient), so a patient with no PIN could never authenticate.
     pin = data.pop("pin", None)
     provided_user_id = data.pop("user_id", None)
-    if pin:
-        if not (isinstance(pin, str) and pin.isdigit() and len(pin) == 6):
-            raise HTTPException(status_code=400, detail="PIN must be exactly 6 digits")
-        data["hashed_password"] = get_password_hash(pin)
+    if not pin:
+        raise HTTPException(status_code=400, detail="A 6-digit PIN is required")
+    if not (isinstance(pin, str) and pin.isdigit() and len(pin) == 6):
+        raise HTTPException(status_code=400, detail="PIN must be exactly 6 digits")
+    data["hashed_password"] = get_password_hash(pin)
     data["comorbidities"] = validate_comorbidities(data.get("comorbidities"))
-    data["organization_id"] = me.organization_id
+    # Organization is derived from the BED's physical chain (bed→ward→department→org) — authoritative,
+    # and correct even when the admitter is a master_admin with no org of their own. Falls back to the
+    # staff's org, then errors rather than creating a null-org (multi-tenant-unsafe) patient.
+    ward = await db.get(Ward, bed.ward_id)
+    dept = await db.get(Department, ward.department_id) if ward is not None else None
+    org_id = (dept.organization_id if dept is not None else None) or me.organization_id
+    if org_id is None:
+        raise HTTPException(status_code=400, detail="Cannot determine the organization for this bed")
+    data["organization_id"] = org_id
     data["device_id"] = generate_random_device_id()
     data["role"] = UserRole.PATIENT
     # patients.{age,gender,blood_group} are NOT NULL but optional at admit → coerce safe defaults

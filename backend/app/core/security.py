@@ -26,7 +26,10 @@ def verify_password(plain_password, hashed_password):
     # bcrypt directly (passlib 1.7.4 crashes on bcrypt>=4.1's 72-byte detection). Truncate to 72 bytes.
     if not hashed_password:
         return False
-    return bcrypt.checkpw(str(plain_password).encode("utf-8")[:72], hashed_password.encode("utf-8"))
+    try:
+        return bcrypt.checkpw(str(plain_password).encode("utf-8")[:72], hashed_password.encode("utf-8"))
+    except (ValueError, TypeError):
+        return False
 
 def get_password_hash(password):
     return bcrypt.hashpw(str(password).encode("utf-8")[:72], bcrypt.gensalt()).decode("utf-8")
