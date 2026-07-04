@@ -181,11 +181,11 @@ async def verify_otp(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Anyone with a password/PIN set MUST use password login (POST /auth/password-login) — blocking
-    # the static-OTP path here is what makes the credential meaningful. Covers patients (PIN),
-    # nurses/superadmin (password). Staff without a password (un-migrated) keep OTP for back-compat.
-    from app.models.user import UserRole as _UR
-    if user.hashed_password or user.role == _UR.PATIENT:
+    # Anyone with a password/PIN SET must use password login (POST /auth/password-login) — blocking
+    # the static-OTP path here is what makes that credential meaningful (a PIN-patient or
+    # password-nurse can't be bypassed with the static OTP). Users WITHOUT a password (patients
+    # registered before the PIN feature, un-migrated staff) keep OTP so they are not locked out.
+    if user.hashed_password:
         raise HTTPException(status_code=403, detail="Log in with your password/PIN")
 
     # STEP B: Use the DATABASE ID (user.user_id) to check Redis
