@@ -181,12 +181,12 @@ async def verify_otp(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Patients MUST use PIN login (POST /auth/patient-login). Blocking the OTP path here is what
-    # makes the per-patient 6-digit PIN meaningful — otherwise anyone with a PAT-<id> could log in
-    # with the static OTP and bypass the PIN entirely.
+    # Anyone with a password/PIN set MUST use password login (POST /auth/password-login) — blocking
+    # the static-OTP path here is what makes the credential meaningful. Covers patients (PIN),
+    # nurses/superadmin (password). Staff without a password (un-migrated) keep OTP for back-compat.
     from app.models.user import UserRole as _UR
-    if user.role == _UR.PATIENT:
-        raise HTTPException(status_code=403, detail="Patients must log in with their PIN")
+    if user.hashed_password or user.role == _UR.PATIENT:
+        raise HTTPException(status_code=403, detail="Log in with your password/PIN")
 
     # STEP B: Use the DATABASE ID (user.user_id) to check Redis
     # If user typed 'vt-101' but DB has 'VT-101', this looks for 'otp:VT-101'
@@ -241,31 +241,30 @@ async def verify_otp(
     }
 
 
+@router.post("/password-login")
 @router.post("/patient-login")
-async def patient_login(
+async def password_login(
     response: Response,
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: AsyncSession = Depends(get_db),
     redis_conn = Depends(get_redis),
 ):
-    """Patient login with PAT-<id> + 6-digit PIN (set at registration, bcrypt-hashed).
-    Patients do NOT use the OTP path — this replaces the static-OTP backdoor for role=patient."""
+    """Credential login for ANY role that has a password/PIN set: patient (PAT-<id> + 6-digit PIN),
+    nurse/doctor/master_admin (user_id + password, set at creation or DB-side). Replaces the static-OTP
+    path for these users. `/patient-login` is kept as an alias for the existing app build."""
     from app.core.security import verify_password
-    from app.models.user import UserRole
 
     input_id = form_data.username
-    pin = form_data.password
+    secret = form_data.password
 
     result = await db.execute(select(User).where(func.lower(User.user_id) == func.lower(input_id)))
     user = result.scalars().first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    if user.role != UserRole.PATIENT:
-        raise HTTPException(status_code=403, detail="Use OTP login for staff accounts")
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Account is deactivated")
-    if not user.hashed_password or not verify_password(pin, user.hashed_password):
-        raise HTTPException(status_code=400, detail="Invalid ID or PIN")
+    if not user.hashed_password or not verify_password(secret, user.hashed_password):
+        raise HTTPException(status_code=400, detail="Invalid ID or password")
 
     access_expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = jwt.encode(

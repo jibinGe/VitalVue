@@ -6,6 +6,7 @@ from app.database import get_db
 from app.api.deps import allow_admins
 from app.models.organization import Organization, Department, Station, Ward, Bed
 from app.models.user import Doctor, Nurse, UserRole
+from app.core.security import get_password_hash
 from app.schemas.organization import (
     OrganizationCreate, DepartmentCreate, StationCreate, WardCreate, BedCreate,
 )
@@ -72,11 +73,12 @@ async def create_doctor(body: dict, db: AsyncSession = Depends(get_db)):
             department_id=body.get("department_id"),
             specialization=body.get("specialization") or "",
             is_on_call=body.get("is_on_call"),
+            hashed_password=get_password_hash(body["password"]) if body.get("password") else None,
         )
         db.add(doctor)
         await db.commit()
         await db.refresh(doctor)
-        return doctor
+        return _row(doctor)
     except IntegrityError:
         await db.rollback()
         raise HTTPException(status_code=409, detail="user_id or phone already exists")
@@ -93,11 +95,12 @@ async def create_nurse(body: dict, db: AsyncSession = Depends(get_db)):
             role=UserRole.NURSE,
             is_active=True,
             license_no=body["license_no"],
+            hashed_password=get_password_hash(body["password"]) if body.get("password") else None,
         )
         db.add(nurse)
         await db.commit()
         await db.refresh(nurse)
-        return nurse
+        return _row(nurse)
     except IntegrityError:
         await db.rollback()
         raise HTTPException(status_code=409, detail="user_id or phone already exists")
