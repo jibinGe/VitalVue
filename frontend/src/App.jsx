@@ -11,6 +11,7 @@ import Login from './pages/auth/login'
 import Signup from './pages/auth/signup'
 import Verify from './pages/auth/verify'
 import TvLogin from './pages/auth/tv-login'
+import DeleteAccount from './pages/delete-account'
 import ProtectedRoute from './components/auth/ProtectedRoute'
 
 // dashboard layout — eager (always needed once authenticated)
@@ -164,6 +165,12 @@ const router = createBrowserRouter([
     // Standalone — no layout wrapper, QR-only TV authentication
     path: '/tv-login',
     element: <TvLogin />,
+    errorElement: <Error />,
+  },
+  {
+    // Public — account + data deletion request (Google Play requirement). No auth.
+    path: '/delete-account',
+    element: <DeleteAccount />,
     errorElement: <Error />,
   },
   {
