@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex" />
+<title>Delete Your VitalVue Account</title>
+<style>
+  :root{
+    --gold:#CCA166; --bg:#1A1A1C; --card:#232326; --border:#3A3A3E;
+    --text:#EDEDED; --muted:#9A9A9F;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    display:flex;justify-content:center;padding:32px 16px;line-height:1.5}
+  .wrap{width:100%;max-width:560px}
+  h1{color:var(--gold);font-size:26px;margin:8px 0 4px}
+  .lead{color:var(--muted);font-size:14px;margin-top:8px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px;margin-top:20px}
+  .card h2{font-size:15px;margin:0 0 8px}
+  ul{color:var(--muted);font-size:13.5px;line-height:1.7;margin:0;padding-left:18px}
+  .note{color:var(--muted);font-size:13px;margin-top:12px;margin-bottom:0}
+  .note strong{color:var(--text)}
+  label{display:block;color:var(--muted);font-size:13px;margin:16px 0 6px}
+  label .req{color:var(--gold)}
+  input,textarea{width:100%;padding:12px 14px;border-radius:10px;background:#1C1C1F;
+    border:1px solid var(--border);color:var(--text);font-size:15px;outline:none;font-family:inherit}
+  textarea{min-height:88px;resize:vertical}
+  button{width:100%;margin-top:20px;padding:13px;border-radius:10px;border:none;
+    background:var(--gold);color:#1A1A1C;font-size:15px;font-weight:600;cursor:pointer}
+  button:disabled{background:#7A6340;cursor:default}
+  .err{color:#FF6B6B;font-size:13px;margin:14px 0 0}
+  .success h2{color:var(--gold);font-size:18px;margin:0 0 8px}
+  .foot{color:var(--muted);font-size:12.5px;margin-top:18px;text-align:center}
+  a{color:var(--gold)}
+  .hidden{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Delete Your VitalVue Account</h1>
+  <p class="lead">Use this form to request deletion of your VitalVue account and associated data.
+    You do not need the app installed to submit a request.</p>
+
+  <div class="card">
+    <h2>What gets deleted</h2>
+    <ul>
+      <li>Your account profile (name, login ID, contact details)</li>
+      <li>Recorded vital-sign history (heart rate, SpO&#8322;, temperature, etc.)</li>
+      <li>Device pairings and uploaded data files</li>
+    </ul>
+    <p class="note">Requests are processed within <strong>30 days</strong>. Some records may be retained
+      where required by law or for legitimate medical/audit obligations; these are kept only as long as
+      required and then deleted.</p>
+  </div>
+
+  <form id="form" class="card">
+    <label>Login ID or email <span class="req">*</span></label>
+    <input id="identifier" placeholder="e.g. PAT-135 or you@example.com" autocapitalize="none" />
+    <label>Contact email (so we can confirm)</label>
+    <input id="contact_email" type="email" placeholder="you@example.com" autocapitalize="none" />
+    <label>Reason (optional)</label>
+    <textarea id="reason" placeholder="Anything you'd like us to know"></textarea>
+    <p id="err" class="err hidden"></p>
+    <button id="submit" type="submit">Request account deletion</button>
+  </form>
+
+  <div id="success" class="card success hidden">
+    <h2>Request received</h2>
+    <p id="success_msg" style="font-size:14px;margin:0 0 8px"></p>
+    <p class="note">Reference: <strong id="ref"></strong></p>
+  </div>
+
+  <p class="foot">Prefer email? Contact
+    <a href="mailto:support@genesysailabs.com">support@genesysailabs.com</a>
+    with your login ID and the subject &ldquo;Account deletion&rdquo;.</p>
+</div>
+
+<script>
+  var API = "/api/v1/account/deletion-request";
+  var form = document.getElementById("form");
+  var errEl = document.getElementById("err");
+  var btn = document.getElementById("submit");
+
+  function showErr(m){ errEl.textContent = m; errEl.classList.remove("hidden"); }
+
+  form.addEventListener("submit", function(e){
+    e.preventDefault();
+    errEl.classList.add("hidden");
+    var identifier = document.getElementById("identifier").value.trim();
+    if(!identifier){ showErr("Please enter your login ID or email."); return; }
+    var body = {
+      identifier: identifier,
+      contact_email: document.getElementById("contact_email").value.trim() || null,
+      reason: document.getElementById("reason").value.trim() || null
+    };
+    btn.disabled = true; btn.textContent = "Submitting…";
+    fetch(API, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    }).then(function(r){
+      return r.json().then(function(d){ return { ok: r.ok, d: d }; });
+    }).then(function(res){
+      if(!res.ok){
+        var msg = res.d && res.d.detail ? res.d.detail : "Could not submit your request. Please try again or email us.";
+        if(typeof msg !== "string") msg = "Submission failed.";
+        showErr(msg); btn.disabled = false; btn.textContent = "Request account deletion"; return;
+      }
+      form.classList.add("hidden");
+      document.getElementById("success_msg").textContent = res.d.message || "Your request has been received.";
+      document.getElementById("ref").textContent = res.d.reference_id || "";
+      document.getElementById("success").classList.remove("hidden");
+    }).catch(function(){
+      showErr("Network error. Please try again or email us.");
+      btn.disabled = false; btn.textContent = "Request account deletion";
+    });
+  });
+</script>
+</body>
+</html>
