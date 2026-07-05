@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 import os
 import asyncio
 
-from app.api.v1 import auth, discovery, patients, vitals, stream, s3, admin
+from app.api.v1 import auth, discovery, patients, vitals, stream, s3, admin, account
 from app.cron.heartbeat import monitor_device_heartbeats
 
 async def heartbeat_cron_worker():
@@ -73,6 +73,7 @@ app.include_router(vitals.router, prefix="/api/v1/vitals", tags=["Vitals"])
 app.include_router(stream.router, prefix="/api/v1/stream", tags=["Stream"])
 app.include_router(s3.router, prefix="/api/v1/s3", tags=["S3"])
 app.include_router(admin.router, prefix="/api/v1/admin", tags=["Admin"])
+app.include_router(account.router, prefix="/api/v1/account", tags=["Account"])
 
 @app.get("/")
 async def root():
