@@ -181,23 +181,27 @@ async def verify_otp(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Anyone with a password/PIN SET must use password login (POST /auth/password-login) — blocking
-    # the static-OTP path here is what makes that credential meaningful (a PIN-patient or
-    # password-nurse can't be bypassed with the static OTP). Users WITHOUT a password (patients
-    # registered before the PIN feature, un-migrated staff) keep OTP so they are not locked out.
+    # Users WITH a password/PIN authenticate through this same endpoint: the web/app OTP form sends
+    # the typed value as `otp`, so we verify it against the stored hash (equivalent to
+    # /auth/password-login). We do NOT fall through to the static-OTP check for these users — that is
+    # what keeps the static OTP from ever bypassing a real password/PIN. Users WITHOUT a password
+    # (patients registered before the PIN feature, un-migrated staff) keep the OTP path below.
     if user.hashed_password:
-        raise HTTPException(status_code=403, detail="Log in with your password/PIN")
+        from app.core.security import verify_password
+        if not verify_password(otp, user.hashed_password):
+            raise HTTPException(status_code=400, detail="Invalid ID or password")
+        # verified — skip the OTP/redis checks and fall through to token issuance
+    else:
+        # STEP B: Use the DATABASE ID (user.user_id) to check Redis
+        # If user typed 'vt-101' but DB has 'VT-101', this looks for 'otp:VT-101'
+        stored_otp = await redis_conn.get(f"otp:{user.user_id}")
 
-    # STEP B: Use the DATABASE ID (user.user_id) to check Redis
-    # If user typed 'vt-101' but DB has 'VT-101', this looks for 'otp:VT-101'
-    stored_otp = await redis_conn.get(f"otp:{user.user_id}")
-    
-    if not stored_otp:
-        # This triggers if 5 mins passed or key name is wrong
-        raise HTTPException(status_code=400, detail="Invalid or expired OTP")
+        if not stored_otp:
+            # This triggers if 5 mins passed or key name is wrong
+            raise HTTPException(status_code=400, detail="Invalid or expired OTP")
 
-    if stored_otp.decode('utf-8') != otp:
-        raise HTTPException(status_code=400, detail="Invalid or expired OTP")
+        if stored_otp.decode('utf-8') != otp:
+            raise HTTPException(status_code=400, detail="Invalid or expired OTP")
     
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Account is deactivated")
