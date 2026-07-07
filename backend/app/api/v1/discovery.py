@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from typing import Optional
 from app.database import get_db
 from app.models.organization import Organization, Department, Ward, Room, Station, Bed
 from app.models.user import Doctor, Nurse
@@ -10,21 +11,23 @@ from app.core.comorbidities import COMORBIDITIES
 
 router = APIRouter()
 
-# 1. Get Organizations by Location & Keyword
+# 1. Get Organizations — geo filters now OPTIONAL (admin "list all" + patient geo-narrowed both work)
 @router.get("/organizations")
 async def get_organizations(
-    country: str,
-    state: str,
-    city: str,
+    country: Optional[str] = Query(None),
+    state: Optional[str] = Query(None),
+    city: Optional[str] = Query(None),
     search: str = Query(None),
     include_inactive: bool = False,
     db: AsyncSession = Depends(get_db)
 ):
-    query = select(Organization).where(
-        Organization.country == country,
-        Organization.state == state,
-        Organization.city == city
-    )
+    query = select(Organization)
+    if country:
+        query = query.where(Organization.country == country)
+    if state:
+        query = query.where(Organization.state == state)
+    if city:
+        query = query.where(Organization.city == city)
     if not include_inactive:
         query = query.where(Organization.is_active == True)
     if search:
@@ -32,6 +35,15 @@ async def get_organizations(
 
     result = await db.execute(query)
     return result.scalars().all()
+
+# 1b. Fetch ONE organization by id — {org_id:int} path converter so it never shadows
+# /organizations/nearby (a plain {org_id} route would capture "nearby" and 422).
+@router.get("/organizations/{org_id:int}")
+async def get_organization(org_id: int, db: AsyncSession = Depends(get_db)):
+    org = await db.get(Organization, org_id)
+    if org is None:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    return org
 
 # 2. Get Departments for a specific Org
 @router.get("/organizations/{org_id}/departments")
