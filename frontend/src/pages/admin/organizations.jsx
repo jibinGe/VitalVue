@@ -16,7 +16,7 @@ const COLUMNS = [
   { key: 'is_active', label: 'Status', render: (v) => <StatusBadge status={v} /> },
 ];
 
-const EMPTY_FORM = { name: '', country: '', state: '', city: '' };
+const EMPTY_FORM = { name: '', country: '', state: '', city: '', latitude: '', longitude: '' };
 
 export default function OrganizationsPage() {
   const [data, setData] = useState([]);
@@ -50,7 +50,7 @@ export default function OrganizationsPage() {
 
   const openEdit = (row) => {
     setEditTarget(row);
-    setFormData({ name: row.name || '', country: row.country || '', state: row.state || '', city: row.city || '' });
+    setFormData({ name: row.name || '', country: row.country || '', state: row.state || '', city: row.city || '', latitude: row.latitude || '', longitude: row.longitude || '' });
     setFormError('');
     setFormOpen(true);
   };
@@ -162,6 +162,12 @@ export default function OrganizationsPage() {
           </FormField>
           <FormField label="City">
             <AdminInput placeholder="e.g. Bangalore" {...field('city')} />
+          </FormField>
+          <FormField label="Latitude">
+            <AdminInput type="number" step="any" placeholder="e.g. 12.9716" {...field('latitude')} />
+          </FormField>
+          <FormField label="Longitude">
+            <AdminInput type="number" step="any" placeholder="e.g. 77.5946" {...field('longitude')} />
           </FormField>
         </div>
       </EntityForm>
