@@ -5,7 +5,7 @@ from sqlalchemy import func, or_
 from app.database import get_db, get_redis
 from app.models.vitals import Vitals, PatientCalibration
 from app.models.clinical import Alert
-from app.models.organization import Room, Ward  # Added to find ward context
+from app.models.organization import Room, Ward, Bed  # Added to find ward context (room OR bed, v2)
 from app.models.user import Patient
 from app.schemas.vitals import VitalIngestSchema, CalibrationRequest
 from app.services.analytics import calculate_risks, check_baseline_deviations, get_vital_statuses, get_patient_overall_status
@@ -14,6 +14,8 @@ from fastapi.security import OAuth2PasswordBearer
 from app.models.user import User
 from app.api.deps import get_current_user
 from app.services.alerts import send_consolidated_vitalvue_alert
+import asyncio
+from app.services.push import send_critical_push, staff_tokens_for_patient
 from sqlalchemy.orm import joinedload
 from datetime import datetime, timedelta
 from argparse import Namespace
@@ -209,29 +211,29 @@ async def ingest_vitals(
     db: AsyncSession = Depends(get_db), 
     redis = Depends(get_redis)
 ):
-    # 1. Fetch Context via Polymorphic Mapping (Prevents DuplicateAliasError)
-    stmt = (
-        select(
-            Patient, 
-            User.created_at, 
-            Ward.id,
-            Ward.name,        
-            Room.room_number, 
-            User.phone_number, 
-            PatientCalibration
-        )
-        .join(Room, Patient.room_id == Room.id)
-        .join(Ward, Room.ward_id == Ward.id) 
-        .outerjoin(PatientCalibration, Patient.id == PatientCalibration.patient_id)
-        .where(Patient.id == payload.patient_id)
-    )
-    
-    result = await db.execute(stmt)
-    row = result.first()
-    if not row:
+    # 1. Fetch Context — org-hierarchy v2 (RUN-024): resolve ward via ROOM (legacy) OR BED (v2-admit),
+    #    so patients admitted to a bed (room_id NULL) still stream/alert. (Was an INNER join on room → 404.)
+    patient = (await db.execute(select(Patient).where(Patient.id == payload.patient_id))).scalar_one_or_none()
+    if not patient:
         raise HTTPException(status_code=404, detail="Patient context not found")
-    
-    patient, user_created_at, ward_id, ward_name, room_number, phone_number, cal = row
+    user_created_at = patient.created_at
+    phone_number = patient.phone_number
+    ward_id, ward_name, room_number = None, None, None
+    if patient.room_id:
+        room = (await db.execute(select(Room).where(Room.id == patient.room_id))).scalar_one_or_none()
+        if room:
+            room_number = room.room_number
+            ward = (await db.execute(select(Ward).where(Ward.id == room.ward_id))).scalar_one_or_none()
+            if ward:
+                ward_id, ward_name = ward.id, ward.name
+    elif patient.bed_id:
+        bed = (await db.execute(select(Bed).where(Bed.id == patient.bed_id))).scalar_one_or_none()
+        if bed:
+            room_number = bed.bed_no
+            ward = (await db.execute(select(Ward).where(Ward.id == bed.ward_id))).scalar_one_or_none()
+            if ward:
+                ward_id, ward_name = ward.id, ward.name
+    cal = (await db.execute(select(PatientCalibration).where(PatientCalibration.patient_id == patient.id))).scalar_one_or_none()
 
     # 2. Extract payload to dictionary, excluding UI status fields not present in DB model
     vital_dict = payload.model_dump(exclude={"heart_rate_status", "spo2_status", "bp_status", "temperature_status"})
@@ -305,9 +307,15 @@ async def ingest_vitals(
                 
                 # Publish event via Server-Sent Events channel
                 await redis.publish(
-                    f"patient:{payload.patient_id}:alerts", 
+                    f"patient:{payload.patient_id}:alerts",
                     json.dumps(alert_data)
                 )
+
+                # Plan D (RUN-024): also push to the patient's staff phones (offline delivery).
+                # Fetched here (needs db), sent off-thread so a slow FCM call never blocks ingest.
+                _push_tokens = await staff_tokens_for_patient(db, payload.patient_id)
+                if _push_tokens:
+                    asyncio.create_task(asyncio.to_thread(send_critical_push, _push_tokens, alert_data))
 
     # 8. Reset Asymmetric State Transitions
     # ANY active API ingest ping drops the background task's dead lock

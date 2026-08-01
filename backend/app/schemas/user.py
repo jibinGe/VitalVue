@@ -78,3 +78,23 @@ class DoctorUpdate(DoctorBase):
 class DoctorResponse(DoctorBase):
     id: int
     created_at: datetime
+
+# --- Patient Admit (org-hierarchy v2, RUN-024) — bed + dept-doctor + comorbidities ---
+class PatientAdmit(BaseModel):
+    # Optional at registration → auto-generated PAT-<id> when omitted (AdmitScreen still passes one).
+    user_id: Optional[str] = None
+    # 6-digit login PIN set at registration (patient logs in with PAT-<id> + this PIN). Hashed server-side.
+    pin: Optional[str] = None
+    full_name: str
+    phone_number: str
+    age: Optional[int] = None
+    gender: Optional[str] = None
+    height: Optional[float] = None
+    weight: Optional[float] = None
+    blood_group: Optional[str] = None
+    alt_phone: Optional[str] = None
+    bed_id: int
+    doctor_id: Optional[int] = None
+    nurse_id: Optional[int] = None
+    comorbidities: List[str] = Field(default_factory=list)
+    device_id: Optional[str] = None

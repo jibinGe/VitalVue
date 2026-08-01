@@ -27,7 +27,11 @@ class Settings(BaseSettings):
     TWILIO_ACCOUNT_SID: str 
     TWILIO_AUTH_TOKEN: str
     TWILIO_WHATSAPP_NUMBER: str
-    
+
+    # API error logging (RUN-024) — env default; runtime override lives in Redis (see log_config)
+    API_LOG_ENABLED: bool = True
+    API_LOG_RETENTION_HOURS: int = 48
+
     # model_config = SettingsConfigDict(env_file=".env", extra="ignore", env_file_encoding='utf-8')
     model_config = SettingsConfigDict(extra="ignore")
 

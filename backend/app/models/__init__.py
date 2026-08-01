@@ -5,9 +5,11 @@ from app.models.user import User, Patient, Nurse, Doctor, OrgAdmin, MasterAdmin
 from .organization import Organization, Department, Ward, Room
 from .vitals import Vitals
 from .clinical import Alert, Action, ClinicalNote
+from .account_deletion import AccountDeletionRequest
 
-__all__ = ["Base", "Organization","User", 
+__all__ = ["Base", "Organization","User",
            "Department", "Ward", "Room",
            "Vitals", "Alert", "Action", "ClinicalNote",
-           "Patient", "Nurse", "Doctor", 
-           "OrgAdmin", "MasterAdmin"]
+           "Patient", "Nurse", "Doctor",
+           "OrgAdmin", "MasterAdmin",
+           "AccountDeletionRequest"]

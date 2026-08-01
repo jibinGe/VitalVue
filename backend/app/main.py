@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 import os
 import asyncio
 
-from app.api.v1 import auth, discovery, patients, vitals, stream, s3
+from app.api.v1 import auth, discovery, patients, vitals, stream, s3, admin, account
 from app.cron.heartbeat import monitor_device_heartbeats
 
 async def heartbeat_cron_worker():
@@ -59,6 +59,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# API error logging (RUN-024) — records every request + tracebacks for forensics (toggle in Redis/env)
+from starlette.middleware.base import BaseHTTPMiddleware
+from app.middleware.api_logger import api_log_middleware
+app.add_middleware(BaseHTTPMiddleware, dispatch=api_log_middleware)
+
 # 3. Include Routers
 # We use prefixes to version the API (v1)
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
@@ -67,6 +72,8 @@ app.include_router(patients.router, prefix="/api/v1/patients", tags=["Patients"]
 app.include_router(vitals.router, prefix="/api/v1/vitals", tags=["Vitals"])
 app.include_router(stream.router, prefix="/api/v1/stream", tags=["Stream"])
 app.include_router(s3.router, prefix="/api/v1/s3", tags=["S3"])
+app.include_router(admin.router, prefix="/api/v1/admin", tags=["Admin"])
+app.include_router(account.router, prefix="/api/v1/account", tags=["Account"])
 
 @app.get("/")
 async def root():

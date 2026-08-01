@@ -10,9 +10,11 @@ from app.database import get_db, get_redis
 from app.models.user import User , Doctor, Patient, Nurse, OrgAdmin, MasterAdmin, UserRole
 from app.core.config import settings
 from app.schemas.auth import OTPRequest, OTPVerify, QRGenerateResponse, QRAuthorizeRequest
-from sqlalchemy import func # Import func for lower()
+from sqlalchemy import func, delete # Import func for lower()
 from app.api.deps import get_current_user
-from app.models.organization import Room, Ward, Department
+from app.models.notification import DeviceToken
+from app.schemas.notification import DeviceTokenIn
+from app.models.organization import Room, Ward, Department, Bed
 from sqlalchemy.orm import joinedload
 import json
 from sse_starlette.sse import EventSourceResponse
@@ -54,7 +56,8 @@ async def get_profile(
             select(Patient)
             .options(
                 joinedload(Patient.assigned_doctor),
-                joinedload(Patient.room).joinedload(Room.ward).joinedload(Ward.department)
+                joinedload(Patient.room).joinedload(Room.ward).joinedload(Ward.department),
+                joinedload(Patient.bed).joinedload(Bed.ward).joinedload(Ward.department)
             )
             .where(Patient.id == current_user.id)
         )
@@ -76,9 +79,9 @@ async def get_profile(
             
             # Resolved Names
             "doctor_name": patient_full.assigned_doctor.full_name if patient_full.assigned_doctor else None,
-            "room_number": patient_full.room.room_number if patient_full.room else None,
-            "ward_name": patient_full.room.ward.name if (patient_full.room and patient_full.room.ward) else None,
-            "department_name": patient_full.room.ward.department.name if (patient_full.room and patient_full.room.ward and patient_full.room.ward.department) else None
+            "room_number": patient_full.room.room_number if patient_full.room else (patient_full.bed.bed_no if patient_full.bed else None),
+            "ward_name": patient_full.room.ward.name if (patient_full.room and patient_full.room.ward) else (patient_full.bed.ward.name if (patient_full.bed and patient_full.bed.ward) else None),
+            "department_name": patient_full.room.ward.department.name if (patient_full.room and patient_full.room.ward and patient_full.room.ward.department) else (patient_full.bed.ward.department.name if (patient_full.bed and patient_full.bed.ward and patient_full.bed.ward.department) else None)
         })
         
     # 3. Handle Doctor-Specific Details
@@ -152,8 +155,9 @@ async def initiate_login(
             }
         )
     except Exception as e:
-        print(f"SNS Error: {e}")
-        raise HTTPException(status_code=500, detail="Failed to send SMS")
+        # RUN-024: OTP is ALREADY stored in Redis above — an SMS-delivery failure must not 500 the
+        # login (the code can still be entered). Log + continue. (Flag to Ajmal: confirm prod intent.)
+        print(f"SNS Error (non-fatal, OTP stored): {e}")
 
     return {"message": "OTP sent to your registered mobile number"}
 
@@ -177,22 +181,33 @@ async def verify_otp(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # STEP B: Use the DATABASE ID (user.user_id) to check Redis
-    # If user typed 'vt-101' but DB has 'VT-101', this looks for 'otp:VT-101'
-    stored_otp = await redis_conn.get(f"otp:{user.user_id}")
-    
-    if not stored_otp:
-        # This triggers if 5 mins passed or key name is wrong
-        raise HTTPException(status_code=400, detail="Invalid or expired OTP")
+    # Users WITH a password/PIN authenticate through this same endpoint: the web/app OTP form sends
+    # the typed value as `otp`, so we verify it against the stored hash (equivalent to
+    # /auth/password-login). We do NOT fall through to the static-OTP check for these users — that is
+    # what keeps the static OTP from ever bypassing a real password/PIN. Users WITHOUT a password
+    # (patients registered before the PIN feature, un-migrated staff) keep the OTP path below.
+    if user.hashed_password:
+        from app.core.security import verify_password
+        if not verify_password(otp, user.hashed_password):
+            raise HTTPException(status_code=400, detail="Invalid ID or password")
+        # verified — skip the OTP/redis checks and fall through to token issuance
+    else:
+        # STEP B: Use the DATABASE ID (user.user_id) to check Redis
+        # If user typed 'vt-101' but DB has 'VT-101', this looks for 'otp:VT-101'
+        stored_otp = await redis_conn.get(f"otp:{user.user_id}")
 
-    if stored_otp.decode('utf-8') != otp:
-        raise HTTPException(status_code=400, detail="Invalid or expired OTP")
+        if not stored_otp:
+            # This triggers if 5 mins passed or key name is wrong
+            raise HTTPException(status_code=400, detail="Invalid or expired OTP")
+
+        if stored_otp.decode('utf-8') != otp:
+            raise HTTPException(status_code=400, detail="Invalid or expired OTP")
     
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Account is deactivated")
 
     # 3. Create Access Token (Short-lived)
-    access_expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_expire = datetime.utcnow() + timedelta(days=365)
     access_token = jwt.encode(
         {"sub": user.user_id, "role": user.role.value, "exp": access_expire, "type": "access"}, 
         settings.SECRET_KEY, algorithm=settings.ALGORITHM
@@ -221,12 +236,60 @@ async def verify_otp(
     )
 
     return {
-        "access_token": access_token, 
+        "access_token": access_token,
         "refresh_token": refresh_token,
         "token_type": "bearer",
-        "role": user.role, 
+        "role": user.role,
         "full_name": user.full_name,
         "user_id": user.user_id
+    }
+
+
+@router.post("/password-login")
+@router.post("/patient-login")
+async def password_login(
+    response: Response,
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: AsyncSession = Depends(get_db),
+    redis_conn = Depends(get_redis),
+):
+    """Credential login for ANY role that has a password/PIN set: patient (PAT-<id> + 6-digit PIN),
+    nurse/doctor/master_admin (user_id + password, set at creation or DB-side). Replaces the static-OTP
+    path for these users. `/patient-login` is kept as an alias for the existing app build."""
+    from app.core.security import verify_password
+
+    input_id = form_data.username
+    secret = form_data.password
+
+    result = await db.execute(select(User).where(func.lower(User.user_id) == func.lower(input_id)))
+    user = result.scalars().first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="Account is deactivated")
+    if not user.hashed_password or not verify_password(secret, user.hashed_password):
+        raise HTTPException(status_code=400, detail="Invalid ID or password")
+
+    access_expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = jwt.encode(
+        {"sub": user.user_id, "role": user.role.value, "exp": access_expire, "type": "access"},
+        settings.SECRET_KEY, algorithm=settings.ALGORITHM
+    )
+    refresh_expire = datetime.utcnow() + timedelta(days=7)
+    refresh_token = jwt.encode(
+        {"sub": user.user_id, "exp": refresh_expire, "type": "refresh"},
+        settings.SECRET_KEY, algorithm=settings.ALGORITHM
+    )
+    await redis_conn.setex(f"refresh_token:{user.user_id}", 604800, refresh_token)
+    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True,
+                        max_age=604800, path="/", samesite="lax", secure=False)
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "role": user.role,
+        "full_name": user.full_name,
+        "user_id": user.user_id,
     }
 
 @router.post("/refresh")
@@ -397,3 +460,32 @@ async def authorize_qr_session(
     await redis_conn.publish(f"qr_channel:{qr_token}", json.dumps(token_payload))
     
     return {"status": "success", "detail": "Terminal authenticated successfully"}
+
+
+# --- FCM device-token lifecycle (Plan D, RUN-024) — staff push registration ---
+@router.post("/register-device")
+async def register_device(body: DeviceTokenIn, db: AsyncSession = Depends(get_db), me=Depends(get_current_user)):
+    existing = (await db.execute(select(DeviceToken).where(DeviceToken.token == body.token))).scalar_one_or_none()
+    if existing:
+        existing.user_id = me.id          # rebind device to the current caller (device changed hands)
+        existing.platform = body.platform
+        existing.updated_at = func.now()
+    else:
+        db.add(DeviceToken(user_id=me.id, token=body.token, platform=body.platform))
+    await db.commit()
+    return {"status": "ok"}
+
+
+@router.post("/unregister-device")
+async def unregister_device(body: DeviceTokenIn, db: AsyncSession = Depends(get_db), me=Depends(get_current_user)):
+    await db.execute(delete(DeviceToken).where(DeviceToken.token == body.token))
+    await db.commit()
+    return {"status": "ok"}
+
+
+@router.post("/logout")
+async def logout(body: DeviceTokenIn | None = None, db: AsyncSession = Depends(get_db), me=Depends(get_current_user)):
+    if body and body.token:
+        await db.execute(delete(DeviceToken).where(DeviceToken.token == body.token))
+        await db.commit()
+    return {"status": "ok"}

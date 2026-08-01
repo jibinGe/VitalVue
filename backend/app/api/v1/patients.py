@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks, Body, status
 from app.database import get_db, get_redis
-from app.schemas.user import PatientCreate
+from app.schemas.user import PatientCreate, PatientAdmit
 from app.crud.user import patient as crud_patient
-from app.models.organization import Room, Ward
+from app.models.organization import Room, Ward, Bed, Department
+from app.core.comorbidities import validate_comorbidities
 from app.models.user import Patient, User, Nurse, Doctor, UserRole
 from app.models.vitals import Vitals
 from app.services.alerts import send_consolidated_vitalvue_alert
@@ -12,7 +13,7 @@ from app.schemas.patient import PaginatedPatientArchiveResponse, PatientDetailRe
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from sqlalchemy.future import select
-from app.api.deps import get_current_user, allow_admins
+from app.api.deps import get_current_user, allow_admins, allow_clinical_staff
 from sqlalchemy import func, and_, text, or_
 from app.models.clinical import Alert, Action, ClinicalNote
 from app.schemas.clinical_audit import PatientClinicalTimelineResponse
@@ -26,6 +27,8 @@ import secrets
 import string
 import math
 from app.services.analytics import get_vital_statuses
+from app.core.security import get_password_hash
+import uuid
 
 router = APIRouter()
 
@@ -34,6 +37,62 @@ def generate_random_device_id():
     # Generate 6 random alphanumeric characters
     suffix = ''.join(random.choices(string.ascii_letters + string.digits, k=6))
     return f"random_{suffix}"
+
+@router.post("/admit", status_code=201, dependencies=[Depends(allow_clinical_staff)])
+async def admit(body: PatientAdmit, db: AsyncSession = Depends(get_db), me=Depends(get_current_user)):
+    # org-hierarchy v2 (RUN-024): authenticated bed admission with dept-doctor + comorbidities.
+    bed = await db.get(Bed, body.bed_id)
+    if not bed:
+        raise HTTPException(status_code=404, detail="Bed not found")
+    if bed.is_occupied:
+        raise HTTPException(status_code=409, detail="Bed already occupied")
+    if not getattr(bed, "is_active", True):
+        raise HTTPException(status_code=409, detail="Bed is disabled")
+    data = body.model_dump()
+    # PIN (6-digit) → bcrypt hash. REQUIRED: patients log in with PAT-<id> + PIN (the OTP path is
+    # blocked for role=patient), so a patient with no PIN could never authenticate.
+    pin = data.pop("pin", None)
+    provided_user_id = data.pop("user_id", None)
+    if not pin:
+        raise HTTPException(status_code=400, detail="A 6-digit PIN is required")
+    if not (isinstance(pin, str) and pin.isdigit() and len(pin) == 6):
+        raise HTTPException(status_code=400, detail="PIN must be exactly 6 digits")
+    data["hashed_password"] = get_password_hash(pin)
+    data["comorbidities"] = validate_comorbidities(data.get("comorbidities"))
+    # Organization is derived from the BED's physical chain (bed→ward→department→org) — authoritative,
+    # and correct even when the admitter is a master_admin with no org of their own. Falls back to the
+    # staff's org, then errors rather than creating a null-org (multi-tenant-unsafe) patient.
+    ward = await db.get(Ward, bed.ward_id)
+    dept = await db.get(Department, ward.department_id) if ward is not None else None
+    org_id = (dept.organization_id if dept is not None else None) or me.organization_id
+    if org_id is None:
+        raise HTTPException(status_code=400, detail="Cannot determine the organization for this bed")
+    data["organization_id"] = org_id
+    data["device_id"] = generate_random_device_id()
+    data["role"] = UserRole.PATIENT
+    # patients.{age,gender,blood_group} are NOT NULL but optional at admit → coerce safe defaults
+    data["age"] = data.get("age") or 0
+    data["gender"] = data.get("gender") or ""
+    data["blood_group"] = data.get("blood_group") or ""
+    # user_id: use the one provided (AdmitScreen) else a temp placeholder → auto PAT-<id> after flush
+    # (user_id is NOT NULL + unique, so it must exist at insert; we rename to PAT-<id> once we have the id).
+    auto_id = provided_user_id is None or str(provided_user_id).strip() == ""
+    data["user_id"] = provided_user_id if not auto_id else f"pending-{uuid.uuid4().hex[:12]}"
+    patient = Patient(**data)
+    db.add(patient)
+    bed.is_occupied = True
+    try:
+        await db.flush()  # assigns patient.id
+        if auto_id:
+            patient.user_id = f"PAT-{patient.id}"
+        await db.commit()
+        await db.refresh(patient)
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(status_code=409, detail="Patient ID or phone number already exists")
+    # Never leak the PIN hash back to the client.
+    return {c.key: getattr(patient, c.key) for c in inspect(patient).mapper.column_attrs
+            if c.key != "hashed_password"}
 
 @router.post("/register")
 async def register_patient(
@@ -259,7 +318,7 @@ async def get_assigned_patients(
         .options(
             joinedload(Patient.assigned_nurse),
             joinedload(Patient.assigned_doctor),
-            joinedload(Patient.room).joinedload(Room.ward)  # Pre-fetches room + ward name
+            joinedload(Patient.room).joinedload(Room.ward), joinedload(Patient.bed).joinedload(Bed.ward)  # Pre-fetches room + ward name
         )
     )
 
@@ -326,8 +385,8 @@ async def get_assigned_patients(
 
             
             # This line will now evaluate completely in-memory without throwing 500 errors!
-            "room_no": p.room.room_number if p.room else "N/A",
-            "ward_name": p.room.ward.name if (p.room and p.room.ward) else "N/A",
+            "room_no": p.room.room_number if p.room else (p.bed.bed_no if p.bed else "N/A"),
+            "ward_name": p.room.ward.name if (p.room and p.room.ward) else (p.bed.ward.name if (p.bed and p.bed.ward) else "N/A"),
             "phone_number": p.phone_number or "",
             "alt_phone": p.alt_phone or "",
             
@@ -359,7 +418,7 @@ async def get_assigned_patient_by_user_id(
         .options(
             joinedload(Patient.assigned_nurse),
             joinedload(Patient.assigned_doctor),
-            joinedload(Patient.room).joinedload(Room.ward)
+            joinedload(Patient.room).joinedload(Room.ward), joinedload(Patient.bed).joinedload(Bed.ward)
         )
     )
 
@@ -528,7 +587,7 @@ async def get_patient_shared_overview(
     query = (
         select(Patient)
         .options(
-            joinedload(Patient.room).joinedload(Room.ward)
+            joinedload(Patient.room).joinedload(Room.ward), joinedload(Patient.bed).joinedload(Bed.ward)
         )
         .where(Patient.id == patient_id)
     )
@@ -595,8 +654,8 @@ async def get_patient_shared_overview(
     return {
         "patient": {
             "full_name": patient.full_name,
-            "room_no": patient.room.room_number if patient.room else "N/A",
-            "ward_name": patient.room.ward.name if (patient.room and patient.room.ward) else "N/A",
+            "room_no": patient.room.room_number if patient.room else (patient.bed.bed_no if patient.bed else "N/A"),
+            "ward_name": patient.room.ward.name if (patient.room and patient.room.ward) else (patient.bed.ward.name if (patient.bed and patient.bed.ward) else "N/A"),
             "phone_number": patient.phone_number or "",
             "alt_phone": patient.alt_phone or "",
         },
@@ -1175,6 +1234,12 @@ async def discharge_and_archive_patient(
     patient.archive_status = "archived"  # Transitioning profile lifecycle to immutable reference track
     
     # 3. Asymmetric Asset Liberation Actions (Safely setting fields to None)
+    # org-hierarchy v2 (RUN-024): free the occupied bed before severing the link
+    if patient.bed_id:
+        freed_bed = await db.get(Bed, patient.bed_id)
+        if freed_bed:
+            freed_bed.is_occupied = False
+    patient.bed_id = None             # v2 leaf link
     patient.room_id = None            # Free up room/bed mapping for incoming active admissions
     patient.device_id = None          # Unbind physical telemetry hardware band for redevelopment
     patient.is_monitoring_paused = False # Reset pause parameter
