@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import Logo from '@/components/logo'
 import { AnimatePresence, motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
@@ -14,11 +14,31 @@ import { patientService } from '@/services/patientService';
 import { useWard } from '../../contexts/WardContext';
 import { useDashboardStore } from '../../store/useDashboardStore';
 
+// Routes where the ward-filter + search bar should be hidden
+const HIDE_SEARCH_FILTER_ROUTES = [
+  '/dashboard/overview',
+  '/dashboard/heart-rate',
+  '/dashboard/spo',
+  '/dashboard/bp-trend',
+  '/dashboard/temperature',
+  '/dashboard/hrv-score',
+  '/dashboard/movement',
+  '/dashboard/sleep-pattern',
+  '/dashboard/stress',
+  '/dashboard/notifications',
+];
+
 export default function Header() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { logout, user } = useAuth()
   const profile_ref = useRef(null)
   const [profile_open, setProfileOpen] = useState(false);
+
+  // Hide ward-filter + search on overview & detail pages
+  const showSearchFilter = !HIDE_SEARCH_FILTER_ROUTES.some(route =>
+    location.pathname.startsWith(route)
+  );
   // click outside to close
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -86,27 +106,29 @@ export default function Header() {
         {/* <span className='ml-auto inline-flex items-center rounded-full px-3 w-max min-h-6 justify-center bg-white/16 uppercase backdrop-blur-[50px] text-[10px] font-normal pt-px'>system</span> */}
       </div>
       <div className="w-full max-w-[calc(100%-var(--left-sidebar-width))] p-4 md:p-5 flex flex-wrap items-center justify-between gap-2">
-        <h2 className='text-2xl text-white'>Dashboard</h2>
+        <h2 className='text-2xl text-white'></h2>
 
-        <div className="max-w-100 3xl:max-w-106 w-full rounded-full bg-[#373739] p-1.5 min-h-13 flex items-center gap-4">
-          <Dropdown
-            btnClass="min-h-10 bg-[#B9B6C9]/16! rounded-full! backdrop-blur-lg text-white! border-none!"
-            items={wards.map(ward => ({ name: ward.name, id: ward.id }))}
-            placeholder={selectedWard ? selectedWard.name : "Select Ward"}
-            onSelect={(item) => setSelectedWard(item)}
-          />
-          <div className="w-px h-6 bg-white/16 rounded-full"></div>
-          <Input
-            type="text"
-            className="flex-1"
-            leftIcon={<Search />}
-            leftIconClass="left-0!"
-            placeholder="Search patient or ID..."
-            inputClass="h-10 border-none! placeholder:text-white! text-white! w-full bg-transparent! ring-0!"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
+        {showSearchFilter && (
+          <div className="max-w-100 3xl:max-w-106 w-full rounded-full bg-[#373739] p-1.5 min-h-13 flex items-center gap-4">
+            <Dropdown
+              btnClass="min-h-10 bg-[#B9B6C9]/16! rounded-full! backdrop-blur-lg text-white! border-none!"
+              items={wards.map(ward => ({ name: ward.name, id: ward.id }))}
+              placeholder={selectedWard ? selectedWard.name : "Select Ward"}
+              onSelect={(item) => setSelectedWard(item)}
+            />
+            <div className="w-px h-6 bg-white/16 rounded-full"></div>
+            <Input
+              type="text"
+              className="flex-1"
+              leftIcon={<Search />}
+              leftIconClass="left-0!"
+              placeholder="Search patient or ID..."
+              inputClass="h-10 border-none! placeholder:text-white! text-white! w-full bg-transparent! ring-0!"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+        )}
 
         <div className="flex items-center justify-end gap-4 md:gap-5">
           <div className="relative">

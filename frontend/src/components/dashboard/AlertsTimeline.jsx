@@ -107,7 +107,6 @@ function AlertTableRow({ item }) {
       {/* Acknowledged By */}
       <div className="flex items-center justify-between text-[11px] text-white/50 w-full pr-2">
         <span className="truncate max-w-[60px]">{item.is_resolved ? "System" : "-"}</span>
-        <button className="text-primary hover:text-primary/80 font-bold tracking-wide transition-colors uppercase text-[10px] bg-primary/10 hover:bg-primary/20 px-2 py-1 rounded">ACK</button>
       </div>
     </div>
   );

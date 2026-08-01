@@ -45,6 +45,10 @@ import HeartRateLive from "../../../components/charts/HeartRateLive";
 import Movement from "../../../components/animation/overview/movement";
 import ArcProgress from "../../../components/arc-progress";
 import AlertsTimeline from "@/components/dashboard/AlertsTimeline";
+import PatientProfileTab from "@/components/dashboard/overview/PatientProfileTab";
+import MedicalInfoTab from "@/components/dashboard/overview/MedicalInfoTab";
+import ReportsTab from "@/components/dashboard/overview/ReportsTab";
+import PrescriptionsTab from "@/components/dashboard/overview/PrescriptionsTab";
 
 export default function Overview() {
   const { userId } = useParams();
@@ -61,6 +65,9 @@ export default function Overview() {
 
   const filter = ["Live", "1h", "24h"];
   const [filterTab, setFilterTab] = useState(filter[0]);
+
+  // Page-level tab: 'vitals' | 'profile'
+  const [activePageTab, setActivePageTab] = useState("vitals");
 
   const parsedUserId = parseInt(userId, 10);
   const { data: patientHistory, isLoading: loading } = usePatientHistory(parsedUserId, filterTab);
@@ -600,6 +607,59 @@ export default function Overview() {
             </div>
           </div>
         </div>
+
+        {/* ── Page Tabs ── */}
+        <div className="flex items-center gap-1 mb-6 border-b border-white/8 overflow-x-auto scrollbar-none">
+          {[
+            { key: "vitals",        label: "Vitals Overview" },
+            { key: "profile",       label: "Patient Profile" },
+            { key: "medical",       label: "Medical Info" },
+            { key: "reports",       label: "Reports" },
+            { key: "prescriptions", label: "Prescriptions" },
+          ].map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setActivePageTab(key)}
+              className={`relative whitespace-nowrap px-5 py-3 text-sm font-medium transition-colors duration-200 shrink-0 ${
+                activePageTab === key
+                  ? "text-white"
+                  : "text-white/40 hover:text-white/70"
+              }`}
+            >
+              {label}
+              {activePageTab === key && (
+                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-[#CCA166] to-[#E5C48B] rounded-full" />
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* ── Patient Profile Tab ── */}
+        {activePageTab === "profile" && (
+          <PatientProfileTab
+            patientId={parsedUserId}
+            patientDetails={patientDetails}
+          />
+        )}
+
+        {/* ── Medical Info Tab ── */}
+        {activePageTab === "medical" && (
+          <MedicalInfoTab patientDetails={patientDetails} />
+        )}
+
+        {/* ── Reports Tab ── */}
+        {activePageTab === "reports" && (
+          <ReportsTab patientId={parsedUserId} patientDetails={patientDetails} />
+        )}
+
+        {/* ── Prescriptions Tab ── */}
+        {activePageTab === "prescriptions" && (
+          <PrescriptionsTab patientId={parsedUserId} patientDetails={patientDetails} />
+        )}
+
+        {/* ── Vitals Overview Tab ── */}
+        {activePageTab === "vitals" && (
+        <>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-[repeat(auto-fit,325px)] gap-4 md:gap-5 xl:gap-6">
           {triageStatus.map((item, index) => (
             <div
@@ -702,11 +762,10 @@ export default function Overview() {
               </div>
             </div>
           ))}
-        </div>
+        </div>  {/* end triage grid */}
 
         <div className="flex items-center gap-4 justify-between my-6">
           <h5 className="">Vitals Timeline</h5>
-
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-[repeat(auto-fit,325px)] gap-4 md:gap-5 xl:gap-6">
@@ -858,7 +917,7 @@ export default function Overview() {
             </Link>
             )
           ))}
-        </div>
+        </div>  {/* end vitals grid */}
         <div className="bg-[#2D2D2F] rounded-3xl border border-[#0F0F0F] flex-wrap gap-3 p-5 xl:py-6.5 xl:px-7.5 mt-6 flex items-center justify-between">
           <div className="flex items-center flex-wrap gap-3 xl:gap-6">
             {btn.map((item, index) => (
@@ -887,6 +946,7 @@ export default function Overview() {
 
         {/* --- Alerts Timeline Section --- */}
         <AlertsTimeline patientId={parsedUserId} />
+        </>)}  {/* end vitals tab */}
       </MainBody>
 
       {/* new 2 score modal */}

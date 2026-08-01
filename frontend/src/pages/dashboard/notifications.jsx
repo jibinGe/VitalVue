@@ -202,11 +202,10 @@ function NotificationRow({ notif, onAcknowledge, onResolve, index }) {
                 )}
             </div>
 
-            {/* Action */}
+            {/* Action */}  
             <div className="flex flex-col gap-1 justify-center">
                 {!resolved ? (
                     <div className="flex items-center gap-2">
-                        <button onClick={() => onAcknowledge(alertId)} className="text-primary hover:text-primary/80 font-bold tracking-wide transition-colors uppercase text-xs bg-primary/10 hover:bg-primary/20 px-2 py-1.5 rounded-md">ACK</button>
                         <button onClick={() => onResolve(notif)} className="text-[#4DE573] hover:text-[#4DE573]/80 font-bold tracking-wide transition-colors uppercase text-xs bg-[#4DE573]/10 hover:bg-[#4DE573]/20 px-2 py-1.5 rounded-md">Resolve</button>
                     </div>
                 ) : (
@@ -258,6 +257,7 @@ export default function NotificationsPage() {
     // ── filter state ──────────────────────────────────────────────────────────
     const [alertCategory, setAlertCategory] = useState('');
     const [isResolved, setIsResolved] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
 
     // ── pagination state ──────────────────────────────────────────────────────
     const [allNotifs, setAllNotifs] = useState([]);
@@ -389,7 +389,28 @@ export default function NotificationsPage() {
     const clearFilters = () => {
         setAlertCategory('');
         setIsResolved(false);
+        setSearchQuery('');
     };
+
+    // ── client-side search filter ─────────────────────────────────────────────
+    const filteredGrouped = searchQuery.trim()
+        ? (() => {
+            const q = searchQuery.trim().toLowerCase();
+            return grouped
+                .map(group => ({
+                    ...group,
+                    items: group.items.filter(n =>
+                        (n.patient_name || '').toLowerCase().includes(q) ||
+                        (n.vital_type || '').toLowerCase().includes(q) ||
+                        (n.message || '').toLowerCase().includes(q) ||
+                        (n.title || '').toLowerCase().includes(q) ||
+                        String(n.ward_id || n.wardId || '').toLowerCase().includes(q) ||
+                        String(n.room_id || n.bedId || '').toLowerCase().includes(q)
+                    )
+                }))
+                .filter(group => group.items.length > 0);
+        })()
+        : grouped;
 
     return (
         <div className="p-4 md:p-8 w-full">
@@ -417,6 +438,25 @@ export default function NotificationsPage() {
                             </div>
                         </div>
                         <div className="mt-8 flex items-center gap-4 flex-wrap">
+                            {/* Search bar */}
+                            <div className="relative flex items-center">
+                                <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" /></svg>
+                                <input
+                                    type="text"
+                                    value={searchQuery}
+                                    onChange={e => setSearchQuery(e.target.value)}
+                                    placeholder="Search patient, ward, vital..."
+                                    className="pl-10 pr-4 py-2 rounded-xl bg-[#1a1a1c] border border-white/10 text-sm text-white placeholder-white/30 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30 transition-all w-64"
+                                />
+                                {searchQuery && (
+                                    <button
+                                        onClick={() => setSearchQuery('')}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white transition-colors"
+                                    >
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                                    </button>
+                                )}
+                            </div>
                             <div className="flex gap-1 bg-[#1a1a1c] border border-white/5 rounded-lg p-1">
                                 {[{ value: false, label: "Active" }, { value: true, label: "Resolved" }].map(s => (
                                     <button key={String(s.value)} onClick={() => setIsResolved(s.value)} className={`text-sm font-medium px-4 py-1.5 rounded-md transition-all ${isResolved === s.value ? s.value === true ? "bg-white/8 text-[#4DE573] border border-white/10" : "bg-white/8 text-[#E54D4D] border border-white/10" : "text-white/35 hover:text-white/60 border border-transparent"}`}>{s.label}</button>
@@ -442,7 +482,7 @@ export default function NotificationsPage() {
                     )}
 
                     {/* empty */}
-                    {!loading && grouped.length === 0 && (
+                    {!loading && filteredGrouped.length === 0 && (
                         <motion.div
                             initial={{ opacity: 0, scale: 0.9 }}
                             animate={{ opacity: 1, scale: 1 }}
@@ -452,8 +492,8 @@ export default function NotificationsPage() {
                             <svg className="w-20 h-20 text-white/15 mb-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                             </svg>
-                            <p className="text-para text-lg">No notifications match the current filters</p>
-                            {activeFilterCount > 0 && (
+                            <p className="text-para text-lg">{searchQuery ? 'No notifications match your search' : 'No notifications match the current filters'}</p>
+                            {(activeFilterCount > 0 || searchQuery) && (
                                 <button onClick={clearFilters} className="mt-4 text-base text-white/40 hover:text-white underline underline-offset-2 transition-colors">
                                     Clear all filters
                                 </button>
@@ -462,7 +502,7 @@ export default function NotificationsPage() {
                     )}
 
                     {/* notifications table */}
-                    {!loading && grouped.length > 0 && (
+                    {!loading && filteredGrouped.length > 0 && (
                         <div className="w-full bg-[#151517] border border-white/10 rounded-2xl overflow-hidden shadow-xl">
                             <div className="hidden md:grid grid-cols-[minmax(300px,2fr)_minmax(180px,1fr)_140px_140px_140px] gap-6 px-6 py-4 bg-[#1a1a1c] border-b border-white/10">
                                 <div className="flex items-center gap-3 text-xs font-bold text-white/50 uppercase tracking-wider">
@@ -480,7 +520,7 @@ export default function NotificationsPage() {
                                     // across all dates for a perfect top-to-bottom waterfall
                                     let globalRowIndex = 0;
 
-                                    return grouped.map((group, groupIndex) => (
+                                    return filteredGrouped.map((group, groupIndex) => (
                                         <div key={groupIndex} className="flex flex-col">
                                             <div className="flex items-center gap-3 px-6 py-3 bg-primary/10 border-y border-primary/20 first:border-t-0">
                                                 <span className="text-sm font-bold text-primary uppercase tracking-wider">{group.date}</span>
