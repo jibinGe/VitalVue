@@ -24,6 +24,7 @@ import AdminProtectedRoute from './components/auth/AdminProtectedRoute'
 // Admin pages — lazy loaded
 const AdminDashboard = lazy(() => import('./pages/admin/dashboard'))
 const AdminOrganizations = lazy(() => import('./pages/admin/organizations'))
+const AdminOrganizationDetails = lazy(() => import('./pages/admin/OrganizationDetails'))
 const AdminDepartments = lazy(() => import('./pages/admin/departments'))
 const AdminWards = lazy(() => import('./pages/admin/wards'))
 const AdminStaff = lazy(() => import('./pages/admin/staff'))
@@ -216,6 +217,10 @@ const router = createBrowserRouter([
       {
         path: 'organizations',
         element: <Suspense fallback={<PageLoader />}><AdminOrganizations /></Suspense>,
+      },
+      {
+        path: 'organizations/:id',
+        element: <Suspense fallback={<PageLoader />}><AdminOrganizationDetails /></Suspense>,
       },
       {
         path: 'departments',

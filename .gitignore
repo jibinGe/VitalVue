@@ -6,3 +6,4 @@ backend/simulator.py
 backend/key.pem
 backend/deploy.sh
 backend/deploy.sh
+backend/.venv

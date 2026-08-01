@@ -25,6 +25,7 @@ export default function EntityTable({
   isLoading = false,
   onEdit,
   onToggleStatus,
+  onRowClick,
   onAdd,
   addLabel = 'Add New',
   searchPlaceholder = 'Search...',
@@ -109,7 +110,8 @@ export default function EntityTable({
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: i * 0.03 }}
-                className="grid items-center px-5 py-4 border-b border-white/5 last:border-0 hover:bg-white/3 transition-colors duration-150"
+                onClick={() => onRowClick && onRowClick(row)}
+                className={`grid items-center px-5 py-4 border-b border-white/5 last:border-0 hover:bg-white/3 transition-colors duration-150 ${onRowClick ? 'cursor-pointer' : ''}`}
                 style={{ gridTemplateColumns: `repeat(${columns.length + (onEdit || onToggleStatus ? 1 : 0)}, minmax(0, 1fr))` }}
               >
                 {columns.map((col) => (
@@ -123,7 +125,7 @@ export default function EntityTable({
                 ))}
 
                 {(onEdit || onToggleStatus) && (
-                  <div className="flex items-center justify-end gap-2">
+                  <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
                     {onEdit && (
                       <button
                         onClick={() => onEdit(row)}

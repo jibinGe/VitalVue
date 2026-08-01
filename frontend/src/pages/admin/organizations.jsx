@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Building2, RefreshCw } from 'lucide-react';
 import EntityTable from '../../components/admin/EntityTable';
@@ -19,6 +20,7 @@ const COLUMNS = [
 const EMPTY_FORM = { name: '', country: '', state: '', city: '', latitude: '', longitude: '' };
 
 export default function OrganizationsPage() {
+  const navigate = useNavigate();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
@@ -129,6 +131,7 @@ export default function OrganizationsPage() {
           columns={COLUMNS}
           data={data}
           isLoading={loading}
+          onRowClick={(row) => navigate(`/admin/organizations/${row.id}`)}
           onEdit={openEdit}
           onToggleStatus={openToggle}
           onAdd={openAdd}

@@ -2,10 +2,11 @@ import apiClient from '../config/apiClient';
 
 // ─── Admin API Client Helper ───────────────────────────────────────────────────
 // All admin calls attach the admin-specific token (stored separately from staff token)
-const adminRequest = async (method, url, data = null) => {
+const adminRequest = async (method, url, data = null, options = {}) => {
   const token = localStorage.getItem('adminAccessToken');
   const config = {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
+    ...options
   };
   try {
     const response = method === 'get'
@@ -141,8 +142,8 @@ export const adminService = {
 
   // ─── Departments ───────────────────────────────────────────────────────────
 
-  async listDepartments() {
-    return adminRequest('get', '/api/v1/admin/departments');
+  async listDepartments(params = {}) {
+    return adminRequest('get', '/api/v1/admin/departments', null, { params });
   },
 
   async getDepartment(id) {
@@ -163,8 +164,8 @@ export const adminService = {
 
   // ─── Wards ─────────────────────────────────────────────────────────────────
 
-  async listWards() {
-    return adminRequest('get', '/api/v1/admin/wards');
+  async listWards(params = {}) {
+    return adminRequest('get', '/api/v1/admin/wards', null, { params });
   },
 
   async getWard(id) {
@@ -185,8 +186,8 @@ export const adminService = {
 
   // ─── Beds ──────────────────────────────────────────────────────────────────
 
-  async listBeds() {
-    return adminRequest('get', '/api/v1/admin/beds');
+  async listBeds(params = {}) {
+    return adminRequest('get', '/api/v1/admin/beds', null, { params });
   },
 
   async createBed(data) {
@@ -221,8 +222,8 @@ export const adminService = {
 
   // ─── Doctors ───────────────────────────────────────────────────────────────
 
-  async listDoctors() {
-    return adminRequest('get', '/api/v1/admin/doctors');
+  async listDoctors(params = {}) {
+    return adminRequest('get', '/api/v1/admin/doctors', null, { params });
   },
 
   async getDoctor(id) {

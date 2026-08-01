@@ -24,9 +24,8 @@ export default function Home() {
   const navigate = useNavigate();
   const { selectedWard } = useWard();
   const {
-    criticalAlarms,
-    removeCriticalAlarm,
-    clearCriticalAlarms,
+    criticalAlarmData,
+    clearCriticalAlarm,
     triageFilter,
     setTriageFilter,
     selectedUserId,
@@ -623,7 +622,7 @@ export default function Home() {
   // never appear on the Overview page (and vice-versa).
   useEffect(() => {
     return () => {
-      clearCriticalAlarms();
+      clearCriticalAlarm();
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1215,40 +1214,49 @@ export default function Home() {
       {/* 🚨 Critical Alarm Modal — only shows alarms originating from this
           page (source:'home'). Overview-sourced alarms are filtered out. */}
       <CriticalAlarmModal
-        alarms={criticalAlarms.filter(a => a.source !== 'overview')}
-        onDismiss={(alarmId) => removeCriticalAlarm(alarmId)}
-        onSnooze={async (alarm) => {
-          const alertId = alarm?.alert?.id || alarm?.alert?.alert_id;
-          if (alertId && alarm?.userId) {
+        isOpen={!!criticalAlarmData && criticalAlarmData?.source !== 'overview'}
+        patientName={criticalAlarmData?.name}
+        patientId={criticalAlarmData?.userId}
+        room={criticalAlarmData?.room}
+        ward={criticalAlarmData?.ward}
+        phoneNumber={criticalAlarmData?.phoneNumber}
+        vitals={criticalAlarmData?.vitals}
+        alert={criticalAlarmData?.alert}
+        isConnected={criticalAlarmData?.isConnected}
+        isRemoved={criticalAlarmData?.isRemoved}
+        onDismiss={() => clearCriticalAlarm()}
+        onSnooze={async () => {
+          const alertId = criticalAlarmData?.alert?.id || criticalAlarmData?.alert?.alert_id;
+          if (alertId && criticalAlarmData?.userId) {
             try {
-              await patientService.snoozeAlert(alarm.userId, alertId);
+              await patientService.snoozeAlert(criticalAlarmData.userId, alertId);
             } catch (e) {
               console.error("Error snoozing alert:", e);
             }
           }
-          removeCriticalAlarm(alertId);
+          clearCriticalAlarm();
         }}
-        onTakeAction={(alarm) => {
-          const alertId = alarm?.alert?.id || alarm?.alert?.alert_id;
+        onTakeAction={() => {
+          const alertId = criticalAlarmData?.alert?.id || criticalAlarmData?.alert?.alert_id;
           if (alertId) {
             setTakeActionAlertId(alertId);
           }
 
-          const isAlertBandRemoved = alarm?.alert?.vital_type === "Band Status" && alarm?.alert?.triggered_value === "Removed";
-          const isNetworkDisconnected = alarm?.alert?.vital_type === "Connectivity" && (alarm?.alert?.triggered_value === "Network Disconnected" || alarm?.alert?.triggered_value === "Disconnected");
-          const currentIsConnected = isAlertBandRemoved ? true : (alarm?.isConnected !== false && !isNetworkDisconnected);
-          const currentIsRemoved = isAlertBandRemoved || alarm?.isRemoved === true;
+          const isAlertBandRemoved = criticalAlarmData?.alert?.vital_type === "Band Status" && criticalAlarmData?.alert?.triggered_value === "Removed";
+          const isNetworkDisconnected = criticalAlarmData?.alert?.vital_type === "Connectivity" && (criticalAlarmData?.alert?.triggered_value === "Network Disconnected" || criticalAlarmData?.alert?.triggered_value === "Disconnected");
+          const currentIsConnected = isAlertBandRemoved ? true : (criticalAlarmData?.isConnected !== false && !isNetworkDisconnected);
+          const currentIsRemoved = isAlertBandRemoved || criticalAlarmData?.isRemoved === true;
           const isDeviceAlarm = !currentIsConnected || currentIsRemoved;
 
           setTakeActionIsDeviceAlert(isDeviceAlarm);
-          setSelectedUserId(alarm?.userId);
-          setSelectedUserName(alarm?.name);
+          setSelectedUserId(criticalAlarmData?.userId);
+          setSelectedUserName(criticalAlarmData?.name);
           setTakeAction(true);
-          removeCriticalAlarm(alertId);
+          clearCriticalAlarm();
         }}
-        onViewPatient={(alarm) => {
-          if (alarm?.userId) {
-            window.open(`/dashboard/overview/${alarm.userId}`, '_blank');
+        onViewPatient={() => {
+          if (criticalAlarmData?.userId) {
+            window.open(`/dashboard/overview/${criticalAlarmData.userId}`, '_blank');
           }
         }}
       />

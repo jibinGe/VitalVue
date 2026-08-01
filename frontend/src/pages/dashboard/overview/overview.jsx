@@ -57,9 +57,9 @@ export default function Overview() {
   const location = useLocation();
   const statePatient = location.state || {};
   const {
-    criticalAlarms,
-    addCriticalAlarm,
-    removeCriticalAlarm,
+    criticalAlarmData,
+    setCriticalAlarmData,
+    clearCriticalAlarm,
     setSelectedUserId,
     setSelectedUserName
   } = useDashboardStore();
@@ -494,8 +494,13 @@ export default function Overview() {
   useEffect(() => {
     if (!criticalAlert) return;
 
-    // We allow multiple alerts, the store dedupes by alert ID automatically
-
+    const currentAlarm = useDashboardStore.getState().criticalAlarmData;
+    if (currentAlarm && currentAlarm.alert?._ts === criticalAlert._ts) {
+      return;
+    }
+    if (currentAlarm && currentAlarm.source === 'overview') {
+       return; // Do not overwrite active modal with same source until acknowledged
+    }
 
     const canShow = useDashboardStore.getState().canShowAlarm;
     if (canShow && !canShow(userId, criticalAlert.severity)) {
@@ -518,7 +523,7 @@ export default function Overview() {
       _alertTriggeredVal: criticalAlert.triggered_value,
     };
 
-    addCriticalAlarm({ vitals: vitalsSnapshot, alert: criticalAlert, source: 'overview', userId,
+    setCriticalAlarmData({ vitals: vitalsSnapshot, alert: criticalAlert, source: 'overview', userId,
       phoneNumber: criticalAlert.phone_number ?? currentVitals?.phone_number,
       ward: criticalAlert.ward_name ?? patientData?.ward ?? currentVitals?.ward,
       room: criticalAlert.room_name ?? patientData?.room ?? currentVitals?.room ?? patientData?.bed ?? currentVitals?.bed,
@@ -1050,10 +1055,17 @@ export default function Overview() {
       {/* 🚨 Critical Alarm Modal — only shows alarms originating from this
           page (source:'overview'). Home-sourced alarms are filtered out. */}
       <CriticalAlarmModal
-        alarms={criticalAlarms.filter(a => a.source !== 'home')}
-        onDismiss={(alarmId) => removeCriticalAlarm(alarmId)}
-        onSnooze={async (alarm) => {
-          const alertId = alarm?.alert?.id || alarm?.alert?.alert_id;
+        isOpen={!!criticalAlarmData && criticalAlarmData?.source !== 'home'}
+        patientName={patientData?.name || patientData?.fullName}
+        patientId={userId}
+        room={criticalAlarmData?.room || statePatient.room || patientData?.room || currentVitals?.room || patientData?.bed || currentVitals?.bed}
+        ward={criticalAlarmData?.ward || patientData?.ward || currentVitals?.ward}
+        phoneNumber={criticalAlarmData?.phoneNumber}
+        vitals={criticalAlarmData?.vitals}
+        alert={criticalAlarmData?.alert}
+        onDismiss={() => clearCriticalAlarm()}
+        onSnooze={async () => {
+          const alertId = criticalAlarmData?.alert?.id || criticalAlarmData?.alert?.alert_id;
           if (alertId && userId) {
             try {
               await patientService.snoozeAlert(userId, alertId);
@@ -1061,15 +1073,12 @@ export default function Overview() {
               console.error("Error snoozing alert:", e);
             }
           }
-          removeCriticalAlarm(alertId);
+          clearCriticalAlarm();
         }}
-        onTakeAction={(alarm) => {
-          const alertId = alarm?.alert?.id || alarm?.alert?.alert_id;
-          if (alertId) {
-            setTakeActionAlertId(alertId);
-          }
-          setTakeAction(true);
-          removeCriticalAlarm(alertId);
+        onViewPatient={() => {
+          clearCriticalAlarm();
+          // Already on the patient page, just scroll to top
+          window.scrollTo({ top: 0, behavior: "smooth" });
         }}
       />
     </>
