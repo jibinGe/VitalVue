@@ -207,7 +207,7 @@ async def verify_otp(
         raise HTTPException(status_code=403, detail="Account is deactivated")
 
     # 3. Create Access Token (Short-lived)
-    access_expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_expire = datetime.utcnow() + timedelta(days=365)
     access_token = jwt.encode(
         {"sub": user.user_id, "role": user.role.value, "exp": access_expire, "type": "access"}, 
         settings.SECRET_KEY, algorithm=settings.ALGORITHM

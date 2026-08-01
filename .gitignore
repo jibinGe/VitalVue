@@ -10,3 +10,5 @@ backend/deploy.sh
 # Firebase service-account key + local secrets (NEVER commit)
 secrets/
 .env
+
+backend.zip
