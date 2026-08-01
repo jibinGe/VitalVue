@@ -118,9 +118,3 @@ class MasterAdmin(User):
     id: Mapped[int] = mapped_column(ForeignKey("users.id"), primary_key=True)
     super_level: Mapped[int] = mapped_column(Integer, default=1)
     __mapper_args__ = {"polymorphic_identity": "master_admin"}
-
-class HospitalManagement(User):
-    __tablename__ = "hospital_management"
-    id: Mapped[int] = mapped_column(ForeignKey("users.id"), primary_key=True)
-    department: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    __mapper_args__ = {"polymorphic_identity": "hospital_management"}
