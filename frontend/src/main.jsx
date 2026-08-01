@@ -10,15 +10,18 @@ import { queryClient } from './lib/query-client'
 import App from './App.jsx'
 import { AuthProvider } from './contexts/AuthContext'
 import { WardProvider } from './contexts/WardContext'
+import { AdminAuthProvider } from './contexts/AdminAuthContext'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <WardProvider>
-          <App />
-        </WardProvider>
-      </AuthProvider>
+      <AdminAuthProvider>
+        <AuthProvider>
+          <WardProvider>
+            <App />
+          </WardProvider>
+        </AuthProvider>
+      </AdminAuthProvider>
     </QueryClientProvider>
   </StrictMode>,
 )

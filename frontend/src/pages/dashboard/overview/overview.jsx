@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { patientService } from "@/services/patientService";
 import { authService } from "@/services/authService";
+import { useAuth } from "@/contexts/AuthContext";
 import MainBody from "@/components/dashboard/main-body";
 import Modal from "@/components/ui/modal-right";
 import Modal2 from "@/components/ui/modal";
@@ -56,12 +57,15 @@ export default function Overview() {
   const location = useLocation();
   const statePatient = location.state || {};
   const {
-    criticalAlarmData,
-    setCriticalAlarmData,
-    clearCriticalAlarm,
+    criticalAlarms,
+    addCriticalAlarm,
+    removeCriticalAlarm,
     setSelectedUserId,
     setSelectedUserName
   } = useDashboardStore();
+
+  const { user } = useAuth();
+  const isManagement = user?.role === 'hospital_management';
 
   const filter = ["Live", "1h", "24h"];
   const [filterTab, setFilterTab] = useState(filter[0]);
@@ -490,13 +494,8 @@ export default function Overview() {
   useEffect(() => {
     if (!criticalAlert) return;
 
-    const currentAlarm = useDashboardStore.getState().criticalAlarmData;
-    if (currentAlarm && currentAlarm.alert?._ts === criticalAlert._ts) {
-      return;
-    }
-    if (currentAlarm && currentAlarm.source === 'overview') {
-       return; // Do not overwrite active modal with same source until acknowledged
-    }
+    // We allow multiple alerts, the store dedupes by alert ID automatically
+
 
     const canShow = useDashboardStore.getState().canShowAlarm;
     if (canShow && !canShow(userId, criticalAlert.severity)) {
@@ -519,7 +518,7 @@ export default function Overview() {
       _alertTriggeredVal: criticalAlert.triggered_value,
     };
 
-    setCriticalAlarmData({ vitals: vitalsSnapshot, alert: criticalAlert, source: 'overview', userId,
+    addCriticalAlarm({ vitals: vitalsSnapshot, alert: criticalAlert, source: 'overview', userId,
       phoneNumber: criticalAlert.phone_number ?? currentVitals?.phone_number,
       ward: criticalAlert.ward_name ?? patientData?.ward ?? currentVitals?.ward,
       room: criticalAlert.room_name ?? patientData?.room ?? currentVitals?.room ?? patientData?.bed ?? currentVitals?.bed,
@@ -612,10 +611,12 @@ export default function Overview() {
         <div className="flex items-center gap-1 mb-6 border-b border-white/8 overflow-x-auto scrollbar-none">
           {[
             { key: "vitals",        label: "Vitals Overview" },
-            { key: "profile",       label: "Patient Profile" },
-            { key: "medical",       label: "Medical Info" },
-            { key: "reports",       label: "Reports" },
-            { key: "prescriptions", label: "Prescriptions" },
+            ...(isManagement ? [
+              { key: "profile",       label: "Patient Profile" },
+              { key: "medical",       label: "Medical Info" },
+              { key: "reports",       label: "Reports" },
+              { key: "prescriptions", label: "Prescriptions" },
+            ] : [])
           ].map(({ key, label }) => (
             <button
               key={key}
@@ -1049,17 +1050,10 @@ export default function Overview() {
       {/* 🚨 Critical Alarm Modal — only shows alarms originating from this
           page (source:'overview'). Home-sourced alarms are filtered out. */}
       <CriticalAlarmModal
-        isOpen={!!criticalAlarmData && criticalAlarmData?.source !== 'home'}
-        patientName={patientData?.name || patientData?.fullName}
-        patientId={userId}
-        room={criticalAlarmData?.room || statePatient.room || patientData?.room || currentVitals?.room || patientData?.bed || currentVitals?.bed}
-        ward={criticalAlarmData?.ward || patientData?.ward || currentVitals?.ward}
-        phoneNumber={criticalAlarmData?.phoneNumber}
-        vitals={criticalAlarmData?.vitals}
-        alert={criticalAlarmData?.alert}
-        onDismiss={() => clearCriticalAlarm()}
-        onSnooze={async () => {
-          const alertId = criticalAlarmData?.alert?.id || criticalAlarmData?.alert?.alert_id;
+        alarms={criticalAlarms.filter(a => a.source !== 'home')}
+        onDismiss={(alarmId) => removeCriticalAlarm(alarmId)}
+        onSnooze={async (alarm) => {
+          const alertId = alarm?.alert?.id || alarm?.alert?.alert_id;
           if (alertId && userId) {
             try {
               await patientService.snoozeAlert(userId, alertId);
@@ -1067,12 +1061,15 @@ export default function Overview() {
               console.error("Error snoozing alert:", e);
             }
           }
-          clearCriticalAlarm();
+          removeCriticalAlarm(alertId);
         }}
-        onViewPatient={() => {
-          clearCriticalAlarm();
-          // Already on the patient page, just scroll to top
-          window.scrollTo({ top: 0, behavior: "smooth" });
+        onTakeAction={(alarm) => {
+          const alertId = alarm?.alert?.id || alarm?.alert?.alert_id;
+          if (alertId) {
+            setTakeActionAlertId(alertId);
+          }
+          setTakeAction(true);
+          removeCriticalAlarm(alertId);
         }}
       />
     </>

@@ -9,7 +9,7 @@ import CriticalAlarmModal from "@/components/ui/CriticalAlarmModal";
 
 export default function TvDashboard() {
   const { selectedWard } = useWard();
-  const { liveVitals, liveStatuses, criticalAlarmData, clearCriticalAlarm } = useDashboardStore();
+  const { liveVitals, liveStatuses, criticalAlarms, removeCriticalAlarm } = useDashboardStore();
   const { data: rawPatients = [], isLoading: loading } = usePatients(selectedWard?.id, 0, "");
 
   // Dummy state for PatientCard props that we don't need on TV
@@ -257,19 +257,10 @@ export default function TvDashboard() {
 
       {/* Critical Alarm Modal Overlay */}
       <CriticalAlarmModal
-        isOpen={!!criticalAlarmData}
-        patientName={criticalAlarmData?.name}
-        patientId={criticalAlarmData?.userId}
-        room={criticalAlarmData?.room}
-        ward={criticalAlarmData?.ward}
-        phoneNumber={criticalAlarmData?.phoneNumber}
-        vitals={criticalAlarmData?.vitals}
-        alert={criticalAlarmData?.alert}
-        isConnected={criticalAlarmData?.isConnected}
-        isRemoved={criticalAlarmData?.isRemoved}
-        onDismiss={() => clearCriticalAlarm()}
-        onSnooze={() => clearCriticalAlarm()}
-        onTakeAction={() => clearCriticalAlarm()}
+        alarms={criticalAlarms}
+        onDismiss={(alarmId) => removeCriticalAlarm(alarmId)}
+        onSnooze={(alarm) => removeCriticalAlarm(alarm?.alert?.id || alarm?.alert?.alert_id)}
+        onTakeAction={(alarm) => removeCriticalAlarm(alarm?.alert?.id || alarm?.alert?.alert_id)}
         onViewPatient={() => {}}
         isTvMode={true}
       />

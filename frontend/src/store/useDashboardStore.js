@@ -2,32 +2,51 @@ import { create } from 'zustand';
 
 export const useDashboardStore = create((set) => ({
   // Critical Alarm State
-  criticalAlarmData: null,
+  criticalAlarms: [],
   acknowledgedAlerts: {}, // { patientId: timestamp }
   
-  setCriticalAlarmData: (data) => set({ criticalAlarmData: data }),
+  addCriticalAlarm: (data) => set((state) => {
+    const exists = state.criticalAlarms.some(a => {
+      const aId = a.alert?.id || a.alert?.alert_id;
+      const bId = data.alert?.id || data.alert?.alert_id;
+      if (aId && bId && aId === bId) return true;
+      if (a.userId === data.userId && a.alert?.vital_type === data.alert?.vital_type) return true;
+      return false;
+    });
+    if (exists) return state;
+    return { criticalAlarms: [...state.criticalAlarms, data] };
+  }),
   
-  clearCriticalAlarm: () => set((state) => {
-    if (state.criticalAlarmData?.userId) {
+  removeCriticalAlarm: (alertId) => set((state) => {
+    const alarmToRemove = state.criticalAlarms.find(a => (a.alert?.id || a.alert?.alert_id) === alertId);
+    if (alarmToRemove && alarmToRemove.userId) {
       return {
-        criticalAlarmData: null,
+        criticalAlarms: state.criticalAlarms.filter(a => (a.alert?.id || a.alert?.alert_id) !== alertId),
         acknowledgedAlerts: {
           ...state.acknowledgedAlerts,
-          [state.criticalAlarmData.userId]: Date.now()
+          [alarmToRemove.userId]: Date.now()
         }
       };
     }
-    return { criticalAlarmData: null };
+    return {
+      criticalAlarms: state.criticalAlarms.filter(a => (a.alert?.id || a.alert?.alert_id) !== alertId)
+    };
+  }),
+
+  clearCriticalAlarms: () => set((state) => {
+    const newAck = { ...state.acknowledgedAlerts };
+    state.criticalAlarms.forEach(a => {
+      if (a.userId) newAck[a.userId] = Date.now();
+    });
+    return { criticalAlarms: [], acknowledgedAlerts: newAck };
   }),
 
   // Cross-device dismiss: close the modal WITHOUT stamping a cooldown.
-  // Device 2 didn't acknowledge anything — it was remotely dismissed,
-  // so future alerts for this patient must NOT be suppressed by the cooldown.
-  clearCriticalAlarmSilent: () => set({ criticalAlarmData: null }),
+  removeCriticalAlarmSilent: (alertId) => set((state) => ({
+    criticalAlarms: state.criticalAlarms.filter(a => (a.alert?.id || a.alert?.alert_id) !== alertId)
+  })),
 
   canShowAlarm: (patientId, severity) => {
-    // If we want different cooldowns for Warning vs Critical, we can check severity.
-    // Let's enforce a 30-second cooldown for any new alert on a recently acknowledged patient
     const state = useDashboardStore.getState();
     const lastAck = state.acknowledgedAlerts[patientId];
     if (!lastAck) return true;
@@ -60,7 +79,7 @@ export const useDashboardStore = create((set) => ({
     }
   })),
 
-  // Live Patient Status Cache (keyed by patientId) — pushed directly from SSE patient_status field
+  // Live Patient Status Cache (keyed by patientId)
   liveStatuses: {},
   updateLiveStatus: (patientId, status) => set((state) => ({
     liveStatuses: {
@@ -71,7 +90,7 @@ export const useDashboardStore = create((set) => ({
 
   // Reset function to clear state on logout
   reset: () => set({
-    criticalAlarmData: null,
+    criticalAlarms: [],
     acknowledgedAlerts: {},
     triageFilter: 'All',
     selectedUserId: null,

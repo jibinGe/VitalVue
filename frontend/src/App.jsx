@@ -16,6 +16,19 @@ import ProtectedRoute from './components/auth/ProtectedRoute'
 // dashboard layout — eager (always needed once authenticated)
 import Layout from './layout/dashboard/layout'
 
+// ── Admin (eager — separate entry point with its own auth) ──────────────
+import AdminLogin from './pages/admin/login'
+import AdminLayout from './layout/admin/AdminLayout'
+import AdminProtectedRoute from './components/auth/AdminProtectedRoute'
+
+// Admin pages — lazy loaded
+const AdminDashboard = lazy(() => import('./pages/admin/dashboard'))
+const AdminOrganizations = lazy(() => import('./pages/admin/organizations'))
+const AdminDepartments = lazy(() => import('./pages/admin/departments'))
+const AdminWards = lazy(() => import('./pages/admin/wards'))
+const AdminStaff = lazy(() => import('./pages/admin/staff'))
+const AdminSettings = lazy(() => import('./pages/admin/settings'))
+
 // dashboard pages — lazy loaded for code splitting
 const HeartRate = lazy(() => import('./pages/dashboard/overview/heart-rate'))
 const Spo = lazy(() => import('./pages/dashboard/overview/spo'))
@@ -174,6 +187,53 @@ const router = createBrowserRouter([
       </ProtectedRoute>
     ),
     errorElement: <Error />,
+  },
+
+  // ── Admin Portal — completely separate from staff dashboard ─────────────
+  {
+    // Standalone login — no AdminLayout wrapper, no auth guard
+    path: '/admin/login',
+    element: <AdminLogin />,
+    errorElement: <Error />,
+  },
+  {
+    path: '/admin',
+    element: (
+      <AdminProtectedRoute>
+        <AdminLayout />
+      </AdminProtectedRoute>
+    ),
+    errorElement: <Error />,
+    children: [
+      {
+        index: true,
+        element: <Navigate to="/admin/dashboard" replace />,
+      },
+      {
+        path: 'dashboard',
+        element: <Suspense fallback={<PageLoader />}><AdminDashboard /></Suspense>,
+      },
+      {
+        path: 'organizations',
+        element: <Suspense fallback={<PageLoader />}><AdminOrganizations /></Suspense>,
+      },
+      {
+        path: 'departments',
+        element: <Suspense fallback={<PageLoader />}><AdminDepartments /></Suspense>,
+      },
+      {
+        path: 'wards',
+        element: <Suspense fallback={<PageLoader />}><AdminWards /></Suspense>,
+      },
+      {
+        path: 'staff',
+        element: <Suspense fallback={<PageLoader />}><AdminStaff /></Suspense>,
+      },
+      {
+        path: 'settings',
+        element: <Suspense fallback={<PageLoader />}><AdminSettings /></Suspense>,
+      },
+    ],
   },
 ])
 

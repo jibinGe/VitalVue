@@ -13,7 +13,7 @@ import { useDashboardStore } from '@/store/useDashboardStore';
  */
 export default function PatientStreamWatcher({ patientId, patientName, room, ward, phoneNumber }) {
   const { criticalAlert, streamData, alertDismissed } = useVitalsStream(patientId);
-  const { setCriticalAlarmData, updateLiveVitals, clearCriticalAlarm, criticalAlarmData } = useDashboardStore();
+  const { addCriticalAlarm, updateLiveVitals, removeCriticalAlarmSilent, criticalAlarms } = useDashboardStore();
 
   // 1. Update live vitals cache for clinical risks / UI bubbles
   useEffect(() => {
@@ -37,7 +37,7 @@ export default function PatientStreamWatcher({ patientId, patientName, room, war
       temperature:  streamData?.temp         ?? undefined,
     };
 
-    setCriticalAlarmData({
+    addCriticalAlarm({
       name:        patientName,
       userId:      patientId,
       room:        criticalAlert.room_name ?? room,
@@ -60,25 +60,17 @@ export default function PatientStreamWatcher({ patientId, patientName, room, war
     const dismissedAlertId = alertDismissed.alert_id;
     const dismissedPatientId = alertDismissed.patient_id;
 
-    // Only act if the currently shown alarm matches this patient & alert
-    const currentAlertId =
-      criticalAlarmData?.alert?.id ||
-      criticalAlarmData?.alert?.alert_id;
-
-    const isMatchingPatient = criticalAlarmData?.userId === patientId ||
-      criticalAlarmData?.userId === dismissedPatientId;
-
-    const isMatchingAlert =
-      !dismissedAlertId ||       // no specific ID means dismiss for the whole patient
-      !currentAlertId ||         // no current alert ID tracked → clear anyway for safety
-      currentAlertId === dismissedAlertId;
-
-    if (isMatchingPatient && isMatchingAlert) {
-      console.info(
-        '[PatientStreamWatcher] Dismissing alert modal — resolved by another session.',
-        alertDismissed
-      );
-      clearCriticalAlarm();
+    // Remove from the store if it matches
+    if (dismissedPatientId === patientId) {
+      if (dismissedAlertId) {
+        removeCriticalAlarmSilent(dismissedAlertId);
+      } else {
+        // If no specific alert ID, dismiss all for this patient
+        const alarmsForPatient = criticalAlarms.filter(a => a.userId === patientId);
+        alarmsForPatient.forEach(a => {
+          removeCriticalAlarmSilent(a.alert?.id || a.alert?.alert_id);
+        });
+      }
     }
   }, [alertDismissed]); // eslint-disable-line react-hooks/exhaustive-deps
 

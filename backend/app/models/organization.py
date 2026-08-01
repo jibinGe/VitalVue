@@ -1,4 +1,4 @@
-from sqlalchemy import ForeignKey, String, Integer, Boolean
+from sqlalchemy import ForeignKey, String, Integer, Boolean, Float
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 
@@ -11,6 +11,8 @@ class Organization(Base):
     country: Mapped[str] = mapped_column(String(100), index=True)
     state: Mapped[str] = mapped_column(String(100), index=True)
     city: Mapped[str] = mapped_column(String(100), index=True)
+    latitude: Mapped[float] = mapped_column(Float, nullable=True)
+    longitude: Mapped[float] = mapped_column(Float, nullable=True)
 
     # Relationships
     departments: Mapped[list["Department"]] = relationship(back_populates="organization")
