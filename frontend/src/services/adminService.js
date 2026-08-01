@@ -136,7 +136,7 @@ export const adminService = {
   },
 
   async setOrganizationStatus(id, status) {
-    return adminRequest('patch', `/api/v1/admin/organizations/${id}/status`, { status });
+    return adminRequest('patch', `/api/v1/admin/organizations/${id}/status`, { is_active: status });
   },
 
   // ─── Departments ───────────────────────────────────────────────────────────
@@ -158,7 +158,7 @@ export const adminService = {
   },
 
   async setDepartmentStatus(id, status) {
-    return adminRequest('patch', `/api/v1/admin/departments/${id}/status`, { status });
+    return adminRequest('patch', `/api/v1/admin/departments/${id}/status`, { is_active: status });
   },
 
   // ─── Wards ─────────────────────────────────────────────────────────────────
@@ -180,7 +180,7 @@ export const adminService = {
   },
 
   async setWardStatus(id, status) {
-    return adminRequest('patch', `/api/v1/admin/wards/${id}/status`, { status });
+    return adminRequest('patch', `/api/v1/admin/wards/${id}/status`, { is_active: status });
   },
 
   // ─── Beds ──────────────────────────────────────────────────────────────────
@@ -198,7 +198,7 @@ export const adminService = {
   },
 
   async setBedStatus(id, status) {
-    return adminRequest('patch', `/api/v1/admin/beds/${id}/status`, { status });
+    return adminRequest('patch', `/api/v1/admin/beds/${id}/status`, { is_active: status });
   },
 
   // ─── Stations ──────────────────────────────────────────────────────────────
@@ -216,7 +216,7 @@ export const adminService = {
   },
 
   async setStationStatus(id, status) {
-    return adminRequest('patch', `/api/v1/admin/stations/${id}/status`, { status });
+    return adminRequest('patch', `/api/v1/admin/stations/${id}/status`, { is_active: status });
   },
 
   // ─── Doctors ───────────────────────────────────────────────────────────────
@@ -238,7 +238,7 @@ export const adminService = {
   },
 
   async setDoctorStatus(id, status) {
-    return adminRequest('patch', `/api/v1/admin/doctors/${id}/status`, { status });
+    return adminRequest('patch', `/api/v1/admin/doctors/${id}/status`, { is_active: status });
   },
 
   // ─── Nurses ────────────────────────────────────────────────────────────────
@@ -260,7 +260,7 @@ export const adminService = {
   },
 
   async setNurseStatus(id, status) {
-    return adminRequest('patch', `/api/v1/admin/nurses/${id}/status`, { status });
+    return adminRequest('patch', `/api/v1/admin/nurses/${id}/status`, { is_active: status });
   },
 
   // ─── Generic Entity ────────────────────────────────────────────────────────
@@ -278,7 +278,7 @@ export const adminService = {
   },
 
   async setEntityStatus(entity, id, status) {
-    return adminRequest('patch', `/api/v1/admin/${entity}/${id}/status`, { status });
+    return adminRequest('patch', `/api/v1/admin/${entity}/${id}/status`, { is_active: status });
   },
 
   // ─── Logging ───────────────────────────────────────────────────────────────

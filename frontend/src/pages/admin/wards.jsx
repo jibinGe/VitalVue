@@ -96,7 +96,7 @@ export default function WardsPage() {
   const handleToggleStatus = async () => {
     if (!confirmTarget) return;
     setConfirmLoading(true);
-    const newStatus = confirmTarget.is_active ? 'inactive' : 'active';
+    const newStatus = !confirmTarget.is_active;
     if (activeTab === 'wards') await adminService.setWardStatus(confirmTarget.id, newStatus);
     else await adminService.setBedStatus(confirmTarget.id, newStatus);
     setConfirmLoading(false);

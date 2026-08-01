@@ -74,7 +74,7 @@ export default function DepartmentsPage() {
   const handleToggleStatus = async () => {
     if (!confirmTarget) return;
     setConfirmLoading(true);
-    await adminService.setDepartmentStatus(confirmTarget.id, confirmTarget.is_active ? 'inactive' : 'active');
+    await adminService.setDepartmentStatus(confirmTarget.id, !confirmTarget.is_active);
     setConfirmLoading(false);
     setConfirmOpen(false);
     setConfirmTarget(null);

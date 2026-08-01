@@ -79,7 +79,7 @@ export default function OrganizationsPage() {
   const handleToggleStatus = async () => {
     if (!confirmTarget) return;
     setConfirmLoading(true);
-    const newStatus = confirmTarget.is_active ? 'inactive' : 'active';
+    const newStatus = !confirmTarget.is_active;
     await adminService.setOrganizationStatus(confirmTarget.id, newStatus);
     setConfirmLoading(false);
     setConfirmOpen(false);

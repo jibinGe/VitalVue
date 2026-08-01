@@ -101,7 +101,7 @@ export default function StaffPage() {
   const handleToggleStatus = async () => {
     if (!confirmTarget) return;
     setConfirmLoading(true);
-    const status = confirmTarget.is_active ? 'inactive' : 'active';
+    const status = !confirmTarget.is_active;
     if (activeTab === 'doctors') await adminService.setDoctorStatus(confirmTarget.id, status);
     else await adminService.setNurseStatus(confirmTarget.id, status);
     setConfirmLoading(false);
