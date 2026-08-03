@@ -66,7 +66,7 @@ export default function WardsPage() {
   const openEdit = (row) => {
     setEditTarget(row);
     if (activeTab === 'wards') setFormData({ name: row.name || '', department_id: row.department_id || '' });
-    else setFormData({ bed_number: row.bed_number || '', ward_id: row.ward_id || '' });
+    else setFormData({ bed_number: row.bed_no || '', ward_id: row.ward_id || '' });
     setFormError('');
     setFormOpen(true);
   };
@@ -82,9 +82,11 @@ export default function WardsPage() {
         : await adminService.createWard(formData);
     } else {
       if (!formData.bed_number?.trim()) { setFormError('Bed number is required.'); setFormLoading(false); return; }
+      // Backend expects 'bed_no', not 'bed_number'
+      const bedPayload = { bed_no: formData.bed_number.trim(), ward_id: formData.ward_id };
       res = editTarget
-        ? await adminService.updateBed(editTarget.id, formData)
-        : await adminService.createBed(formData);
+        ? await adminService.updateBed(editTarget.id, bedPayload)
+        : await adminService.createBed(bedPayload);
     }
     setFormLoading(false);
     if (res.success) { setFormOpen(false); fetchData(); }

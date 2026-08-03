@@ -20,6 +20,7 @@ import { useWard } from "@/contexts/WardContext";
 import { usePatients } from "@/hooks/usePatients";
 import { useDoctors } from "@/hooks/useDoctors";
 import { useDashboardStore } from "@/store/useDashboardStore";
+import { stopAlarm } from "@/utilities/alarmSound";
 export default function Home() {
   const navigate = useNavigate();
   const { selectedWard } = useWard();
@@ -1224,8 +1225,10 @@ export default function Home() {
         alert={criticalAlarmData?.alert}
         isConnected={criticalAlarmData?.isConnected}
         isRemoved={criticalAlarmData?.isRemoved}
-        onDismiss={() => clearCriticalAlarm()}
+        onDismiss={() => { stopAlarm(); clearCriticalAlarm(); }}
         onSnooze={async () => {
+          // Stop sound immediately on click — don't wait for the API round-trip
+          stopAlarm();
           const alertId = criticalAlarmData?.alert?.id || criticalAlarmData?.alert?.alert_id;
           if (alertId && criticalAlarmData?.userId) {
             try {

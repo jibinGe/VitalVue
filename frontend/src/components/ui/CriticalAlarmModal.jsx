@@ -319,10 +319,34 @@ export default function CriticalAlarmModal({
   onTakeAction,
   onViewPatient,
   isTvMode = false,
+  // Legacy props:
+  isOpen,
+  patientName,
+  patientId,
+  room,
+  ward,
+  phoneNumber,
+  vitals,
+  alert,
+  isConnected,
+  isRemoved,
 }) {
+  // Reconstruct alarms array from legacy props if 'alarms' is empty but 'isOpen' is true
+  const activeAlarms = alarms.length > 0 ? alarms : (isOpen && alert ? [{
+    patientName,
+    patientId,
+    room,
+    ward,
+    phoneNumber,
+    vitals,
+    alert,
+    isConnected,
+    isRemoved,
+  }] : []);
+
   useEffect(() => {
-    if (alarms && alarms.length > 0) {
-      const hasCritical = alarms.some(a => a.alert?.severity?.toLowerCase() !== 'warning');
+    if (activeAlarms && activeAlarms.length > 0) {
+      const hasCritical = activeAlarms.some(a => a.alert?.severity?.toLowerCase() !== 'warning');
       if (hasCritical) {
         startAlarm();
       } else {
@@ -332,9 +356,9 @@ export default function CriticalAlarmModal({
       stopAlarm();
     }
     return () => stopAlarm();
-  }, [alarms]);
+  }, [activeAlarms]);
 
-  if (!alarms || alarms.length === 0) return null;
+  if (!activeAlarms || activeAlarms.length === 0) return null;
 
   return (
     <AnimatePresence>
@@ -354,7 +378,7 @@ export default function CriticalAlarmModal({
         }}
       >
         <AnimatePresence>
-          {alarms.map((alarm, idx) => (
+          {activeAlarms.map((alarm, idx) => (
             <CriticalAlarmCard
               key={alarm.alert?.id || alarm.alert?.alert_id || idx}
               alarmData={alarm}

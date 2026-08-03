@@ -1,246 +1,179 @@
 /**
- * Critical Alarm Sound
+ * Critical Alarm Sound — Web Audio API Implementation
  * ─────────────────────────────────────────────────────────────────
- * Uses HTMLAudioElement + programmatically generated WAV blobs.
- * This is MORE reliable than the Web Audio API for autoplay because
- * an <audio> element can be pre-unlocked on the first user gesture,
- * then played programmatically at any later time — even from SSE callbacks.
+ * Uses AudioContext + OscillatorNode instead of HTMLAudioElement + blob WAVs.
+ *
+ * WHY: HTMLAudioElement autoplay is unreliable — browsers can re-block it
+ * even after a "warm-up" gesture unlock, causing repeated NotAllowedError.
+ *
+ * AudioContext.resume() called once on the first user gesture permanently
+ * unlocks audio for the whole session. Oscillators play instantly on demand
+ * with no autoplay restrictions, and can be stopped mid-beep immediately.
  *
  * STRATEGY:
- *  1. On first click/keydown/touch → call audio.play().then(audio.pause())
- *     This "licenses" the element for future programmatic play.
- *  2. When startAlarm() fires, just call audio.play() — already unlocked.
+ *  1. On first click/keydown/touch → AudioContext.resume() if suspended.
+ *  2. startAlarm() / startWarningAlarm() schedule oscillators via the context.
+ *  3. stopAlarm() cancels intervals, pending timeouts, AND running oscillators
+ *     instantly — no trailing beeps.
  */
 
-// ─── WAV Generation ────────────────────────────────────────────────────────
+// ─── AudioContext Singleton ────────────────────────────────────────────────
 
-/**
- * Writes a standard 4-byte string to a DataView at the given offset.
- */
-function writeString(view, offset, str) {
-  for (let i = 0; i < str.length; i++) {
-    view.setUint8(offset + i, str.charCodeAt(i));
-  }
+let audioContext = null;
+
+function getAudioContext() {
+  return audioContext; // may be null if no user gesture has occurred yet
 }
-
-/**
- * Generates a WAV blob for a beep with an ADSR-style fade-in/out envelope.
- *
- * @param {number} frequency  - Hz (e.g. 880)
- * @param {number} duration   - seconds (e.g. 0.2)
- * @param {number} volume     - 0–1
- * @param {number} sampleRate - samples/sec (default 44100)
- * @returns {Blob}
- */
-function generateBeepWav(frequency, duration, volume = 0.85, sampleRate = 44100) {
-  const numSamples = Math.floor(sampleRate * duration);
-  const dataBytes  = numSamples * 2; // 16-bit mono → 2 bytes per sample
-  const buffer     = new ArrayBuffer(44 + dataBytes);
-  const view       = new DataView(buffer);
-
-  // ── RIFF header ──────────────────────────────────────────────────
-  writeString(view, 0,  'RIFF');
-  view.setUint32(4,  36 + dataBytes, true);   // chunk size
-  writeString(view, 8,  'WAVE');
-
-  // ── fmt sub-chunk ────────────────────────────────────────────────
-  writeString(view, 12, 'fmt ');
-  view.setUint32(16, 16, true);              // sub-chunk size (PCM)
-  view.setUint16(20,  1, true);              // audio format: PCM
-  view.setUint16(22,  1, true);              // channels: mono
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * 2, true);  // byte rate
-  view.setUint16(32,  2, true);              // block align
-  view.setUint16(34, 16, true);              // bits per sample
-
-  // ── data sub-chunk ───────────────────────────────────────────────
-  writeString(view, 36, 'data');
-  view.setUint32(40, dataBytes, true);
-
-  // ── PCM samples — sine wave with soft attack / decay envelope ────
-  const attackSamples = Math.floor(sampleRate * 0.008); // 8 ms attack
-  const decaySamples  = Math.floor(sampleRate * 0.06);  // 60 ms decay
-
-  for (let i = 0; i < numSamples; i++) {
-    const t = i / sampleRate;
-    let env = 1;
-    if (i < attackSamples) {
-      env = i / attackSamples;
-    } else if (i >= numSamples - decaySamples) {
-      env = (numSamples - i) / decaySamples;
-    }
-    const sample = Math.sin(2 * Math.PI * frequency * t) * env * volume * 32767;
-    view.setInt16(44 + i * 2, Math.round(sample), true);
-  }
-
-  return new Blob([buffer], { type: 'audio/wav' });
-}
-
-/**
- * Creates an ObjectURL audio element from a generated WAV blob.
- * @param {number} frequency
- * @param {number} duration
- * @param {number} volume
- */
-function createBeepAudio(frequency, duration, volume) {
-  const blob = generateBeepWav(frequency, duration, volume);
-  const url  = URL.createObjectURL(blob);
-  const audio = new Audio(url);
-  audio.preload = 'auto';
-  return audio;
-}
-
-// ─── Pre-built audio elements ──────────────────────────────────────────────
-
-// Critical alarm beep  — 880 Hz, 0.18 s
-const criticalBeep  = createBeepAudio(880, 0.18, 0.85);
-// Warning alarm beep  — 620 Hz, 0.22 s
-const warningBeep   = createBeepAudio(620, 0.22, 0.65);
-
-let alarmInterval = null;
 
 // ─── Unlock on first user interaction ─────────────────────────────────────
 
 /**
- * "Warm-up" an audio element: play it silently and pause immediately.
- * This satisfies the browser's autoplay requirement and allows
- * future play() calls even outside a user-gesture handler.
- * Returns a promise that resolves when warm-up is done (or immediately if it fails).
+ * Resume (or create) the AudioContext inside a real user gesture.
+ * Creating it here guarantees the browser won't block it.
  */
-function warmUpAudio(audioEl) {
-  return new Promise((resolve) => {
-    audioEl.volume = 0;
-    const p = audioEl.play();
-    if (p && typeof p.then === 'function') {
-      p.then(() => {
-        audioEl.pause();
-        audioEl.currentTime = 0;
-        audioEl.volume = 1;
-        resolve(true);
-      }).catch(() => {
-        audioEl.volume = 1;
-        resolve(false);
-      });
-    } else {
-      audioEl.pause();
-      audioEl.currentTime = 0;
-      audioEl.volume = 1;
-      resolve(true);
-    }
-  });
-}
-
-let warmedUp = false;
-
 function unlockAudio() {
-  if (warmedUp) return;
-  warmedUp = true;
-  warmUpAudio(criticalBeep);
-  warmUpAudio(warningBeep);
+  try {
+    if (!audioContext) {
+      // Create it here, inside the gesture handler — this is the only safe place
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioContext.state === 'suspended') {
+      audioContext.resume().catch(e => console.warn('[AlarmSound] resume() failed:', e));
+    }
+  } catch (e) {
+    console.warn('[AlarmSound] unlockAudio error:', e);
+  }
 }
 
 if (typeof document !== 'undefined') {
-  // Use capture:true so we catch the gesture even on elements that stop propagation
+  // capture:true ensures we catch gestures even on elements that stop propagation.
+  // NOT using once:true — re-lock can happen (e.g. page hidden/shown), so we
+  // keep trying to resume on every gesture.
   ['click', 'keydown', 'touchstart', 'pointerdown'].forEach(evt => {
-    document.addEventListener(evt, unlockAudio, { passive: true, capture: true, once: true });
+    document.addEventListener(evt, unlockAudio, { passive: true, capture: true });
   });
 }
 
-// ─── Playback helpers ──────────────────────────────────────────────────────
+// ─── Beep Playback ─────────────────────────────────────────────────────────
+
+/** Tracks all currently playing oscillator nodes so stopAlarm() can cut them instantly. */
+let activeOscillators = [];
 
 /**
- * Play an audio element. If the browser blocks autoplay (tab not focused,
- * no prior user gesture), attempt a silent warm-up first and then replay
- * after a short delay — this handles the cross-device dismiss scenario where
- * the second device may never have had a user gesture before the alarm fires.
+ * Play a single beep tone using an OscillatorNode with an ADSR-style envelope.
+ *
+ * @param {number} frequency - Hz (e.g. 880 for critical, 620 for warning)
+ * @param {number} duration  - seconds (e.g. 0.18)
+ * @param {number} volume    - 0–1 gain (e.g. 0.85)
  */
-function playBeepElement(audioEl) {
+function playBeep(frequency, duration, volume = 0.85) {
   try {
-    audioEl.currentTime = 0;
-    const p = audioEl.play();
-    if (p && typeof p.catch === 'function') {
-      p.catch(err => {
-        console.warn('[AlarmSound] play() blocked, attempting warm-up retry:', err.name);
-        // Attempt a silent warm-up then retry. This covers the case where
-        // cross-device dismiss fired before the user ever interacted with this tab.
-        warmUpAudio(audioEl).then((unlocked) => {
-          if (unlocked) {
-            audioEl.currentTime = 0;
-            audioEl.play().catch(e => console.warn('[AlarmSound] retry play() still blocked:', e));
-          }
-        });
-      });
-    }
+    const ctx = getAudioContext();
+    // No context yet (user hasn't clicked anything) or still suspended — skip silently.
+    // The next alarm cycle will retry once the context is unlocked.
+    if (!ctx || ctx.state !== 'running') return;
+
+    const oscillator = ctx.createOscillator();
+    const gainNode   = ctx.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(ctx.destination);
+
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(frequency, ctx.currentTime);
+
+    // ADSR-style volume envelope: 8ms attack → sustain → 60ms decay
+    const now    = ctx.currentTime;
+    const attack = 0.008; // 8 ms
+    const decay  = 0.06;  // 60 ms
+    gainNode.gain.setValueAtTime(0, now);
+    gainNode.gain.linearRampToValueAtTime(volume, now + attack);
+    gainNode.gain.setValueAtTime(volume, now + duration - decay);
+    gainNode.gain.linearRampToValueAtTime(0, now + duration);
+
+    oscillator.start(now);
+    oscillator.stop(now + duration);
+
+    // Track for immediate cancellation
+    const entry = { oscillator, gainNode };
+    activeOscillators.push(entry);
+    oscillator.onended = () => {
+      activeOscillators = activeOscillators.filter(o => o !== entry);
+    };
   } catch (e) {
-    console.warn('[AlarmSound] playBeepElement error:', e);
+    console.warn('[AlarmSound] playBeep error:', e);
   }
 }
 
 // ─── Alarm patterns ────────────────────────────────────────────────────────
 
+let alarmInterval      = null;
+let pendingBeepTimeouts = []; // track in-flight pattern timeouts for cancellation
+
 function playCriticalPattern() {
-  // Three beeps: immediate, +250 ms, +500 ms
-  playBeepElement(criticalBeep);
-  setTimeout(() => playBeepElement(criticalBeep), 250);
-  setTimeout(() => playBeepElement(criticalBeep), 500);
+  // Three beeps: immediate, +250 ms, +500 ms  (880 Hz, 0.18 s)
+  playBeep(880, 0.18, 0.85);
+  pendingBeepTimeouts.push(setTimeout(() => playBeep(880, 0.18, 0.85), 250));
+  pendingBeepTimeouts.push(setTimeout(() => playBeep(880, 0.18, 0.85), 500));
 }
 
 function playWarningPattern() {
-  // Two beeps: immediate, +350 ms
-  playBeepElement(warningBeep);
-  setTimeout(() => playBeepElement(warningBeep), 350);
+  // Two beeps: immediate, +350 ms  (620 Hz, 0.22 s)
+  playBeep(620, 0.22, 0.65);
+  pendingBeepTimeouts.push(setTimeout(() => playBeep(620, 0.22, 0.65), 350));
 }
 
 // ─── Public API ────────────────────────────────────────────────────────────
 
 /**
  * Start repeating critical alarm (every 2 s).
- * Re-warms audio elements before starting in case the tab lost
- * its autoplay permission (e.g. after a cross-device dismiss).
  */
 export function startAlarm() {
   stopAlarm();
-  // Re-warm both elements to handle cross-device dismiss scenario:
-  // Device 2 may have had its modal dismissed before any user gesture occurred.
-  if (!warmedUp) {
-    Promise.all([warmUpAudio(criticalBeep), warmUpAudio(warningBeep)]).then(() => {
-      playCriticalPattern();
-      alarmInterval = setInterval(playCriticalPattern, 2000);
-    });
-  } else {
-    playCriticalPattern();
-    alarmInterval = setInterval(playCriticalPattern, 2000);
-  }
+  playCriticalPattern();
+  alarmInterval = setInterval(playCriticalPattern, 2000);
 }
 
 /**
  * Start repeating warning alarm (every 4 s).
- * Re-warms audio elements before starting in case the tab lost
- * its autoplay permission (e.g. after a cross-device dismiss).
  */
 export function startWarningAlarm() {
   stopAlarm();
-  if (!warmedUp) {
-    Promise.all([warmUpAudio(criticalBeep), warmUpAudio(warningBeep)]).then(() => {
-      playWarningPattern();
-      alarmInterval = setInterval(playWarningPattern, 4000);
-    });
-  } else {
-    playWarningPattern();
-    alarmInterval = setInterval(playWarningPattern, 4000);
-  }
+  playWarningPattern();
+  alarmInterval = setInterval(playWarningPattern, 4000);
 }
 
 /**
- * Stop any active alarm and reset audio element positions.
- * Resetting currentTime ensures the next play() starts cleanly.
+ * Stop any active alarm immediately.
+ *
+ * Three-layer stop:
+ *  1. Clear the repeating setInterval so no new patterns start.
+ *  2. Cancel pending setTimeout beeps (trailing beeps in the current pattern).
+ *  3. Stop all currently running OscillatorNodes so sound cuts out instantly.
  */
 export function stopAlarm() {
+  // 1. Stop the repeating interval
   if (alarmInterval) {
     clearInterval(alarmInterval);
     alarmInterval = null;
   }
-  // Reset audio positions so next play() starts from the beginning
-  try { criticalBeep.currentTime = 0; } catch (_) {}
-  try { warningBeep.currentTime = 0; } catch (_) {}
+
+  // 2. Cancel queued pattern beeps (the 250ms / 500ms / 350ms delayed ones)
+  pendingBeepTimeouts.forEach(id => clearTimeout(id));
+  pendingBeepTimeouts = [];
+
+  // 3. Immediately silence all active oscillators
+  const ctx = audioContext; // may be null if audio was never started
+  activeOscillators.forEach(({ oscillator, gainNode }) => {
+    try {
+      if (ctx) {
+        gainNode.gain.cancelScheduledValues(ctx.currentTime);
+        gainNode.gain.setValueAtTime(0, ctx.currentTime);
+      }
+      oscillator.stop();
+    } catch (_) {
+      // oscillator may already have ended — ignore
+    }
+  });
+  activeOscillators = [];
 }
