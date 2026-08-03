@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   Building2, GitBranch, BedDouble, Users,
-  Stethoscope, UserCheck, Activity, TrendingUp,
+  Stethoscope, UserCheck, Activity, TrendingUp, Radio,
 } from 'lucide-react';
 import StatCard from '../../components/admin/StatCard';
 import { adminService } from '../../services/adminService';
@@ -13,6 +14,7 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState({
     organizations: null,
     departments: null,
+    stations: null,
     wards: null,
     beds: null,
     doctors: null,
@@ -23,9 +25,10 @@ export default function AdminDashboard() {
   useEffect(() => {
     const fetchStats = async () => {
       setLoading(true);
-      const [orgs, depts, wards, beds, doctors, nurses] = await Promise.allSettled([
+      const [orgs, depts, stations, wards, beds, doctors, nurses] = await Promise.allSettled([
         adminService.listOrganizations(),
         adminService.listDepartments(),
+        adminService.listStations(),
         adminService.listWards(),
         adminService.listBeds(),
         adminService.listDoctors(),
@@ -43,6 +46,7 @@ export default function AdminDashboard() {
       setStats({
         organizations: count(orgs),
         departments: count(depts),
+        stations: count(stations),
         wards: count(wards),
         beds: count(beds),
         doctors: count(doctors),
@@ -55,12 +59,13 @@ export default function AdminDashboard() {
   }, []);
 
   const STAT_CARDS = [
-    { title: 'Organizations', key: 'organizations', icon: Building2 },
-    { title: 'Departments', key: 'departments', icon: GitBranch },
-    { title: 'Wards', key: 'wards', icon: BedDouble },
-    { title: 'Beds', key: 'beds', icon: Activity },
-    { title: 'Doctors', key: 'doctors', icon: Stethoscope },
-    { title: 'Nurses', key: 'nurses', icon: UserCheck },
+    { title: 'Organizations', key: 'organizations', icon: Building2, href: '/admin/organizations' },
+    { title: 'Departments', key: 'departments', icon: GitBranch, href: '/admin/departments' },
+    { title: 'Nursing Stations', key: 'stations', icon: Radio, href: '/admin/nursing-stations' },
+    { title: 'Wards', key: 'wards', icon: BedDouble, href: '/admin/wards' },
+    { title: 'Beds', key: 'beds', icon: Activity, href: '/admin/wards' },
+    { title: 'Doctors', key: 'doctors', icon: Stethoscope, href: '/admin/staff' },
+    { title: 'Nurses', key: 'nurses', icon: UserCheck, href: '/admin/staff' },
   ];
 
   return (
@@ -90,15 +95,16 @@ export default function AdminDashboard() {
       {/* Stats grid */}
       <div>
         <p className="text-xs font-semibold uppercase tracking-widest text-white/25 mb-4">System Overview</p>
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
           {STAT_CARDS.map((card, i) => (
-            <StatCard
-              key={card.key}
-              title={card.title}
-              value={loading ? null : stats[card.key]}
-              icon={card.icon}
-              delay={i * 0.07}
-            />
+            <Link key={card.key} to={card.href}>
+              <StatCard
+                title={card.title}
+                value={loading ? null : stats[card.key]}
+                icon={card.icon}
+                delay={i * 0.07}
+              />
+            </Link>
           ))}
         </div>
       </div>
@@ -109,26 +115,30 @@ export default function AdminDashboard() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {[
             { label: 'Add Organization', desc: 'Register a new hospital or clinic', href: '/admin/organizations', icon: Building2 },
-            { label: 'Add Staff', desc: 'Onboard doctors or nurses', href: '/admin/staff', icon: Users },
+            { label: 'Manage Nursing Stations', desc: 'Set up stations within departments', href: '/admin/nursing-stations', icon: Radio },
             { label: 'Configure Wards', desc: 'Manage wards and bed allocation', href: '/admin/wards', icon: BedDouble },
+            { label: 'Add Staff', desc: 'Onboard doctors or nurses', href: '/admin/staff', icon: Users },
           ].map((action, i) => (
-            <motion.a
+            <motion.div
               key={action.label}
-              href={action.href}
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4 + i * 0.08 }}
               whileHover={{ y: -3 }}
-              className="flex items-start gap-4 p-5 bg-[#2F2F31]/50 hover:bg-[#2F2F31]/80 border border-white/5 hover:border-[#CCA166]/15 rounded-2xl transition-all duration-200 group"
             >
-              <div className="p-2.5 rounded-xl bg-[#CCA166]/8 border border-[#CCA166]/10 group-hover:bg-[#CCA166]/15 transition-colors">
-                <action.icon className="size-5 text-[#CCA166]" />
-              </div>
-              <div>
-                <p className="text-white font-medium text-sm">{action.label}</p>
-                <p className="text-white/40 text-xs mt-0.5">{action.desc}</p>
-              </div>
-            </motion.a>
+              <Link
+                to={action.href}
+                className="flex items-start gap-4 p-5 bg-[#2F2F31]/50 hover:bg-[#2F2F31]/80 border border-white/5 hover:border-[#CCA166]/15 rounded-2xl transition-all duration-200 group"
+              >
+                <div className="p-2.5 rounded-xl bg-[#CCA166]/8 border border-[#CCA166]/10 group-hover:bg-[#CCA166]/15 transition-colors">
+                  <action.icon className="size-5 text-[#CCA166]" />
+                </div>
+                <div>
+                  <p className="text-white font-medium text-sm">{action.label}</p>
+                  <p className="text-white/40 text-xs mt-0.5">{action.desc}</p>
+                </div>
+              </Link>
+            </motion.div>
           ))}
         </div>
       </div>

@@ -23,14 +23,15 @@ const NURSE_COLUMNS = [
   { key: 'is_active', label: 'Status', render: (v) => <StatusBadge status={v} /> },
 ];
 
-const EMPTY_DOCTOR = { user_id: '', full_name: '', phone_number: '', specialization: '', organization_id: '' };
-const EMPTY_NURSE = { user_id: '', full_name: '', phone_number: '', license_no: '', organization_id: '' };
+const EMPTY_DOCTOR = { user_id: '', full_name: '', phone_number: '', specialization: '', organization_id: '', department_id: '', password: '' };
+const EMPTY_NURSE  = { user_id: '', full_name: '', phone_number: '', license_no: '', organization_id: '', password: '' };
 
 export default function StaffPage() {
   const [activeTab, setActiveTab] = useState('doctors');
   const [doctors, setDoctors] = useState([]);
   const [nurses, setNurses] = useState([]);
   const [orgs, setOrgs] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const [formOpen, setFormOpen] = useState(false);
@@ -45,14 +46,16 @@ export default function StaffPage() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [drRes, nrRes, orgRes] = await Promise.all([
+    const [drRes, nrRes, orgRes, deptRes] = await Promise.all([
       adminService.listDoctors(),
       adminService.listNurses(),
       adminService.listOrganizations(),
+      adminService.listDepartments(),
     ]);
     if (drRes.success) setDoctors(Array.isArray(drRes.data) ? drRes.data : drRes.data?.items ?? []);
     if (nrRes.success) setNurses(Array.isArray(nrRes.data) ? nrRes.data : nrRes.data?.items ?? []);
     if (orgRes.success) setOrgs(Array.isArray(orgRes.data) ? orgRes.data : orgRes.data?.items ?? []);
+    if (deptRes.success) setDepartments(Array.isArray(deptRes.data) ? deptRes.data : deptRes.data?.items ?? []);
     setLoading(false);
   }, []);
 
@@ -68,9 +71,9 @@ export default function StaffPage() {
   const openEdit = (row) => {
     setEditTarget(row);
     if (activeTab === 'doctors') {
-      setFormData({ user_id: row.user_id || '', full_name: row.full_name || '', phone_number: row.phone_number || '', specialization: row.specialization || '', organization_id: row.organization_id || '' });
+      setFormData({ user_id: row.user_id || '', full_name: row.full_name || '', phone_number: row.phone_number || '', specialization: row.specialization || '', organization_id: row.organization_id || '', department_id: row.department_id || '', password: '' });
     } else {
-      setFormData({ user_id: row.user_id || '', full_name: row.full_name || '', phone_number: row.phone_number || '', license_no: row.license_no || '', organization_id: row.organization_id || '' });
+      setFormData({ user_id: row.user_id || '', full_name: row.full_name || '', phone_number: row.phone_number || '', license_no: row.license_no || '', organization_id: row.organization_id || '', password: '' });
     }
     setFormError('');
     setFormOpen(true);
@@ -79,17 +82,22 @@ export default function StaffPage() {
   const handleFormSubmit = async () => {
     if (!formData.full_name?.trim()) { setFormError('Full name is required.'); return; }
     if (!formData.user_id?.trim()) { setFormError('Staff ID is required.'); return; }
+    if (!editTarget && !formData.password?.trim()) { setFormError('Password is required when creating a new account.'); return; }
     setFormLoading(true);
     setFormError('');
     let res;
+    // Strip empty password from edit payloads — backend only accepts it on create
+    const payload = editTarget
+      ? (({ password, ...rest }) => rest)(formData)
+      : formData;
     if (activeTab === 'doctors') {
       res = editTarget
-        ? await adminService.updateDoctor(editTarget.id, formData)
-        : await adminService.createDoctor(formData);
+        ? await adminService.updateDoctor(editTarget.id, payload)
+        : await adminService.createDoctor(payload);
     } else {
       res = editTarget
-        ? await adminService.updateNurse(editTarget.id, formData)
-        : await adminService.createNurse(formData);
+        ? await adminService.updateNurse(editTarget.id, payload)
+        : await adminService.createNurse(payload);
     }
     setFormLoading(false);
     if (res.success) { setFormOpen(false); fetchData(); }
@@ -220,6 +228,29 @@ export default function StaffPage() {
             {orgs.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
           </AdminSelect>
         </FormField>
+
+        {isDoctor && (
+          <FormField label="Department">
+            <AdminSelect {...field('department_id')}>
+              <option value="">Select department (optional)...</option>
+              {departments
+                .filter((d) => !formData.organization_id || d.organization_id === Number(formData.organization_id))
+                .map((d) => <option key={d.id} value={d.id}>{d.name}</option>)
+              }
+            </AdminSelect>
+          </FormField>
+        )}
+
+        {!editTarget && (
+          <FormField label="Password" required>
+            <AdminInput
+              type="password"
+              placeholder="Initial login password"
+              autoComplete="new-password"
+              {...field('password')}
+            />
+          </FormField>
+        )}
       </EntityForm>
 
       <ConfirmModal

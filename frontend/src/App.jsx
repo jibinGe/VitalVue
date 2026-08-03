@@ -29,6 +29,7 @@ const AdminDepartments = lazy(() => import('./pages/admin/departments'))
 const AdminWards = lazy(() => import('./pages/admin/wards'))
 const AdminStaff = lazy(() => import('./pages/admin/staff'))
 const AdminSettings = lazy(() => import('./pages/admin/settings'))
+const AdminNursingStations = lazy(() => import('./pages/admin/nursing-stations'))
 
 // dashboard pages — lazy loaded for code splitting
 const HeartRate = lazy(() => import('./pages/dashboard/overview/heart-rate'))
@@ -225,6 +226,10 @@ const router = createBrowserRouter([
       {
         path: 'departments',
         element: <Suspense fallback={<PageLoader />}><AdminDepartments /></Suspense>,
+      },
+      {
+        path: 'nursing-stations',
+        element: <Suspense fallback={<PageLoader />}><AdminNursingStations /></Suspense>,
       },
       {
         path: 'wards',

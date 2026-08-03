@@ -121,7 +121,7 @@ export const adminService = {
   // ─── Organizations ─────────────────────────────────────────────────────────
 
   async listOrganizations() {
-    return adminRequest('get', '/api/v1/admin/organizations');
+    return adminRequest('get', '/api/v1/admin/organizations', null, { params: { include_inactive: true } });
   },
 
   async getOrganization(id) {
@@ -143,7 +143,7 @@ export const adminService = {
   // ─── Departments ───────────────────────────────────────────────────────────
 
   async listDepartments(params = {}) {
-    return adminRequest('get', '/api/v1/admin/departments', null, { params });
+    return adminRequest('get', '/api/v1/admin/departments', null, { params: { include_inactive: true, ...params } });
   },
 
   async getDepartment(id) {
@@ -165,7 +165,7 @@ export const adminService = {
   // ─── Wards ─────────────────────────────────────────────────────────────────
 
   async listWards(params = {}) {
-    return adminRequest('get', '/api/v1/admin/wards', null, { params });
+    return adminRequest('get', '/api/v1/admin/wards', null, { params: { include_inactive: true, ...params } });
   },
 
   async getWard(id) {
@@ -187,7 +187,7 @@ export const adminService = {
   // ─── Beds ──────────────────────────────────────────────────────────────────
 
   async listBeds(params = {}) {
-    return adminRequest('get', '/api/v1/admin/beds', null, { params });
+    return adminRequest('get', '/api/v1/admin/beds', null, { params: { include_inactive: true, ...params } });
   },
 
   async createBed(data) {
@@ -204,8 +204,8 @@ export const adminService = {
 
   // ─── Stations ──────────────────────────────────────────────────────────────
 
-  async listStations() {
-    return adminRequest('get', '/api/v1/admin/stations');
+  async listStations(params = {}) {
+    return adminRequest('get', '/api/v1/admin/stations', null, { params: { include_inactive: true, ...params } });
   },
 
   async createStation(data) {
@@ -223,7 +223,7 @@ export const adminService = {
   // ─── Doctors ───────────────────────────────────────────────────────────────
 
   async listDoctors(params = {}) {
-    return adminRequest('get', '/api/v1/admin/doctors', null, { params });
+    return adminRequest('get', '/api/v1/admin/doctors', null, { params: { include_inactive: true, ...params } });
   },
 
   async getDoctor(id) {
@@ -244,8 +244,8 @@ export const adminService = {
 
   // ─── Nurses ────────────────────────────────────────────────────────────────
 
-  async listNurses() {
-    return adminRequest('get', '/api/v1/admin/nurses');
+  async listNurses(params = {}) {
+    return adminRequest('get', '/api/v1/admin/nurses', null, { params: { include_inactive: true, ...params } });
   },
 
   async getNurse(id) {

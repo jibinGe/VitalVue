@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Building2, GitBranch, BedDouble,
   Users, Settings, LogOut, ChevronLeft, ChevronRight,
-  Activity, Shield, Menu, X,
+  Activity, Shield, Menu, X, Radio,
 } from 'lucide-react';
 import { useAdminAuth } from '../../contexts/AdminAuthContext';
 
@@ -20,6 +20,7 @@ const NAV_GROUPS = [
     items: [
       { to: '/admin/organizations', icon: Building2, label: 'Organizations' },
       { to: '/admin/departments', icon: GitBranch, label: 'Departments' },
+      { to: '/admin/nursing-stations', icon: Radio, label: 'Nursing Stations' },
       { to: '/admin/wards', icon: BedDouble, label: 'Wards & Beds' },
     ],
   },

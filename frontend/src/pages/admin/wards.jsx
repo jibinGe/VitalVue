@@ -27,6 +27,7 @@ export default function WardsPage() {
   const [wards, setWards] = useState([]);
   const [beds, setBeds] = useState([]);
   const [departments, setDepartments] = useState([]);
+  const [stations, setStations] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Form state
@@ -43,14 +44,16 @@ export default function WardsPage() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [wardRes, bedRes, deptRes] = await Promise.all([
+    const [wardRes, bedRes, deptRes, stationRes] = await Promise.all([
       adminService.listWards(),
       adminService.listBeds(),
       adminService.listDepartments(),
+      adminService.listStations(),
     ]);
     if (wardRes.success) setWards(Array.isArray(wardRes.data) ? wardRes.data : wardRes.data?.items ?? []);
     if (bedRes.success) setBeds(Array.isArray(bedRes.data) ? bedRes.data : bedRes.data?.items ?? []);
     if (deptRes.success) setDepartments(Array.isArray(deptRes.data) ? deptRes.data : deptRes.data?.items ?? []);
+    if (stationRes.success) setStations(Array.isArray(stationRes.data) ? stationRes.data : stationRes.data?.items ?? []);
     setLoading(false);
   }, []);
 
@@ -58,14 +61,14 @@ export default function WardsPage() {
 
   const openAdd = () => {
     setEditTarget(null);
-    setFormData(activeTab === 'wards' ? { name: '', department_id: '' } : { bed_number: '', ward_id: '' });
+    setFormData(activeTab === 'wards' ? { name: '', department_id: '', station_id: '' } : { bed_number: '', ward_id: '' });
     setFormError('');
     setFormOpen(true);
   };
 
   const openEdit = (row) => {
     setEditTarget(row);
-    if (activeTab === 'wards') setFormData({ name: row.name || '', department_id: row.department_id || '' });
+    if (activeTab === 'wards') setFormData({ name: row.name || '', department_id: row.department_id || '', station_id: row.station_id || '' });
     else setFormData({ bed_number: row.bed_no || '', ward_id: row.ward_id || '' });
     setFormError('');
     setFormOpen(true);
@@ -77,9 +80,14 @@ export default function WardsPage() {
     let res;
     if (activeTab === 'wards') {
       if (!formData.name?.trim()) { setFormError('Ward name is required.'); setFormLoading(false); return; }
+      const wardPayload = {
+        name: formData.name.trim(),
+        department_id: formData.department_id ? Number(formData.department_id) : undefined,
+        station_id: formData.station_id ? Number(formData.station_id) : null,
+      };
       res = editTarget
-        ? await adminService.updateWard(editTarget.id, formData)
-        : await adminService.createWard(formData);
+        ? await adminService.updateWard(editTarget.id, wardPayload)
+        : await adminService.createWard(wardPayload);
     } else {
       if (!formData.bed_number?.trim()) { setFormError('Bed number is required.'); setFormLoading(false); return; }
       // Backend expects 'bed_no', not 'bed_number'
@@ -186,6 +194,15 @@ export default function WardsPage() {
               <AdminSelect {...field('department_id')}>
                 <option value="">Select department...</option>
                 {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </AdminSelect>
+            </FormField>
+            <FormField label="Nursing Station">
+              <AdminSelect {...field('station_id')}>
+                <option value="">No station (optional)</option>
+                {stations
+                  .filter((s) => !formData.department_id || s.department_id === Number(formData.department_id))
+                  .map((s) => <option key={s.id} value={s.id}>{s.name}{s.station_no ? ` (${s.station_no})` : ''}</option>)
+                }
               </AdminSelect>
             </FormField>
           </>
