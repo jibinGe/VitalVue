@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { startAlarm, stopAlarm, startWarningAlarm } from "@/utilities/alarmSound";
+import { startAlarm, stopAlarm, startWarningAlarm, startCriticalVoiceAlert, startBandRemovedAlert, startBluetoothDisconnectAlert } from "@/utilities/alarmSound";
 
 function CriticalAlarmCard({ alarmData, onDismiss, onSnooze, onTakeAction, onViewPatient, isTvMode }) {
   const {
@@ -344,19 +344,59 @@ export default function CriticalAlarmModal({
     isRemoved,
   }] : []);
 
+  // ── Unified sound controller ───────────────────────────────────────────────
+  // Priority (first match wins — only ONE mode plays at a time):
+  //   1. Bluetooth Disconnect → voice: "Patient Outbound. {name}, Room No is {room}."
+  //   2. Band Removed         → voice: "Patient Band Removed. Please attend {name}, Room No {room}."
+  //   3. Critical vital        → voice: "Patient Critical Alert. Please attend {name}, Room No {room} immediately."
+  //   4. Warning only          → beep-only (no TTS)
+  //   5. No alarms             → silence
   useEffect(() => {
-    if (activeAlarms && activeAlarms.length > 0) {
-      const hasCritical = activeAlarms.some(a => a.alert?.severity?.toLowerCase() !== 'warning');
-      if (hasCritical) {
-        startAlarm();
-      } else {
-        startWarningAlarm();
-      }
-    } else {
+    if (!activeAlarms || activeAlarms.length === 0) {
       stopAlarm();
+      return () => stopAlarm();
     }
+
+    // Helper to extract name + room from the first matching alarm
+    const pick = (alarm) => ({
+      name: alarm.patientName || alarm.name || 'Patient',
+      room: alarm.room ?? '',
+    });
+
+    // 1. Bluetooth disconnect
+    const btAlarm = activeAlarms.find(
+      a => a.alert?.vital_type === 'Connectivity' && a.alert?.triggered_value === 'Disconnected'
+    );
+    if (btAlarm) {
+      const { name, room } = pick(btAlarm);
+      startBluetoothDisconnectAlert(name, room);
+      return () => stopAlarm();
+    }
+
+    // 2. Band removed
+    const bandAlarm = activeAlarms.find(
+      a => a.alert?.vital_type === 'Band Status' && a.alert?.triggered_value === 'Removed'
+    );
+    if (bandAlarm) {
+      const { name, room } = pick(bandAlarm);
+      startBandRemovedAlert(name, room);
+      return () => stopAlarm();
+    }
+
+    // 3. Critical vital alert
+    const criticalAlarm = activeAlarms.find(
+      a => a.alert?.severity?.toLowerCase() === 'critical'
+    );
+    if (criticalAlarm) {
+      const { name, room } = pick(criticalAlarm);
+      startCriticalVoiceAlert(name, room);
+      return () => stopAlarm();
+    }
+
+    // 4. Warning only — beeps, no TTS
+    startWarningAlarm();
     return () => stopAlarm();
-  }, [activeAlarms]);
+  }, [activeAlarms]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!activeAlarms || activeAlarms.length === 0) return null;
 
