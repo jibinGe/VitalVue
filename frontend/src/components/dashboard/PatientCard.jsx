@@ -145,7 +145,7 @@ const PatientCard = memo(({
                                         <motion.div ref={card_ref} initial={{ opacity: 0, scale: 0.9, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 10 }} transition={{ duration: 0.15 }} className="absolute top-8 right-0 min-w-[200px] bg-[#222225] border border-white/16 rounded-2xl shadow-2xl z-[90] overflow-hidden">
                                             {CardMenu.map((menuItem, menuIndex) => {
                                                 const isAction = menuItem.text === "Patient Discharge";
-                                                const text = (isAction && !item.isConnected) ? "Start Monitoring" : menuItem.text;
+                                                const text = (isAction && !item.isConnected) ? "Patient Discharge" : menuItem.text;
                                                 return (
                                                     <button key={menuIndex} onClick={(e) => {
                                                         e.stopPropagation();

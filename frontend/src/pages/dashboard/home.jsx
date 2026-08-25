@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from "framer-motion";
 // Charts
 import SiteVerstion from "../../components/dashboard/site-verstion";
 import PatientCard from "@/components/dashboard/PatientCard";
+import RegisterPatientModal from "@/components/dashboard/RegisterPatientModal";
 
 // Services
 import { patientService } from "@/services/patientService";
@@ -39,6 +40,7 @@ export default function Home() {
   } = useDashboardStore();
 
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [registerPatientOpen, setRegisterPatientOpen] = useState(false);
 
 
   // --- Fetch Data via Hooks ---
@@ -689,6 +691,15 @@ export default function Home() {
                     >
                       Show All Patients
                     </button>
+                    <button
+                      onClick={() => setRegisterPatientOpen(true)}
+                      className="h-12 flex items-center gap-2 bg-white/8 border border-white/20 px-6 rounded-xl text-white hover:bg-white/12 transition-colors font-lufga text-[16px] whitespace-nowrap"
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                        <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                      </svg>
+                      Register Patient
+                    </button>
                     <Link
                       to="/dashboard/patient-archives"
                       className="h-12 flex items-center gap-2 border border-white/20 px-6 rounded-xl text-white hover:bg-white/5 transition-colors font-lufga text-[16px] whitespace-nowrap"
@@ -761,6 +772,13 @@ export default function Home() {
       </div>
 
       <SiteVerstion />
+
+      {/* Register Patient Modal */}
+      <RegisterPatientModal
+        isOpen={registerPatientOpen}
+        onClose={() => setRegisterPatientOpen(false)}
+        onSuccess={() => setRefreshTrigger((t) => t + 1)}
+      />
 
       {/* for take action */}
       <Modal
