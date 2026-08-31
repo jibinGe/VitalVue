@@ -9,7 +9,6 @@ import Modal2 from "@/components/ui/modal";
 import AddNotesModal from "@/components/ui/AddNotesModal";
 import BaselineDeviationModal from "@/components/ui/BaselineDeviationModal";
 import ConfirmationModal from "@/components/ui/ConfirmationModal";
-import CriticalAlarmModal from "@/components/ui/CriticalAlarmModal";
 import { usePatientHistory } from "@/hooks/usePatientHistory";
 import { useVitalsStream } from "@/hooks/useVitalsStream";
 import { usePatient } from "@/hooks/usePatient";
@@ -57,8 +56,6 @@ export default function Overview() {
   const location = useLocation();
   const statePatient = location.state || {};
   const {
-    criticalAlarmData,
-    setCriticalAlarmData,
     clearCriticalAlarm,
     setSelectedUserId,
     setSelectedUserName
@@ -75,7 +72,7 @@ export default function Overview() {
 
   const parsedUserId = parseInt(userId, 10);
   const { data: patientHistory, isLoading: loading } = usePatientHistory(parsedUserId, filterTab);
-  const { streamData, criticalAlert } = useVitalsStream(parsedUserId);
+  const { streamData } = useVitalsStream(parsedUserId);
   const { data: patientDetails } = usePatient(parsedUserId);
   const currentVitals = patientHistory ? patientHistory[patientHistory.length - 1] : null;
   const patientData = patientDetails || currentVitals; // Map for legacy compatibility
@@ -488,52 +485,6 @@ export default function Overview() {
     "Export Summary PDF",
   ];
 
-  // ── Trigger alarm from SSE critical_alert events ─────────────────────
-  // criticalAlert updates every time the server pushes a critical_alert event.
-  // The object always has a new _ts so the dependency detects every alert.
-  useEffect(() => {
-    if (!criticalAlert) return;
-
-    const currentAlarm = useDashboardStore.getState().criticalAlarmData;
-    if (currentAlarm && currentAlarm.alert?._ts === criticalAlert._ts) {
-      return;
-    }
-    if (currentAlarm && currentAlarm.source === 'overview') {
-       return; // Do not overwrite active modal with same source until acknowledged
-    }
-
-    const canShow = useDashboardStore.getState().canShowAlarm;
-    if (canShow && !canShow(userId, criticalAlert.severity)) {
-       console.warn('[Overview] Suppressing alert due to cooldown:', criticalAlert);
-       return;
-    }
-
-    // Build a vitals snapshot for the modal. Merge stream vitals + alert info.
-    const vitalsSnapshot = {
-      // Current live vitals (may be populated from prior patient_vital_update events)
-      heartRate: streamData?.heart_rate ?? undefined,
-      spo2: streamData?.spo2 ?? undefined,
-      bloodPressure: (streamData?.bp_systolic && streamData?.bp_diastolic)
-        ? { systolic: streamData.bp_systolic, diastolic: streamData.bp_diastolic }
-        : undefined,
-      temperature: streamData?.temp ?? undefined,
-      // Pass the specific vital that triggered this alert so the modal can
-      // highlight it (CriticalAlarmModal uses the vitals prop for display).
-      _alertVitalType: criticalAlert.vital_type,
-      _alertTriggeredVal: criticalAlert.triggered_value,
-    };
-
-    setCriticalAlarmData({ vitals: vitalsSnapshot, alert: criticalAlert, source: 'overview', userId,
-      phoneNumber: criticalAlert.phone_number ?? currentVitals?.phone_number,
-      ward: criticalAlert.ward_name ?? patientData?.ward ?? currentVitals?.ward,
-      room: criticalAlert.room_name ?? patientData?.room ?? currentVitals?.room ?? patientData?.bed ?? currentVitals?.bed,
-    });
-  }, [criticalAlert]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // (Removed: fallback polling alarm from clinical_risks — the SSE-based
-  //  criticalAlert effect above is sufficient and avoids re-triggering the
-  //  modal on every 5-second data refresh.)
-
   useEffect(() => {
     if (
       news_scrore ||
@@ -563,8 +514,8 @@ export default function Overview() {
     <>
       <MainBody>
         {/* Back Button and Patient Details Strip */}
-        <div className="mb-6 flex flex-col md:flex-row md:items-center justify-start bg-[#252527] p-4 rounded-2xl border border-white/5 shadow-sm">
-          <div className="w-full md:w-[calc(50%-6px)] lg:w-[calc(25%-11px)] xl:w-[325px] flex-shrink-0 xl:mr-[8px] mb-4 md:mb-0">
+        <div className="mb-6 flex flex-col xl:flex-row xl:items-center justify-start bg-[#252527] p-4 rounded-2xl border border-white/5 shadow-sm gap-4">
+          <div className="flex-shrink-0 xl:mr-4">
             <Link
               to="/dashboard/home"
               className="inline-flex items-center gap-2 text-white hover:text-primary transition-colors duration-200 shrink-0"
@@ -584,30 +535,54 @@ export default function Overview() {
                   strokeLinejoin="round"
                 />
               </svg>
-              <span className="text-base font-medium  md:text-lg xl:text-[22px]">Back</span>
+              <span className="text-base font-medium md:text-lg xl:text-[22px]">Back</span>
             </Link>
           </div>
 
+          <div className="hidden xl:block w-[1px] h-6 bg-white/20"></div>
+
           {/* Patient Details */}
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-3 text-base md:text-lg xl:text-[22px]">
+          <div className="flex flex-wrap items-center gap-x-5 md:gap-x-6 gap-y-3 text-base md:text-lg xl:text-[20px]">
             <div className="flex items-center gap-2">
               <span className="text-white/60 font-lufga">Patient:</span>
-              <span className="text-white font-medium font-lufga">{statePatient.patientName || patientDetails?.full_name || patientDetails?.name || patientData?.name || currentVitals?.patientName || "--"}</span>
+              <span className="text-white font-medium font-lufga">
+                {patientDetails?.full_name || statePatient.patientName || patientDetails?.name || patientData?.name || currentVitals?.patientName || "--"}
+              </span>
             </div>
-            <div className="hidden md:block w-[1px] h-5 xl:h-6 bg-white/20"></div>
+            <div className="hidden sm:block w-[1px] h-5 xl:h-6 bg-white/20"></div>
             <div className="flex items-center gap-2">
               <span className="text-white/60 font-lufga">ID:</span>
-              <span className="text-white font-medium font-lufga">{statePatient.patientId || patientDetails?.patient_id || patientDetails?.patientId || patientData?.patientId || currentVitals?.patientId || userId || "--"}</span>
+              <span className="text-white font-medium font-lufga">
+                {patientDetails?.user_id || statePatient.patientId || patientDetails?.patient_id || patientDetails?.patientId || patientData?.patientId || currentVitals?.patientId || userId || "--"}
+              </span>
             </div>
-            <div className="hidden md:block w-[1px] h-5 xl:h-6 bg-white/20"></div>
+            <div className="hidden sm:block w-[1px] h-5 xl:h-6 bg-white/20"></div>
             <div className="flex items-center gap-2">
               <span className="text-white/60 font-lufga">Ward:</span>
-              <span className="text-white font-medium font-lufga">{patientDetails?.ward_name || patientDetails?.ward_no || patientDetails?.ward || patientData?.ward || currentVitals?.ward || "--"}</span>
+              <span className="text-white font-medium font-lufga">
+                {patientDetails?.ward_name || statePatient.ward || patientDetails?.ward_no || patientDetails?.ward || patientData?.ward || currentVitals?.ward || "--"}
+              </span>
+            </div>
+            <div className="hidden sm:block w-[1px] h-5 xl:h-6 bg-white/20"></div>
+            <div className="flex items-center gap-2">
+              <span className="text-white/60 font-lufga">Room/Bed:</span>
+              <span className="text-white font-medium font-lufga">
+                {patientDetails?.room_no || statePatient.room || patientDetails?.room_name || patientDetails?.room || patientData?.room || currentVitals?.room || patientDetails?.bed || patientData?.bed || currentVitals?.bed || "--"}
+              </span>
             </div>
             <div className="hidden md:block w-[1px] h-5 xl:h-6 bg-white/20"></div>
             <div className="flex items-center gap-2">
-              <span className="text-white/60 font-lufga">Room/Bed:</span>
-              <span className="text-white font-medium font-lufga">{statePatient.room || patientDetails?.room_no || patientDetails?.room_name || patientDetails?.room || patientData?.room || currentVitals?.room || patientDetails?.bed || patientData?.bed || currentVitals?.bed || "--"}</span>
+              <span className="text-white/60 font-lufga">Phone:</span>
+              <span className="text-white font-medium font-lufga">
+                {patientDetails?.phone_number || patientDetails?.phone || statePatient.phone || statePatient.phone_number || patientData?.phone_number || "--"}
+              </span>
+            </div>
+            <div className="hidden md:block w-[1px] h-5 xl:h-6 bg-white/20"></div>
+            <div className="flex items-center gap-2">
+              <span className="text-white/60 font-lufga">Alt No:</span>
+              <span className="text-white font-medium font-lufga">
+                {patientDetails?.alt_phone || statePatient.alt_phone || statePatient.altPhone || patientData?.alt_phone || "--"}
+              </span>
             </div>
           </div>
         </div>
@@ -1050,36 +1025,6 @@ export default function Overview() {
         message={successMessage}
         confirmText="OK"
         icon={<SuccessTik className="size-6 text-[#2CD155]" />}
-      />
-
-      {/* 🚨 Critical Alarm Modal — only shows alarms originating from this
-          page (source:'overview'). Home-sourced alarms are filtered out. */}
-      <CriticalAlarmModal
-        isOpen={!!criticalAlarmData && criticalAlarmData?.source !== 'home'}
-        patientName={patientData?.name || patientData?.fullName}
-        patientId={userId}
-        room={criticalAlarmData?.room || statePatient.room || patientData?.room || currentVitals?.room || patientData?.bed || currentVitals?.bed}
-        ward={criticalAlarmData?.ward || patientData?.ward || currentVitals?.ward}
-        phoneNumber={criticalAlarmData?.phoneNumber}
-        vitals={criticalAlarmData?.vitals}
-        alert={criticalAlarmData?.alert}
-        onDismiss={() => clearCriticalAlarm()}
-        onSnooze={async () => {
-          const alertId = criticalAlarmData?.alert?.id || criticalAlarmData?.alert?.alert_id;
-          if (alertId && userId) {
-            try {
-              await patientService.snoozeAlert(userId, alertId);
-            } catch (e) {
-              console.error("Error snoozing alert:", e);
-            }
-          }
-          clearCriticalAlarm();
-        }}
-        onViewPatient={() => {
-          clearCriticalAlarm();
-          // Already on the patient page, just scroll to top
-          window.scrollTo({ top: 0, behavior: "smooth" });
-        }}
       />
     </>
   );

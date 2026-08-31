@@ -89,39 +89,7 @@ const CLINICAL_ACTIONS = [
 
 // ── Notification Row ──────────────────────────────────────────────────────────
 
-// Cinematic Framer Motion Variants for a pronounced 1-by-1 cascade
-const rowVariants = {
-    hidden: {
-        opacity: 0,
-        x: -50, // Slide in from left
-    },
-    visible: (customIndex) => ({
-        opacity: 1,
-        x: 0,
-        transition: {
-            delay: customIndex * 0.12, // 120ms stagger makes the cascade highly visible
-            type: "spring",
-            stiffness: 80,
-            damping: 14,
-            mass: 1
-        }
-    }),
-    exit: {
-        opacity: 0,
-        x: -50,
-        height: 0,
-        marginTop: 0,
-        marginBottom: 0,
-        paddingTop: 0,
-        paddingBottom: 0,
-        transition: {
-            duration: 0.4,
-            ease: [0.25, 1, 0.5, 1]
-        }
-    }
-};
-
-function NotificationRow({ notif, onAcknowledge, onResolve, index }) {
+function NotificationRow({ notif, onResolve }) {
     const type = (notif.severity || notif.type || notif.priority || 'info').toLowerCase();
     const sev = getSeverity(type);
 
@@ -131,23 +99,15 @@ function NotificationRow({ notif, onAcknowledge, onResolve, index }) {
 
     const desc = notif.vital_type ? notif.message : '';
 
-    const wardId = notif.ward_id || notif.wardId || '—';
-    const bedId = notif.room_id || notif.bedId || '—';
+    const wardId = notif.ward_name || notif.ward_id || notif.wardId || '—';
+    const bedId = notif.room_name || notif.room_id || notif.bedId || '—';
     const time = formatTime(notif.created_at || notif.createdAt || notif.timestamp);
-    const timeSince = timeAgo(notif.created_at || notif.createdAt || notif.timestamp);
     const status = notif.status || 'active';
     const resolved = notif.is_resolved || status === 'resolved';
     const snoozed = status === 'snoozed';
-    const alertId = notif.id || notif._id || notif.alertId;
 
     return (
-        <motion.div
-            layout="position"
-            custom={index}
-            variants={rowVariants}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
+        <div
             className="grid grid-cols-1 md:grid-cols-[minmax(300px,2fr)_minmax(180px,1fr)_140px_140px_140px] gap-6 items-center px-6 py-5 bg-[#1a1a1c] border-b border-white/5 hover:bg-white/[0.04] transition-colors last:border-b-0 overflow-hidden"
         >
             {/* Notification Info */}
@@ -223,7 +183,7 @@ function NotificationRow({ notif, onAcknowledge, onResolve, index }) {
                     </>
                 )}
             </div>
-        </motion.div>
+        </div>
     );
 }
 
@@ -231,9 +191,7 @@ function NotificationRow({ notif, onAcknowledge, onResolve, index }) {
 
 function SkeletonRow() {
     return (
-        <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
+        <div
             className="relative flex gap-6 px-6 py-6 border-b border-white/5 last:border-b-0 bg-[#1a1a1c]"
         >
             <div className="flex-1 rounded-2xl p-5 bg-white/5 animate-pulse border border-white/5 space-y-3">
@@ -243,7 +201,7 @@ function SkeletonRow() {
                 </div>
                 <div className="h-5 w-1/3 rounded bg-white/8" />
             </div>
-        </motion.div>
+        </div>
     );
 }
 
@@ -263,7 +221,6 @@ export default function NotificationsPage() {
     const [allNotifs, setAllNotifs] = useState([]);
     const [grouped, setGrouped] = useState([]);
     const [totalCount, setTotalCount] = useState(0);
-    const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
 
     // ── async state ───────────────────────────────────────────────────────────
@@ -275,8 +232,14 @@ export default function NotificationsPage() {
     const [selectedActionPill, setSelectedActionPill] = useState('');
     const [actionTakenText, setActionTakenText] = useState('');
 
+    const pageRef = useRef(1);
     const sentinelRef = useRef(null);
     const isFetchingRef = useRef(false);
+    const hasMoreRef = useRef(true);
+
+    useEffect(() => {
+        hasMoreRef.current = hasMore;
+    }, [hasMore]);
 
     const openActionModal = (notif) => {
         setActionModalState({ isOpen: true, notif });
@@ -304,12 +267,13 @@ export default function NotificationsPage() {
                 });
             }
 
-            // using acknowledgeAlert to mark it as resolved in the backend for now
             await patientService.acknowledgeAlert(alertId);
-            const filtered = allNotifs.filter((n) => (n._id || n.id || n.alertId) !== alertId);
-            setAllNotifs(filtered);
-            setTotalCount(filtered.length);
-            setGrouped(groupByDate(filtered));
+            setAllNotifs(prev => {
+                const filtered = prev.filter((n) => (n._id || n.id || n.alertId) !== alertId);
+                setGrouped(groupByDate(filtered));
+                return filtered;
+            });
+            setTotalCount(prev => Math.max(0, prev - 1));
         } catch (err) {
             console.error('Resolve error:', err);
         }
@@ -321,63 +285,101 @@ export default function NotificationsPage() {
         if (isFetchingRef.current) return;
         isFetchingRef.current = true;
 
-        if (reset) setLoading(true);
-        else setLoadingMore(true);
-
-        const res = await patientService.getNotifications(
-            false, pageNum, PAGE_LIMIT, alertCategory, isResolved
-        );
-
-        if (res.success) {
-            const fresh = res.data || [];
-            if (reset) {
-                setAllNotifs(fresh);
-                setGrouped(groupByDate(fresh));
-                setTotalCount(res.count || fresh.length);
-            } else {
-                const merged = [...allNotifs, ...fresh];
-                setAllNotifs(merged);
-                setGrouped(groupByDate(merged));
-            }
-            setHasMore(fresh.length >= PAGE_LIMIT);
+        if (reset) {
+            setLoading(true);
+            pageRef.current = 1;
+        } else {
+            setLoadingMore(true);
         }
 
-        if (reset) setLoading(false);
-        else setLoadingMore(false);
-        isFetchingRef.current = false;
+        try {
+            const res = await patientService.getNotifications(
+                false, pageNum, PAGE_LIMIT, alertCategory, isResolved
+            );
+
+            if (res.success) {
+                const fresh = res.data || [];
+                const count = res.count ?? res.total_count ?? 0;
+                setTotalCount(count);
+
+                setAllNotifs(prev => {
+                    const existing = reset ? [] : prev;
+                    const map = new Map();
+                    existing.forEach(item => {
+                        const key = item.id ?? item._id ?? item.alertId;
+                        if (key !== undefined) map.set(key, item);
+                    });
+                    fresh.forEach(item => {
+                        const key = item.id ?? item._id ?? item.alertId;
+                        if (key !== undefined) map.set(key, item);
+                    });
+                    const merged = Array.from(map.values());
+                    setGrouped(groupByDate(merged));
+
+                    const more = fresh.length >= PAGE_LIMIT && (count > 0 ? merged.length < count : true);
+                    setHasMore(more);
+                    hasMoreRef.current = more;
+
+                    return merged;
+                });
+                pageRef.current = pageNum;
+            } else {
+                setHasMore(false);
+                hasMoreRef.current = false;
+            }
+        } catch (err) {
+            console.error('Error fetching notifications:', err);
+            setHasMore(false);
+            hasMoreRef.current = false;
+        } finally {
+            if (reset) setLoading(false);
+            else setLoadingMore(false);
+            isFetchingRef.current = false;
+        }
     }, [alertCategory, isResolved]);
 
+    // Reset list when filters change
     useEffect(() => {
-        setPage(1);
+        pageRef.current = 1;
+        hasMoreRef.current = true;
+        setHasMore(true);
         setAllNotifs([]);
         setGrouped([]);
-        setHasMore(true);
         fetchPage(1, true);
     }, [alertCategory, isResolved, fetchPage]);
 
+    // Pre-fetch next page before user reaches the exact bottom
     useEffect(() => {
         const el = sentinelRef.current;
         if (!el) return;
-        const obs = new IntersectionObserver(([entry]) => {
-            if (entry.isIntersecting && hasMore && !loadingMore && !loading) {
-                const next = page + 1;
-                setPage(next);
+
+        const obs = new IntersectionObserver((entries) => {
+            const entry = entries[0];
+            if (entry && entry.isIntersecting && hasMoreRef.current && !isFetchingRef.current) {
+                const next = pageRef.current + 1;
                 fetchPage(next, false);
             }
-        }, { threshold: 0.1 });
+        }, { 
+            root: null,
+            rootMargin: '250px',
+            threshold: 0.01 
+        });
+
         obs.observe(el);
         return () => obs.disconnect();
-    }, [hasMore, loadingMore, loading, page, fetchPage]);
+    }, [fetchPage]);
 
     const handleAcknowledge = async (alertId) => {
         if (!alertId) return;
         try {
             const res = await patientService.acknowledgeAlert(alertId);
             if (res.success) {
-                const updated = allNotifs.filter((n) => (n._id || n.id || n.alertId) !== alertId);
-                setAllNotifs(updated);
-                setTotalCount(updated.length);
-                setGrouped(groupByDate(updated));
+                setAllNotifs(prev => {
+                    const updated = prev.filter((n) => (n._id || n.id || n.alertId) !== alertId);
+                    setGrouped(groupByDate(updated));
+                    return updated;
+                });
+                setTotalCount(prev => Math.max(0, prev - 1));
             }
         } catch (err) {
             console.error('Acknowledge error:', err);
@@ -404,8 +406,8 @@ export default function NotificationsPage() {
                         (n.vital_type || '').toLowerCase().includes(q) ||
                         (n.message || '').toLowerCase().includes(q) ||
                         (n.title || '').toLowerCase().includes(q) ||
-                        String(n.ward_id || n.wardId || '').toLowerCase().includes(q) ||
-                        String(n.room_id || n.bedId || '').toLowerCase().includes(q)
+                        String(n.ward_id || n.wardId || n.ward_name || '').toLowerCase().includes(q) ||
+                        String(n.room_id || n.bedId || n.room_name || '').toLowerCase().includes(q)
                     )
                 }))
                 .filter(group => group.items.length > 0);
@@ -483,11 +485,8 @@ export default function NotificationsPage() {
 
                     {/* empty */}
                     {!loading && filteredGrouped.length === 0 && (
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            transition={{ duration: 0.6 }}
-                            className="px-6 py-20 text-center flex flex-col items-center justify-center h-full"
+                        <div
+                            className="px-6 py-20 text-center flex flex-col items-center justify-center h-full animate-fade-in"
                         >
                             <svg className="w-20 h-20 text-white/15 mb-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
@@ -498,7 +497,7 @@ export default function NotificationsPage() {
                                     Clear all filters
                                 </button>
                             )}
-                        </motion.div>
+                        </div>
                     )}
 
                     {/* notifications table */}
@@ -515,36 +514,23 @@ export default function NotificationsPage() {
                             </div>
 
                             <div className="flex flex-col">
-                                {(() => {
-                                    // Global counter to ensure the delay keeps increasing
-                                    // across all dates for a perfect top-to-bottom waterfall
-                                    let globalRowIndex = 0;
-
-                                    return filteredGrouped.map((group, groupIndex) => (
-                                        <div key={groupIndex} className="flex flex-col">
-                                            <div className="flex items-center gap-3 px-6 py-3 bg-primary/10 border-y border-primary/20 first:border-t-0">
-                                                <span className="text-sm font-bold text-primary uppercase tracking-wider">{group.date}</span>
-                                            </div>
-
-                                            <div className="flex flex-col">
-                                                <AnimatePresence mode="popLayout">
-                                                    {group.items.map((notif) => {
-                                                        const currentDelayIndex = globalRowIndex++;
-                                                        return (
-                                                            <NotificationRow
-                                                                key={notif.id || notif._id || notif.alertId}
-                                                                notif={notif}
-                                                                index={currentDelayIndex}
-                                                                onAcknowledge={handleAcknowledge}
-                                                                onResolve={openActionModal}
-                                                            />
-                                                        );
-                                                    })}
-                                                </AnimatePresence>
-                                            </div>
+                                {filteredGrouped.map((group, groupIndex) => (
+                                    <div key={groupIndex} className="flex flex-col">
+                                        <div className="flex items-center gap-3 px-6 py-3 bg-primary/10 border-y border-primary/20 first:border-t-0">
+                                            <span className="text-sm font-bold text-primary uppercase tracking-wider">{group.date}</span>
                                         </div>
-                                    ));
-                                })()}
+
+                                        <div className="flex flex-col">
+                                            {group.items.map((notif) => (
+                                                <NotificationRow
+                                                    key={notif.id || notif._id || notif.alertId}
+                                                    notif={notif}
+                                                    onResolve={openActionModal}
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         </div>
                     )}

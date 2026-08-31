@@ -387,6 +387,8 @@ export default function Home() {
         name: p.full_name || "Unknown Patient",
         room: p.room_no || "General",
         ward: p.ward_name || p.ward || p.ward_no,
+        phone_number: p.phone_number || "",
+        alt_phone: p.alt_phone || "",
         lastSync: live.recorded_at || latestHistoryVitals?.recorded_at || new Date().toISOString(),
         vitals: [
           { icon: <Hart />, title: "Heart Rate", heartRate: vitals.heartRate?.value || 0, status: vitals.heartRate?.status, historyData: p.vitals_history || [] },

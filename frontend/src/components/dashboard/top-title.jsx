@@ -16,9 +16,10 @@ export default function TopTitle({ className = "mb-4 md:mb-6", title, children, 
                 const response = await patientService.getPatientById(id);
                 if (response.success && response.data) {
                     setPatientInfo({
-                        userId: response.data.patient_id || response.data.id, 
+                        userId: response.data.user_id || response.data.patient_id || response.data.id, 
                         patientName: response.data.full_name || 'Unknown Patient',
-                        room: response.data.room_no || 'N/A'
+                        room: response.data.room_no || 'N/A',
+                        ward: response.data.ward_name || ''
                     });
                 }
             } catch (error) {

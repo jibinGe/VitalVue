@@ -273,7 +273,14 @@ const PatientCard = memo(({
                                         key={vIndex}
                                         to={`/dashboard/overview/${item.id}`}
                                         target="_blank"
-                                        state={{ patientName: item.name, patientId: item.patientId || item.userId, room: item.room }}
+                                        state={{ 
+                                            patientName: item.name, 
+                                            patientId: item.patientId || item.userId, 
+                                            room: item.room,
+                                            ward: item.ward,
+                                            phone: item.phone_number,
+                                            altPhone: item.alt_phone
+                                        }}
                                         onClick={(e) => e.stopPropagation()}
                                         className={`bg-[#2F2F31] rounded-[20px] overflow-hidden ${isTvMode ? 'p-2' : 'p-2.5'} flex flex-col justify-between relative z-1 ${isTvMode ? 'min-h-[90px]' : 'min-h-[140px]'}`}
                                     >
