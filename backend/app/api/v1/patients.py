@@ -6,7 +6,7 @@ from app.models.organization import Room, Ward, Bed, Department
 from app.core.comorbidities import validate_comorbidities
 from app.models.user import Patient, User, Nurse, Doctor, UserRole
 from app.models.vitals import Vitals
-from app.services.alerts import send_consolidated_vitalvue_alert
+from app.services.alerts import send_critical_alert
 from app.models.clinical import Alert, Action
 from typing import List, Optional
 from app.schemas.patient import PaginatedPatientArchiveResponse, PatientDetailResponse, MonitoringToggleSchema, PatientDischargeResponseSchema, PatientReadmitSchema
@@ -99,10 +99,19 @@ async def register_patient(
     obj_in: PatientCreate, 
     db: AsyncSession = Depends(get_db)
 ):
-    # 1. Verify Room Availability
-    room = await db.get(Room, obj_in.room_id)
-    if not room:
-        raise HTTPException(status_code=404, detail="Room not found")
+    # 1. Verify Facility Allocation (Room OR Bed)
+    if obj_in.room_id is not None:
+        room = await db.get(Room, obj_in.room_id)
+        if not room:
+            raise HTTPException(status_code=404, detail="Room not found")
+            
+    elif obj_in.bed_id is not None:
+        bed = await db.get(Bed, obj_in.bed_id)
+        if not bed:
+            raise HTTPException(status_code=404, detail="Bed not found")
+        
+        # 1.1 Mark the bed as occupied for future queries
+        bed.is_occupied = True
     
     # 2. Force a Random Unique Device ID
     obj_in.device_id = generate_random_device_id()
@@ -111,26 +120,22 @@ async def register_patient(
     try:
         new_patient = await crud_patient.create(db, obj_in=obj_in)
         
-        # 4. Mark Room as Occupied (Optional: Uncomment if needed)
-        # room.is_occupied = True
-        
+        # 4. Commit changes (creates patient AND updates bed.is_occupied)
         await db.commit()
         await db.refresh(new_patient)
         return new_patient
 
     except IntegrityError as e:
         await db.rollback()
-        error_details = str(e.orig)
+        error_details = str(e.orig).lower()
         
-        # Check which constraint was violated
-        if "ix_users_user_id" in error_details:
+        if "user_id" in error_details or "ix_users_user_id" in error_details:
             raise HTTPException(status_code=400, detail=f"Patient ID '{obj_in.user_id}' is already registered.")
         
         if "phone_number" in error_details:
             raise HTTPException(status_code=400, detail=f"Phone number '{obj_in.phone_number}' is already linked to another account.")
         
-        if "ix_patients_device_id" in error_details:
-            # Although we generate it randomly, it's safe to handle just in case
+        if "device_id" in error_details:
             raise HTTPException(status_code=400, detail="Generated Device ID collision. Please try again.")
 
         raise HTTPException(status_code=400, detail="Database integrity violation: Duplicate entry detected.")
@@ -138,7 +143,7 @@ async def register_patient(
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=500, detail="An unexpected error occurred.")
-    
+      
 @router.patch("/me/change-device")
 async def update_my_device(
     new_device_id: str = Body(..., embed=True),
@@ -850,20 +855,18 @@ async def flag_doctor(
     )
     vitals = v_res.scalars().first()
     
-    # Format the multi-line observations string for template parameter {{5}}
+    # Format the individual vital signs for the MSG91 template parameters
     if vitals:
-        # Round safely matching your prior business logic
-        hr_val = int(float(vitals.heart_rate)) if vitals.heart_rate else "N/A"
+        hr_val = str(int(float(vitals.heart_rate))) if vitals.heart_rate else "N/A"
         spo2_val = f"{float(vitals.spo2):.1f}%" if vitals.spo2 else "N/A"
-        news2_val = int(float(vitals.news2_score)) if vitals.news2_score else "N/A"
         
-        observations_payload = (
-            f"• HR: {hr_val} bpm\n"
-            f"• SpO₂: {spo2_val}\n"
-            f"• NEWS2 Score: {news2_val}"
-        )
+        # Adjust 'blood_pressure' below to match your actual Vitals ORM model property
+        # (e.g., if you store them separately, you might do: f"{vitals.systolic}/{vitals.diastolic}")
+        bp_val = str(vitals.blood_pressure) if getattr(vitals, 'blood_pressure', None) else "N/A"
     else:
-        observations_payload = "• Vitals: No recent vitals data captured on dashboard."
+        hr_val = "N/A"
+        spo2_val = "N/A"
+        bp_val = "N/A"
 
     # 4. Identify Doctor to Notify
     doc_id = selected_doctor_id or patient.doctor_id
@@ -877,24 +880,28 @@ async def flag_doctor(
         vital_type="MANUAL_FLAG",
         triggered_value="NURSE_ESC",
         severity="CRITICAL",
-        status="active"
+        status="active",
+        # Assuming you have a column to store the reason for the manual flag
+        # notes=reason 
     )
     db.add(new_alert)
 
-    # 6. Notify via the Consolidated WhatsApp Template Structure
+    # 6. Notify via MSG91 WhatsApp Template Structure
     doc_user = (await db.execute(select(User).where(User.id == doc_id))).scalars().first()
     
     if doc_user and doc_user.phone_number:
+        # Note: The MSG91 critical_alert_red template does not have a variable for the 'reason'.
+        # If the doctor needs to see the manual flag reason, they will view it in the app 
+        # after clicking the URL button.
         background_tasks.add_task(
-            send_consolidated_vitalvue_alert,
-            doc_user.phone_number,              # doctor_phone
-            "🚨 CRITICAL",                       # severity ({{1}})
-            "Nurse Escalation Flag",            # alert_title ({{2}})
-            patient.full_name,                  # patient_name ({{3}})
-            location_string,                    # location ({{4}})
-            observations_payload,               # observations ({{5}})
-            f"Manual escalation: {reason[:50]}", # concern ({{6}})
-            "Immediate bedside assessment required. Evaluate patient status." # action_required ({{7}})
+            send_critical_alert,
+            doctor_phone=doc_user.phone_number,
+            patient_name=patient.full_name,
+            location=location_string,
+            hr_value=hr_val,
+            spo2_value=spo2_val,
+            bp_value=bp_val,
+            patient_id=str(patient_id)
         )
 
     await db.commit()

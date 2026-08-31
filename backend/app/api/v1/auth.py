@@ -9,7 +9,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from app.database import get_db, get_redis
 from app.models.user import User , Doctor, Patient, Nurse, OrgAdmin, MasterAdmin, UserRole
 from app.core.config import settings
-from app.schemas.auth import OTPRequest, OTPVerify, QRGenerateResponse, QRAuthorizeRequest
+from app.schemas.auth import OTPRequest, OTPVerify, QRGenerateResponse, QRAuthorizeRequest, UserRole, UserBaseCreate, PatientCreate, NurseCreate, DoctorCreate, OrgAdminCreate, UserCreate
 from sqlalchemy import func, delete # Import func for lower()
 from app.api.deps import get_current_user
 from app.models.notification import DeviceToken
@@ -20,6 +20,7 @@ import json
 from sse_starlette.sse import EventSourceResponse
 import secrets
 import asyncio
+from sqlalchemy.exc import IntegrityError
 
 router = APIRouter()
 
@@ -31,6 +32,58 @@ sns_client = boto3.client(
     region_name=settings.CUSTOM_AWS_REGION,
 )
 
+@router.post("/", status_code=status.HTTP_201_CREATED)
+async def create_user(user_in: UserCreate, db: AsyncSession = Depends(get_db)):
+    # 1. Convert Pydantic model to a dictionary
+    user_data = user_in.model_dump()
+    
+    # 2. Extract role safely (handles both string and Enum objects)
+    raw_role = user_data.get("role")
+    role_str = raw_role.value if hasattr(raw_role, "value") else raw_role
+
+    # 3. Map the role to the correct SQLAlchemy Model using string keys
+    model_mapping = {
+        "patient": Patient,
+        "nurse": Nurse,
+        "doctor": Doctor,
+        "org_admin": OrgAdmin,
+        "master_admin": MasterAdmin,
+        "hospital_management": User,
+    }
+    
+    TargetModel = model_mapping.get(role_str)
+    if not TargetModel:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail=f"Invalid role specified: {role_str}"
+        )
+
+    # 4. Instantiate the correct subclass
+    new_user = TargetModel(**user_data)
+
+    # 5. Add and commit asynchronously
+    db.add(new_user)
+    try:
+        await db.commit()
+        # Refresh asynchronously to get the auto-generated ID and default fields
+        await db.refresh(new_user)
+    except IntegrityError as e:
+        await db.rollback()
+        error_msg = str(e.orig).lower()
+        if "user_id" in error_msg:
+            raise HTTPException(status_code=400, detail="User ID already exists.")
+        if "phone_number" in error_msg:
+            raise HTTPException(status_code=400, detail="Phone number already exists.")
+        if "license_no" in error_msg:
+            raise HTTPException(status_code=400, detail="Nurse license number already exists.")
+            
+        raise HTTPException(status_code=400, detail="Database integrity error.")
+        
+    return {
+        "message": "User created successfully", 
+        "id": new_user.id,
+        "user_type": new_user.user_type
+    }
 @router.get("/profile")
 async def get_profile(
     current_user: User = Depends(get_current_user),

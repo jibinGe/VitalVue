@@ -32,6 +32,9 @@ class Settings(BaseSettings):
     API_LOG_ENABLED: bool = True
     API_LOG_RETENTION_HOURS: int = 48
 
+    MSG91_AUTH_KEY: str
+    MSG91_INTEGRATED_NUMBER : str
+
     # model_config = SettingsConfigDict(env_file=".env", extra="ignore", env_file_encoding='utf-8')
     model_config = SettingsConfigDict(extra="ignore")
 

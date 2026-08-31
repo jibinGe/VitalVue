@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from typing import Optional, List
 from datetime import datetime
 from app.models.user import UserRole
@@ -18,11 +18,12 @@ class UserBase(BaseModel):
     
 # --- Patient Specific ---
 class PatientBase(UserBase):
-    # Screen 1 & 2 Hierarchy Links
     doctor_id: Optional[int] = Field(None, description="Selected Doctor ID from Screen 1")
-    room_id: int = Field(..., description="Selected Room ID from Screen 2")
     
-    # Screen 2: Vital Stats & Info
+    # Updated: Both are optional now, handled by validator
+    room_id: Optional[int] = Field(None, description="Selected Room ID (Legacy)")
+    bed_id: Optional[int] = Field(None, description="Selected Bed ID (v2)")
+    
     age: int
     gender: str
     height: Optional[float] = None
@@ -30,13 +31,17 @@ class PatientBase(UserBase):
     blood_group: str
     alt_phone: Optional[str] = None
     
-    # Screen 3: Device Identity
     device_id: str = Field(..., description="Unique Device ID for real-time tracking")
-
     nurse_id: Optional[int] = Field(None, description="Selected Nurse ID")
 
+    # NEW: Validation logic for exactly one of room_id or bed_id
+    @model_validator(mode='after')
+    def check_room_or_bed(self) -> 'PatientBase':
+        if (self.room_id is None and self.bed_id is None) or \
+           (self.room_id is not None and self.bed_id is not None):
+            raise ValueError('Exactly one of room_id or bed_id must be provided')
+        return self
 class PatientCreate(PatientBase):
-    # Set default role for registration
     role: UserRole = UserRole.PATIENT
 
 class PatientUpdate(BaseModel):

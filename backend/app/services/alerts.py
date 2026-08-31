@@ -1,52 +1,101 @@
 import json
-from twilio.rest import Client
+import httpx
 from app.core.config import settings
 
-# Initialize client using settings
-client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
-
-async def send_consolidated_vitalvue_alert(
+async def send_critical_alert(
     doctor_phone: str,
-    severity: str,       # e.g., "🚨 CRITICAL", "⚠️ HIGH", "⚪ SYSTEM"
-    alert_title: str,    # e.g., "Shock Alert", "Device Disconnection"
-    patient_name: str,   # Patient's Full Name
-    location: str,       # e.g., "Ward 3 - Room 12/Bed B"
-    observations: str,   # Multi-line string showing vitals or system issues
-    concern: str,        # Brief summary of the underlying concern
-    action_required: str # What the clinician/staff needs to do immediately
+    patient_name: str, 
+    location: str, 
+    hr_value: str, 
+    spo2_value: str, 
+    bp_value: str,
+    patient_id: str
 ):
     """
-    Sends a consolidated, multi-purpose VitalVue alert via WhatsApp using 
-    a single flexible template format.
+    Sends a critical WhatsApp alert using the MSG91 API with the 'critical_alert_red' template.
     """
     try:
-        # 1. Format the phone number safely
-        formatted_phone = doctor_phone.strip()
-        if not formatted_phone.startswith("+"):
-            formatted_phone = f"+91{formatted_phone}"
+        # 1. Format the phone number safely for MSG91 (remove '+')
+        formatted_phone = doctor_phone.strip().replace("+", "").replace(" ", "").replace("-", "")
+        if len(formatted_phone) == 10:
+            formatted_phone = f"91{formatted_phone}"
 
-        # 2. Build variables matching the sequential 1-7 layout of the template
-        variables = {
-            "1": str(severity).upper(),
-            "2": str(alert_title),
-            "3": str(patient_name),
-            "4": str(location),
-            "5": str(observations),
-            "6": str(concern),
-            "7": str(action_required)
+        # 2. Construct the MSG91 API URL and Headers
+        url = "https://api.msg91.com/api/v5/whatsapp/whatsapp-outbound-message/bulk/"
+        headers = {
+            "Content-Type": "application/json",
+            "authkey": settings.MSG91_AUTH_KEY  # Ensure this is added to your config/settings
         }
 
-        # 3. Trigger the message via Twilio content API
-        message = client.messages.create(
-            from_=f"whatsapp:{settings.TWILIO_WHATSAPP_NUMBER}",
-            to=f"whatsapp:{formatted_phone}",
-            content_sid="HX02ef151daf68d705ace60f5c873286a6", # Replace with your new Twilio Content SID
-            content_variables=json.dumps(variables)
-        )
-        
-        print(f"✅ Consolidated Alert Sent successfully: {message.sid}")
-        return message.sid
-        
+        # 3. Build the payload matching your exact working template
+        payload = {
+            "integrated_number": settings.MSG91_INTEGRATED_NUMBER, # e.g., "15559064044"
+            "content_type": "template",
+            "payload": {
+                "messaging_product": "whatsapp",
+                "type": "template",
+                "template": {
+                    "name": "critical_alert_red",
+                    "language": {
+                        "code": "en",
+                        "policy": "deterministic"
+                    },
+                    "namespace": "6018516a_a8b9_4b08_95c1_cbce7d5a482a",
+                    "to_and_components": [
+                        {
+                            "to": [ formatted_phone ],
+                            "components": {
+                                "body_patient_name": {
+                                    "type": "text",
+                                    "value": str(patient_name),
+                                    "parameter_name": "patient_name"
+                                },
+                                "body_location": {
+                                    "type": "text",
+                                    "value": str(location),
+                                    "parameter_name": "location"
+                                },
+                                "body_hr_value": {
+                                    "type": "text",
+                                    "value": str(hr_value),
+                                    "parameter_name": "hr_value"
+                                },
+                                "body_spo2_value": {
+                                    "type": "text",
+                                    "value": str(spo2_value).replace("%", "").strip(),
+                                    "parameter_name": "spo2_value"
+                                },
+                                "body_bp_value": {
+                                    "type": "text",
+                                    "value": str(bp_value),
+                                    "parameter_name": "bp_value"
+                                },
+                                "button_1": {
+                                    "subtype": "url",
+                                    "type": "text",
+                                    "value": f"patient/{patient_id}"
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+
+        # 4. Trigger the message asynchronously via MSG91 API
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, headers=headers, content=json.dumps(payload))
+            response.raise_for_status()
+            
+            response_data = response.json()
+            
+            # MSG91 usually returns a messageId in a successful response
+            print(f"✅ Critical Alert Sent successfully. Response: {response_data}")
+            return response_data
+            
+    except httpx.HTTPStatusError as e:
+        print(f"❌ HTTP Error sending alert: {e.response.text}")
+        return None
     except Exception as e:
-        print(f"❌ Twilio Detailed Error: {e}")
+        print(f"❌ Detailed Error: {e}")
         return None
