@@ -83,12 +83,11 @@ async def get_wards(dept_id: int, include_inactive: bool = False, db: AsyncSessi
 
 # 5. Get Rooms for a specific Ward
 @router.get("/wards/{ward_id}/rooms")
-async def get_rooms(ward_id: int, db: AsyncSession = Depends(get_db)):
-    # Only return rooms that are NOT occupied
-    result = await db.execute(
-        # select(Room).where(Room.ward_id == ward_id, Room.is_occupied == False)
-        select(Room).where(Room.ward_id == ward_id)
-    )
+async def get_rooms(ward_id: int, include_inactive: bool = False, db: AsyncSession = Depends(get_db)):
+    q = select(Room).where(Room.ward_id == ward_id)
+    if not include_inactive:
+        q = q.where(Room.is_active == True)  # noqa: E712
+    result = await db.execute(q)
     return result.scalars().all()
 
 # --- org-hierarchy v2 (RUN-024) ---

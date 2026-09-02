@@ -84,6 +84,7 @@ export default function RegisterPatientModal({ isOpen, onClose, onSuccess }) {
     department_id: "",
     ward_id: "",
     bed_id: "",
+    room_id: "",
     doctor_id: "",
     nurse_id: "",
   });
@@ -94,11 +95,13 @@ export default function RegisterPatientModal({ isOpen, onClose, onSuccess }) {
   const [departments, setDepartments] = useState([]);
   const [wards, setWards] = useState([]);
   const [beds, setBeds] = useState([]);
+  const [rooms, setRooms] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [nurses, setNurses] = useState([]);
   const [loadingDepts, setLoadingDepts] = useState(false);
   const [loadingWards, setLoadingWards] = useState(false);
   const [loadingBeds, setLoadingBeds] = useState(false);
+  const [loadingRooms, setLoadingRooms] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -113,12 +116,13 @@ export default function RegisterPatientModal({ isOpen, onClose, onSuccess }) {
         age: "", gender: "", blood_group: "",
         height: "", weight: "", user_id: "",
         pin: "", pin_confirm: "", comorbidities: [],
-        department_id: "", ward_id: "", bed_id: "",
+        department_id: "", ward_id: "", bed_id: "", room_id: "",
         doctor_id: "", nurse_id: "",
       });
       setDepartments([]);
       setWards([]);
       setBeds([]);
+      setRooms([]);
     }
   }, [isOpen]);
 
@@ -156,13 +160,20 @@ export default function RegisterPatientModal({ isOpen, onClose, onSuccess }) {
   }, [form.department_id]);
 
   useEffect(() => {
-    if (!form.ward_id) { setBeds([]); return; }
+    if (!form.ward_id) { setBeds([]); setRooms([]); return; }
     setLoadingBeds(true);
-    setForm((f) => ({ ...f, bed_id: "" }));
-    apiClient.get(`/api/v1/discovery/wards/${form.ward_id}/beds`)
-      .then((r) => setBeds(r.data || []))
-      .catch(() => setBeds([]))
-      .finally(() => setLoadingBeds(false));
+    setLoadingRooms(true);
+    setForm((f) => ({ ...f, bed_id: "", room_id: "" }));
+    Promise.all([
+      apiClient.get(`/api/v1/discovery/wards/${form.ward_id}/beds`),
+      apiClient.get(`/api/v1/discovery/wards/${form.ward_id}/rooms`),
+    ])
+      .then(([bedsRes, roomsRes]) => {
+        setBeds(bedsRes.data || []);
+        setRooms(roomsRes.data || []);
+      })
+      .catch(() => { setBeds([]); setRooms([]); })
+      .finally(() => { setLoadingBeds(false); setLoadingRooms(false); });
   }, [form.ward_id]);
 
   const set = useCallback((field, value) => {
@@ -189,7 +200,7 @@ export default function RegisterPatientModal({ isOpen, onClose, onSuccess }) {
     if (step === 1) {
       if (!form.department_id) newErrors.department_id = "Select a department";
       if (!form.ward_id) newErrors.ward_id = "Select a ward";
-      if (!form.bed_id) newErrors.bed_id = "Select a bed";
+      if (!form.bed_id && !form.room_id) newErrors.bed_id = "Select a bed or a room";
     }
     if (step === 3) {
       if (!form.pin) newErrors.pin = "PIN is required";
@@ -215,7 +226,8 @@ export default function RegisterPatientModal({ isOpen, onClose, onSuccess }) {
         full_name: form.full_name.trim(),
         phone_number: form.phone_number.trim(),
         pin: form.pin,
-        bed_id: parseInt(form.bed_id, 10),
+        ...(form.bed_id   && { bed_id:  parseInt(form.bed_id, 10) }),
+        ...(form.room_id  && { room_id: parseInt(form.room_id, 10) }),
         ...(form.user_id.trim() && { user_id: form.user_id.trim() }),
         ...(form.alt_phone.trim() && { alt_phone: form.alt_phone.trim() }),
         ...(form.age && { age: parseInt(form.age, 10) }),
@@ -443,20 +455,43 @@ export default function RegisterPatientModal({ isOpen, onClose, onSuccess }) {
                           {wards.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
                         </select>
                       </FieldGroup>
-                      <FieldGroup label="Bed" required error={errors.bed_id}>
+                      <FieldGroup label="Bed" error={errors.bed_id}>
                         <select
                           className={selectCls}
                           value={form.bed_id}
-                          onChange={(e) => set("bed_id", e.target.value)}
+                          onChange={(e) => {
+                            set("bed_id", e.target.value);
+                            if (e.target.value) set("room_id", ""); // mutual exclusion
+                          }}
                           disabled={!form.ward_id || loadingBeds}
                         >
-                          <option value="">{loadingBeds ? "Loading..." : "Select bed"}</option>
+                          <option value="">{loadingBeds ? "Loading..." : "Select bed (optional)"}</option>
                           {beds.length === 0 && form.ward_id && !loadingBeds
                             ? <option disabled>No available beds</option>
                             : beds.map((b) => <option key={b.id} value={b.id}>{b.bed_no || `Bed ${b.id}`}</option>)
                           }
                         </select>
                       </FieldGroup>
+                      <FieldGroup label="Room" error={!form.bed_id ? errors.bed_id : undefined}>
+                        <select
+                          className={selectCls}
+                          value={form.room_id}
+                          onChange={(e) => {
+                            set("room_id", e.target.value);
+                            if (e.target.value) set("bed_id", ""); // mutual exclusion
+                          }}
+                          disabled={!form.ward_id || loadingRooms}
+                        >
+                          <option value="">{loadingRooms ? "Loading..." : "Select room (optional)"}</option>
+                          {rooms.length === 0 && form.ward_id && !loadingRooms
+                            ? <option disabled>No available rooms</option>
+                            : rooms.map((r) => <option key={r.id} value={r.id}>{r.room_number || `Room ${r.id}`}</option>)
+                          }
+                        </select>
+                      </FieldGroup>
+                      {!form.bed_id && !form.room_id && form.ward_id && (
+                        <p className="col-span-2 text-xs text-amber-400/80">⚠ Select either a Bed or a Room to proceed.</p>
+                      )}
                       <FieldGroup label="Assign Doctor" error={errors.doctor_id}>
                         <select className={selectCls} value={form.doctor_id} onChange={(e) => set("doctor_id", e.target.value)}>
                           <option value="">Optional — select doctor</option>
@@ -572,6 +607,9 @@ export default function RegisterPatientModal({ isOpen, onClose, onSuccess }) {
                         )}
                         {beds.find(b => b.id == form.bed_id) && (
                           <Row label="Bed" value={beds.find(b => b.id == form.bed_id)?.bed_no || `Bed ${form.bed_id}`} />
+                        )}
+                        {rooms.find(r => r.id == form.room_id) && (
+                          <Row label="Room" value={rooms.find(r => r.id == form.room_id)?.room_number || `Room ${form.room_id}`} />
                         )}
                       </div>
                       {submitError && (

@@ -75,11 +75,13 @@ class Bed(Base):
     ward: Mapped["Ward"] = relationship(back_populates="beds")
 
 class Room(Base):
-    # DEPRECATED (org-hierarchy v2): kept for rollback + back-compat. Beds supersede rooms.
+    """Physical room inside a Ward (e.g. procedure room, consultation room, OT).
+    Hierarchy: Department → Ward → Room  (parallel to Department → Ward → Bed)."""
     __tablename__ = "rooms"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     room_number: Mapped[str] = mapped_column(String(50), nullable=False)
-    is_occupied: Mapped[bool] = mapped_column(Boolean, default=False)
-    ward_id: Mapped[int] = mapped_column(ForeignKey("wards.id"))
+    is_occupied: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, server_default="true")
+    ward_id: Mapped[int] = mapped_column(ForeignKey("wards.id"), index=True)
 
     ward: Mapped["Ward"] = relationship(back_populates="rooms")

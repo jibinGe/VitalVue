@@ -40,17 +40,41 @@ def generate_random_device_id():
 
 @router.post("/admit", status_code=201, dependencies=[Depends(allow_clinical_staff)])
 async def admit(body: PatientAdmit, db: AsyncSession = Depends(get_db), me=Depends(get_current_user)):
-    # org-hierarchy v2 (RUN-024): authenticated bed admission with dept-doctor + comorbidities.
-    bed = await db.get(Bed, body.bed_id)
-    if not bed:
-        raise HTTPException(status_code=404, detail="Bed not found")
-    if bed.is_occupied:
-        raise HTTPException(status_code=409, detail="Bed already occupied")
-    if not getattr(bed, "is_active", True):
-        raise HTTPException(status_code=409, detail="Bed is disabled")
+    # org-hierarchy v2 (RUN-024): authenticated admission with dept-doctor + comorbidities.
+    # Option A: exactly one of bed_id or room_id is required (enforced by PatientAdmit validator).
     data = body.model_dump()
-    # PIN (6-digit) → bcrypt hash. REQUIRED: patients log in with PAT-<id> + PIN (the OTP path is
-    # blocked for role=patient), so a patient with no PIN could never authenticate.
+
+    if body.bed_id is not None:
+        # ── Bed-based admission path ──
+        bed = await db.get(Bed, body.bed_id)
+        if not bed:
+            raise HTTPException(status_code=404, detail="Bed not found")
+        if bed.is_occupied:
+            raise HTTPException(status_code=409, detail="Bed already occupied")
+        if not getattr(bed, "is_active", True):
+            raise HTTPException(status_code=409, detail="Bed is disabled")
+        ward = await db.get(Ward, bed.ward_id)
+        dept = await db.get(Department, ward.department_id) if ward is not None else None
+        bed.is_occupied = True
+    else:
+        # ── Room-based admission path ──
+        room = await db.get(Room, body.room_id)
+        if not room:
+            raise HTTPException(status_code=404, detail="Room not found")
+        if room.is_occupied:
+            raise HTTPException(status_code=409, detail="Room already occupied")
+        if not getattr(room, "is_active", True):
+            raise HTTPException(status_code=409, detail="Room is disabled")
+        ward = await db.get(Ward, room.ward_id)
+        dept = await db.get(Department, ward.department_id) if ward is not None else None
+        room.is_occupied = True
+
+    # Organization is derived from the asset's physical chain (asset→ward→department→org)
+    org_id = (dept.organization_id if dept is not None else None) or me.organization_id
+    if org_id is None:
+        raise HTTPException(status_code=400, detail="Cannot determine the organization for this assignment")
+
+    # PIN (6-digit) → bcrypt hash. REQUIRED: patients log in with PAT-<id> + PIN.
     pin = data.pop("pin", None)
     provided_user_id = data.pop("user_id", None)
     if not pin:
@@ -59,14 +83,6 @@ async def admit(body: PatientAdmit, db: AsyncSession = Depends(get_db), me=Depen
         raise HTTPException(status_code=400, detail="PIN must be exactly 6 digits")
     data["hashed_password"] = get_password_hash(pin)
     data["comorbidities"] = validate_comorbidities(data.get("comorbidities"))
-    # Organization is derived from the BED's physical chain (bed→ward→department→org) — authoritative,
-    # and correct even when the admitter is a master_admin with no org of their own. Falls back to the
-    # staff's org, then errors rather than creating a null-org (multi-tenant-unsafe) patient.
-    ward = await db.get(Ward, bed.ward_id)
-    dept = await db.get(Department, ward.department_id) if ward is not None else None
-    org_id = (dept.organization_id if dept is not None else None) or me.organization_id
-    if org_id is None:
-        raise HTTPException(status_code=400, detail="Cannot determine the organization for this bed")
     data["organization_id"] = org_id
     data["device_id"] = generate_random_device_id()
     data["role"] = UserRole.PATIENT
@@ -74,13 +90,11 @@ async def admit(body: PatientAdmit, db: AsyncSession = Depends(get_db), me=Depen
     data["age"] = data.get("age") or 0
     data["gender"] = data.get("gender") or ""
     data["blood_group"] = data.get("blood_group") or ""
-    # user_id: use the one provided (AdmitScreen) else a temp placeholder → auto PAT-<id> after flush
-    # (user_id is NOT NULL + unique, so it must exist at insert; we rename to PAT-<id> once we have the id).
+    # user_id: use provided one else auto PAT-<id> after flush
     auto_id = provided_user_id is None or str(provided_user_id).strip() == ""
     data["user_id"] = provided_user_id if not auto_id else f"pending-{uuid.uuid4().hex[:12]}"
     patient = Patient(**data)
     db.add(patient)
-    bed.is_occupied = True
     try:
         await db.flush()  # assigns patient.id
         if auto_id:

@@ -4,11 +4,11 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy import select, inspect as sa_inspect
 from app.database import get_db
 from app.api.deps import allow_admins
-from app.models.organization import Organization, Department, Station, Ward, Bed
+from app.models.organization import Organization, Department, Station, Ward, Bed, Room
 from app.models.user import Doctor, Nurse, UserRole
 from app.core.security import get_password_hash
 from app.schemas.organization import (
-    OrganizationCreate, DepartmentCreate, StationCreate, WardCreate, BedCreate,
+    OrganizationCreate, DepartmentCreate, StationCreate, WardCreate, BedCreate, RoomCreate,
 )
 
 router = APIRouter()
@@ -53,6 +53,15 @@ async def create_ward(body: WardCreate, db: AsyncSession = Depends(get_db)):
 @router.post("/beds", status_code=201, dependencies=[Depends(allow_admins)])
 async def create_bed(body: BedCreate, db: AsyncSession = Depends(get_db)):
     obj = Bed(**body.model_dump(), is_occupied=False)
+    db.add(obj)
+    await db.commit()
+    await db.refresh(obj)
+    return obj
+
+
+@router.post("/rooms", status_code=201, dependencies=[Depends(allow_admins)])
+async def create_room(body: RoomCreate, db: AsyncSession = Depends(get_db)):
+    obj = Room(**body.model_dump(), is_occupied=False)
     db.add(obj)
     await db.commit()
     await db.refresh(obj)
@@ -121,6 +130,7 @@ _STATUS_ENTITIES = {
     "stations": Station,
     "wards": Ward,
     "beds": Bed,
+    "rooms": Room,
     "doctors": Doctor,
     "nurses": Nurse,
 }
@@ -155,6 +165,7 @@ _EDITABLE = {
     "stations":      {"name", "station_no", "department_id"},
     "wards":         {"name", "ward_no", "department_id", "station_id"},
     "beds":          {"bed_no", "ward_id"},
+    "rooms":         {"room_number", "ward_id", "is_occupied"},
     "doctors":       {"full_name", "phone_number", "specialization", "is_on_call", "department_id", "organization_id"},
     "nurses":        {"full_name", "phone_number", "license_no", "organization_id"},
 }

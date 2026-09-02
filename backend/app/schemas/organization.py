@@ -63,3 +63,15 @@ class BedRead(BaseModel):
     id: int
     bed_no: str
     ward_id: int
+
+class RoomCreate(BaseModel):
+    room_number: str
+    ward_id: int
+
+class RoomRead(BaseModel):
+    model_config = {"from_attributes": True}
+    id: int
+    room_number: str
+    ward_id: int
+    is_occupied: bool = False
+    is_active: bool = True

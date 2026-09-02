@@ -202,6 +202,24 @@ export const adminService = {
     return adminRequest('patch', `/api/v1/admin/beds/${id}/status`, { is_active: status });
   },
 
+  // ─── Rooms ─────────────────────────────────────────────────────────────────
+
+  async listRooms(params = {}) {
+    return adminRequest('get', '/api/v1/admin/rooms', null, { params: { include_inactive: true, ...params } });
+  },
+
+  async createRoom(data) {
+    return adminRequest('post', '/api/v1/admin/rooms', data);
+  },
+
+  async updateRoom(id, data) {
+    return adminRequest('patch', `/api/v1/admin/rooms/${id}`, data);
+  },
+
+  async setRoomStatus(id, status) {
+    return adminRequest('patch', `/api/v1/admin/rooms/${id}/status`, { is_active: status });
+  },
+
   // ─── Stations ──────────────────────────────────────────────────────────────
 
   async listStations(params = {}) {

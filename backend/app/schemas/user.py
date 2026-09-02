@@ -84,7 +84,7 @@ class DoctorResponse(DoctorBase):
     id: int
     created_at: datetime
 
-# --- Patient Admit (org-hierarchy v2, RUN-024) — bed + dept-doctor + comorbidities ---
+# --- Patient Admit (org-hierarchy v2, RUN-024) — bed OR room + dept-doctor + comorbidities ---
 class PatientAdmit(BaseModel):
     # Optional at registration → auto-generated PAT-<id> when omitted (AdmitScreen still passes one).
     user_id: Optional[str] = None
@@ -98,8 +98,18 @@ class PatientAdmit(BaseModel):
     weight: Optional[float] = None
     blood_group: Optional[str] = None
     alt_phone: Optional[str] = None
-    bed_id: int
+    # Option A: exactly one of bed_id or room_id must be supplied.
+    bed_id: Optional[int] = None
+    room_id: Optional[int] = None
     doctor_id: Optional[int] = None
     nurse_id: Optional[int] = None
     comorbidities: List[str] = Field(default_factory=list)
     device_id: Optional[str] = None
+
+    @model_validator(mode="after")
+    def check_bed_or_room(self) -> "PatientAdmit":
+        if self.bed_id is None and self.room_id is None:
+            raise ValueError("Exactly one of bed_id or room_id must be provided")
+        if self.bed_id is not None and self.room_id is not None:
+            raise ValueError("Provide either bed_id or room_id, not both")
+        return self
