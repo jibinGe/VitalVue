@@ -450,6 +450,15 @@ export default function Home() {
           return alertsList;
         })(),
         deviceBattery: live.battery_percent !== undefined ? `${live.battery_percent}%` : (latestHistoryVitals?.battery_percent !== undefined ? `${latestHistoryVitals.battery_percent}%` : (p.device_battery || "80%")),
+        phoneBattery: live.phone_battery !== undefined
+          ? live.phone_battery
+          : (live.phoneBattery !== undefined
+              ? live.phoneBattery
+              : (latestHistoryVitals?.phone_battery !== undefined
+                  ? latestHistoryVitals.phone_battery
+                  : (latestHistoryVitals?.phoneBattery !== undefined
+                      ? latestHistoryVitals.phoneBattery
+                      : (p.phone_battery ?? p.phoneBattery ?? null)))),
         isConnected: isConnected,
         isRemoved: isRemoved,
       };

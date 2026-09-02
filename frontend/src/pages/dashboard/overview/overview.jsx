@@ -73,8 +73,77 @@ export default function Overview() {
   const parsedUserId = parseInt(userId, 10);
   const { data: patientHistory, isLoading: loading } = usePatientHistory(parsedUserId, filterTab);
   const { streamData } = useVitalsStream(parsedUserId);
-  const { data: patientDetails } = usePatient(parsedUserId);
-  const currentVitals = patientHistory ? patientHistory[patientHistory.length - 1] : null;
+  const { data: patientDetails, isLoading: patientDetailsLoading } = usePatient(parsedUserId);
+
+  // Normalize and chronologically sort historical vitals from patientDetails when 15-min history query is empty
+  const fallbackHistory = useMemo(() => {
+    if (!patientDetails?.vitals_history || !Array.isArray(patientDetails.vitals_history) || patientDetails.vitals_history.length === 0) {
+      return [];
+    }
+
+    // Sort chronologically (oldest first, newest last) by timestamp or id
+    const sorted = [...patientDetails.vitals_history].sort((a, b) => {
+      const timeA = a.created_at ? new Date(a.created_at).getTime() : (a.timestamp ? new Date(a.timestamp).getTime() : 0);
+      const timeB = b.created_at ? new Date(b.created_at).getTime() : (b.timestamp ? new Date(b.timestamp).getTime() : 0);
+      if (timeA && timeB && timeA !== timeB) return timeA - timeB;
+      return (a.id || 0) - (b.id || 0);
+    });
+
+    return sorted.map((row) => ({
+      ...row,
+      timestamp: row.created_at || row.timestamp,
+      recorded_at: row.created_at || row.timestamp,
+      temperature: row.temp ?? row.temperature,
+      systolic: row.bp_systolic ?? row.systolic,
+      diastolic: row.bp_diastolic ?? row.diastolic,
+      hrv: row.hrv_score ?? row.hrv,
+      movement_index: row.movement ?? row.movement_index,
+    }));
+  }, [patientDetails]);
+
+  // Combined history: prioritizes time-bucketed patientHistory, falls back to fallbackHistory,
+  // and incorporates live readings from streamData
+  const combinedHistory = useMemo(() => {
+    let base = [];
+    if (patientHistory && Array.isArray(patientHistory) && patientHistory.length > 0) {
+      base = [...patientHistory];
+    } else if (fallbackHistory && fallbackHistory.length > 0) {
+      base = [...fallbackHistory];
+    }
+
+    if (streamData && (streamData.heart_rate !== undefined || streamData.spo2 !== undefined || streamData.bp_systolic !== undefined)) {
+      const lastPoint = base.length > 0 ? base[base.length - 1] : null;
+      const streamTimestamp = streamData.timestamp || streamData.created_at || new Date().toISOString();
+      if (!lastPoint || (lastPoint.timestamp !== streamTimestamp && lastPoint.created_at !== streamTimestamp)) {
+        base.push({
+          ...streamData,
+          timestamp: streamTimestamp,
+          heart_rate: streamData.heart_rate ?? lastPoint?.heart_rate,
+          spo2: streamData.spo2 ?? lastPoint?.spo2,
+          bp_systolic: streamData.bp_systolic ?? lastPoint?.bp_systolic ?? lastPoint?.systolic,
+          bp_diastolic: streamData.bp_diastolic ?? lastPoint?.bp_diastolic ?? lastPoint?.diastolic,
+          systolic: streamData.bp_systolic ?? lastPoint?.bp_systolic ?? lastPoint?.systolic,
+          diastolic: streamData.bp_diastolic ?? lastPoint?.bp_diastolic ?? lastPoint?.diastolic,
+          temp: streamData.temp ?? lastPoint?.temp ?? lastPoint?.temperature,
+          temperature: streamData.temp ?? lastPoint?.temp ?? lastPoint?.temperature,
+          hrv_score: streamData.hrv_score ?? lastPoint?.hrv_score ?? lastPoint?.hrv,
+          movement: streamData.movement_index ?? streamData.movement ?? lastPoint?.movement,
+          stress_level: streamData.stress_level ?? lastPoint?.stress_level,
+        });
+      }
+    }
+
+    return base;
+  }, [patientHistory, fallbackHistory, streamData]);
+
+  const latestVitals = useMemo(() => {
+    if (combinedHistory.length > 0) {
+      return combinedHistory[combinedHistory.length - 1];
+    }
+    return null;
+  }, [combinedHistory]);
+
+  const currentVitals = latestVitals;
   const patientData = patientDetails || currentVitals; // Map for legacy compatibility
 
   const prevVitalsRaw = useRef("");
@@ -235,6 +304,19 @@ export default function Overview() {
     // Start with the polling data (currentVitals or patientData)
     let assessments = currentVitals?.clinical_risks || currentVitals?.assessments || patientData?.assessments || {};
 
+    if (!assessments.news2_score && (patientData?.news2_score !== undefined || currentVitals?.news2_score !== undefined)) {
+      assessments = { ...assessments, news2_score: patientData?.news2_score ?? currentVitals?.news2_score };
+    }
+    if (!assessments.af_warning && (patientData?.af_warning !== undefined || currentVitals?.af_warning !== undefined)) {
+      assessments = { ...assessments, af_warning: patientData?.af_warning ?? currentVitals?.af_warning };
+    }
+    if (!assessments.stroke_risk && (patientData?.stroke_risk !== undefined || currentVitals?.stroke_risk !== undefined)) {
+      assessments = { ...assessments, stroke_risk: patientData?.stroke_risk ?? currentVitals?.stroke_risk };
+    }
+    if (!assessments.seizure_risk && (patientData?.seizure_risk !== undefined || currentVitals?.seizure_risk !== undefined)) {
+      assessments = { ...assessments, seizure_risk: patientData?.seizure_risk ?? currentVitals?.seizure_risk };
+    }
+
     // If we have live stream data, override with the latest clinical risks
     if (streamData) {
       const liveRisks = {};
@@ -318,45 +400,53 @@ export default function Overview() {
     return parseFloat(temp).toFixed(1);
   };
 
-  // Get vitals from API or use defaults - memoized to update when currentVitals changes
+  // Get vitals from API or use defaults - memoized to update when combinedHistory or streamData changes
   const vitals = useMemo(() => {
-    const historyData = patientHistory || currentVitals?.vitals_history || [];
-    const latestVitals = currentVitals?.vitals_history && currentVitals.vitals_history.length > 0
-      ? currentVitals.vitals_history[currentVitals.vitals_history.length - 1]
-      : (historyData.length > 0 ? historyData[historyData.length - 1] : null);
+    const historyData = combinedHistory;
 
     let hrVal = latestVitals?.primary_vitals?.heart_rate ?? latestVitals?.heart_rate;
     let spo2Val = latestVitals?.primary_vitals?.spo2 ?? latestVitals?.spo2;
-    let sysVal = latestVitals?.primary_vitals?.blood_pressure ? latestVitals.primary_vitals.blood_pressure.split('/')[0] : (latestVitals?.systolic || latestVitals?.bp_systolic);
-    let diaVal = latestVitals?.primary_vitals?.blood_pressure ? latestVitals.primary_vitals.blood_pressure.split('/')[1] : (latestVitals?.diastolic || latestVitals?.bp_diastolic);
-    let tempVal = latestVitals?.primary_vitals?.temp ?? (latestVitals?.temperature || latestVitals?.temp);
-    let hrvVal = latestVitals?.advanced_metrics?.hrv_score ?? (latestVitals?.hrv || latestVitals?.hrv_score || currentVitals?.derived_metrics?.hrv);
-    let movementVal = latestVitals?.advanced_metrics?.movement_index ?? latestVitals?.movement;
+    let sysVal = latestVitals?.primary_vitals?.blood_pressure
+      ? latestVitals.primary_vitals.blood_pressure.split('/')[0]
+      : (latestVitals?.systolic ?? latestVitals?.bp_systolic);
+    let diaVal = latestVitals?.primary_vitals?.blood_pressure
+      ? latestVitals.primary_vitals.blood_pressure.split('/')[1]
+      : (latestVitals?.diastolic ?? latestVitals?.bp_diastolic);
+    let tempVal = latestVitals?.primary_vitals?.temp ?? (latestVitals?.temperature ?? latestVitals?.temp);
+    let hrvVal = latestVitals?.advanced_metrics?.hrv_score ?? (latestVitals?.hrv_score ?? latestVitals?.hrv ?? currentVitals?.derived_metrics?.hrv);
+    let movementVal = latestVitals?.advanced_metrics?.movement_index ?? (latestVitals?.movement ?? latestVitals?.movement_index);
     let sleepVal = latestVitals?.sleep_pattern;
     let stressVal = latestVitals?.advanced_metrics?.stress_level ?? latestVitals?.stress_level;
 
     if (streamData) {
-      if (streamData.heart_rate !== undefined) hrVal = streamData.heart_rate;
-      if (streamData.spo2 !== undefined) spo2Val = streamData.spo2;
-      if (streamData.bp_systolic !== undefined && streamData.bp_diastolic !== undefined) {
-        sysVal = streamData.bp_systolic;
-        diaVal = streamData.bp_diastolic;
-      }
-      if (streamData.temp !== undefined) tempVal = streamData.temp;
-      if (streamData.hrv_score !== undefined) hrvVal = streamData.hrv_score;
-      if (streamData.movement_index !== undefined) movementVal = streamData.movement_index;
-      if (streamData.stress_level !== undefined) stressVal = streamData.stress_level;
+      if (streamData.heart_rate !== undefined && streamData.heart_rate !== null) hrVal = streamData.heart_rate;
+      if (streamData.spo2 !== undefined && streamData.spo2 !== null) spo2Val = streamData.spo2;
+      if (streamData.bp_systolic !== undefined && streamData.bp_systolic !== null) sysVal = streamData.bp_systolic;
+      if (streamData.bp_diastolic !== undefined && streamData.bp_diastolic !== null) diaVal = streamData.bp_diastolic;
+      if (streamData.temp !== undefined && streamData.temp !== null) tempVal = streamData.temp;
+      if (streamData.hrv_score !== undefined && streamData.hrv_score !== null) hrvVal = streamData.hrv_score;
+      if (streamData.movement_index !== undefined && streamData.movement_index !== null) movementVal = streamData.movement_index;
+      if (streamData.stress_level !== undefined && streamData.stress_level !== null) stressVal = streamData.stress_level;
+      if (streamData.sleep_pattern !== undefined && streamData.sleep_pattern !== null) sleepVal = streamData.sleep_pattern;
     }
 
     // Round values to remove decimals as requested
-    if (hrVal !== undefined && hrVal !== null) hrVal = Math.round(hrVal);
-    if (spo2Val !== undefined && spo2Val !== null) spo2Val = Math.round(spo2Val);
-    if (hrvVal !== undefined && hrvVal !== null) hrvVal = Math.round(hrvVal);
-    if (movementVal !== undefined && movementVal !== null) movementVal = Math.round(movementVal);
+    if (hrVal !== undefined && hrVal !== null) hrVal = Math.round(Number(hrVal));
+    if (spo2Val !== undefined && spo2Val !== null) spo2Val = Math.round(Number(spo2Val));
+    if (hrvVal !== undefined && hrvVal !== null) hrvVal = Math.round(Number(hrvVal));
+    if (movementVal !== undefined && movementVal !== null) movementVal = Math.round(Number(movementVal));
+    if (sysVal !== undefined && sysVal !== null) sysVal = Math.round(Number(sysVal));
+    if (diaVal !== undefined && diaVal !== null) diaVal = Math.round(Number(diaVal));
 
     const isAfHigh = apiAssessments?.af_warning && apiAssessments.af_warning !== "Normal" && apiAssessments.af_warning !== 0 && apiAssessments.af_warning !== false;
 
     const noGraphPlaceholder = <div className="flex items-center justify-center h-full  text-white/20 font-lufga italic">no graph</div>;
+
+    const bpDisplay = (sysVal != null && diaVal != null)
+      ? `${sysVal}/${diaVal}`
+      : (sysVal != null ? `${sysVal}/--` : '--/--');
+
+    const isUnknownSleep = !sleepVal || sleepVal.toLowerCase() === "unknown" || sleepVal === "--";
 
     return [
       {
@@ -365,7 +455,7 @@ export default function Overview() {
         title: "Heart Rate",
         value: hrVal ?? '--',
         extension: "bpm",
-        img: (hrVal === 0 || !hrVal) ? noGraphPlaceholder : <HeartRateLive className="p-4 md:p-6" width={360} historyData={historyData} />,
+        img: (hrVal === 0 || !hrVal || !historyData || historyData.length === 0) ? noGraphPlaceholder : <HeartRateLive className="p-4 md:p-6" width={360} historyData={historyData} />,
         path: `/dashboard/heart-rate/${userId || ""}`,
       },
       {
@@ -381,9 +471,9 @@ export default function Overview() {
         icon: <Bp />,
         iconBg: "bg-pink",
         title: "BP Trend",
-        value: (sysVal || diaVal) ? `${sysVal ?? '--'}/${diaVal ?? '--'}` : '--/--',
+        value: bpDisplay,
         extension: "mmHg",
-        img: (sysVal === 0 || sysVal === '0' || !sysVal) ? noGraphPlaceholder : <BPTrend historyData={historyData} />,
+        img: (sysVal === 0 || sysVal === '0' || !sysVal || !historyData || historyData.length === 0) ? noGraphPlaceholder : <BPTrend historyData={historyData} />,
         path: `/dashboard/bp-trend/${userId || ""}`,
       },
       /*
@@ -393,7 +483,7 @@ export default function Overview() {
         title: "Skin Temperature",
         value: tempVal ? formatTemperature(tempVal) : '--',
         extension: "°C",
-        img: (tempVal === 0 || tempVal === '0' || !tempVal) ? noGraphPlaceholder : <TempWave historyData={historyData} />,
+        img: (tempVal === 0 || tempVal === '0' || !tempVal || !historyData || historyData.length === 0) ? noGraphPlaceholder : <TempWave historyData={historyData} />,
         path: `/dashboard/temperature/${userId || ""}`,
       },
       */
@@ -446,7 +536,7 @@ export default function Overview() {
         title: "HRV Score",
         value: hrvVal ?? '--',
         extension: "ms",
-        img: (hrvVal === 0 || !hrvVal) ? noGraphPlaceholder : <HrvScore historyData={historyData} />,
+        img: (hrvVal === 0 || !hrvVal || !historyData || historyData.length === 0) ? noGraphPlaceholder : <HrvScore historyData={historyData} />,
         path: `/dashboard/hrv-score/${userId || ""}`,
       },
       {
@@ -455,29 +545,29 @@ export default function Overview() {
         title: "Steps",
         value: movementVal ?? '--',
         extension: "",
-        img: (movementVal === 0 || !movementVal) ? noGraphPlaceholder : <Movement historyData={historyData} />,
+        img: (!historyData || historyData.length === 0) ? noGraphPlaceholder : <Movement historyData={historyData} />,
         path: `/dashboard/movement/${userId || ""}`,
       },
       {
         icon: <Moon />,
         iconBg: "bg-burnt",
         title: "Sleep Pattern",
-        value: latestVitals?.sleep_pattern ?? '--',
+        value: sleepVal ?? '--',
         extension: "",
-        img: (latestVitals?.sleep_pattern === "Unknown" || !latestVitals?.sleep_pattern || latestVitals?.sleep_pattern === '--') ? noGraphPlaceholder : <SleepPattern />,
+        img: isUnknownSleep ? noGraphPlaceholder : <SleepPattern />,
         path: `/dashboard/sleep-pattern/${userId || ""}`,
       },
       {
         icon: <Brain />,
         iconBg: "bg-deepBlue",
         title: "Stress Level",
-        value: latestVitals?.stress_level ?? '--',
+        value: stressVal ?? '--',
         extension: "",
-        img: (latestVitals?.stress_level === "Normal" && (hrVal === 0 || !hrVal)) ? noGraphPlaceholder : <StressPatternChart historyData={historyData} />,
+        img: (!historyData || historyData.length === 0) ? noGraphPlaceholder : <StressPatternChart historyData={historyData} />,
         path: `/dashboard/stress/${userId || ""}`,
       },
     ];
-  }, [currentVitals, patientData, userId, patientHistory, apiAssessments, streamData]);
+  }, [combinedHistory, latestVitals, userId, apiAssessments, streamData, currentVitals]);
 
   const btn = [
     "Add Note",
@@ -499,8 +589,9 @@ export default function Overview() {
     }
   }, [news_scrore, ap_warning, stroke_risk, seizure_risk, flag_doctor_review]);
 
+  const isPageLoading = (loading && !patientDetails) || (patientDetailsLoading && !patientDetails);
 
-  if (loading) {
+  if (isPageLoading) {
     return (
       <MainBody>
         <div className="flex items-center justify-center min-h-96">
@@ -979,11 +1070,11 @@ export default function Overview() {
           onClick={() => set_flag_doctor_review(false)}
           userId={userId}
           patientDetails={{
-            name: statePatient.patientName || patientData?.name || currentVitals?.patientName || "--",
-            id: statePatient.patientId || patientData?.patientId || currentVitals?.patientId || userId || "--",
-            ward: patientData?.ward || currentVitals?.ward || "--",
-            bed: statePatient.room || patientData?.bed || currentVitals?.bed || "--",
-            news2Score: currentVitals?.assessments?.news2?.score || patientData?.assessments?.news2?.score || 1,
+            name: patientDetails?.full_name || statePatient.patientName || patientData?.name || currentVitals?.patientName || "--",
+            id: patientDetails?.user_id || statePatient.patientId || patientData?.patientId || currentVitals?.patientId || userId || "--",
+            ward: patientDetails?.ward_name || patientData?.ward || currentVitals?.ward || "--",
+            bed: patientDetails?.room_no || statePatient.room || patientData?.bed || currentVitals?.bed || "--",
+            news2Score: patientData?.news2_score ?? currentVitals?.news2_score ?? patientData?.assessments?.news2?.score ?? 1,
             lastSync: "2m ago" // You can calculate this from currentVitals?.timestamp if needed
           }}
         />
@@ -997,10 +1088,10 @@ export default function Overview() {
         onSave={handleSaveNotes}
         title="Add Clinical Note"
         patientDetails={{
-          name: statePatient.patientName || patientData?.name || currentVitals?.patientName || "--",
-          id: statePatient.patientId || patientData?.patientId || currentVitals?.patientId || userId || "--",
-          bed: statePatient.room || patientData?.bed || currentVitals?.bed || "--",
-          ward: patientData?.ward || currentVitals?.ward || "--"
+          name: patientDetails?.full_name || statePatient.patientName || patientData?.name || currentVitals?.patientName || "--",
+          id: patientDetails?.user_id || statePatient.patientId || patientData?.patientId || currentVitals?.patientId || userId || "--",
+          bed: patientDetails?.room_no || statePatient.room || patientData?.bed || currentVitals?.bed || "--",
+          ward: patientDetails?.ward_name || patientData?.ward || currentVitals?.ward || "--"
         }}
       />
 
@@ -1010,10 +1101,10 @@ export default function Overview() {
         onSave={handleSaveBaselineDeviation}
         title="Baseline Deviation"
         patientDetails={{
-          name: statePatient.patientName || patientData?.name || currentVitals?.patientName || "--",
-          id: statePatient.patientId || patientData?.patientId || currentVitals?.patientId || userId || "--",
-          bed: statePatient.room || patientData?.bed || currentVitals?.bed || "--",
-          ward: patientData?.ward || currentVitals?.ward || "--"
+          name: patientDetails?.full_name || statePatient.patientName || patientData?.name || currentVitals?.patientName || "--",
+          id: patientDetails?.user_id || statePatient.patientId || patientData?.patientId || currentVitals?.patientId || userId || "--",
+          bed: patientDetails?.room_no || statePatient.room || patientData?.bed || currentVitals?.bed || "--",
+          ward: patientDetails?.ward_name || patientData?.ward || currentVitals?.ward || "--"
         }}
       />
 
