@@ -21,6 +21,7 @@ class VitalIngestSchema(BaseModel):
     
     # Status
     battery_percent: int
+    phone_battery: Optional[int] = None
     is_connected: bool
     is_removed: bool
     

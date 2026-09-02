@@ -35,6 +35,7 @@ class Vitals(Base):
     
     # --- Device & Connection Status ---
     battery_percent = Column(Integer)          # 80%
+    phone_battery = Column(Integer, nullable=True)
     is_connected = Column(Boolean, default=True)
     is_removed = Column(Boolean, default=False)
     

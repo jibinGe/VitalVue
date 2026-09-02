@@ -59,10 +59,10 @@ def check_baseline_deviations(
     disconnected_since=None
 ):
     """
-    Logic: Includes Ward Name, Room Number, and Phone Number.
-    - Suppresses clinical alerts if device is disconnected or removed.
-    - Sends Connectivity alert ONLY if disconnected for > 10 minutes.
-    - Clinical alerts are MUTED for 15 mins during stabilization/new registration.
+    Evaluates baseline deviations.
+    - Suppresses clinical alerts if vitals are <= 0 (invalid/sensor drop/zeroed).
+    - Mutes clinical alerts for 15 mins post-registration and post-reconnection.
+    - Sends Hardware Connectivity alert only if disconnected for >= 10 mins.
     """
     now = datetime.utcnow()
     
@@ -74,41 +74,48 @@ def check_baseline_deviations(
         "severity": "critical"
     }
 
-    # 1. Hardware Status Checks
     is_connected = getattr(vitals, 'is_connected', True)
     is_removed = getattr(vitals, 'is_removed', False)
 
+    # 1. Hardware Status Checks
     if not is_connected:
-        # Check if disconnected for > 10 minutes
         if disconnected_since and (now - disconnected_since) >= timedelta(minutes=10):
             return [{**meta, "vital_type": "Connectivity", "triggered_value": "Disconnected"}]
-        # Disconnected for < 10 mins: Suppress both hardware and clinical alerts
         return []
 
     if is_removed:
         return [{**meta, "vital_type": "Band Status", "triggered_value": "Removed"}]
 
-    # 2. Mute Logic (New registration & Post-reconnection stabilization)
+    # 2. 15-Minute Mute Logic (New registration & Stabilization)
     if (now - user_created_at) < timedelta(minutes=15) or \
        (last_failure_at and (now - last_failure_at) < timedelta(minutes=15)):
         return []
 
-    # 3. Clinical Checks (Active only when connected & worn)
+    # 3. Clinical Checks (Trigger only if vital values are strictly > 0)
     alerts = []
-    if vitals.spo2 < 90:
-        alerts.append({**meta, "vital_type": "SpO2", "triggered_value": f"{vitals.spo2}%"})
-    if vitals.heart_rate > 140 or vitals.heart_rate < 40:
-        alerts.append({**meta, "vital_type": "Heart Rate", "triggered_value": f"{vitals.heart_rate} bpm"})
-    if (vitals.bp_systolic > 200 or vitals.bp_systolic < 80) or \
-       (vitals.bp_diastolic > 120 or vitals.bp_diastolic < 50):
-        alerts.append({
-            **meta, 
-            "vital_type": "Blood Pressure", 
-            "triggered_value": f"{vitals.bp_systolic}/{vitals.bp_diastolic}"
-        })
+    
+    # SpO2 Check (> 0 and < 90)
+    spo2 = getattr(vitals, 'spo2', 0)
+    if spo2 > 0 and spo2 < 90:
+        alerts.append({**meta, "vital_type": "SpO2", "triggered_value": f"{spo2}%"})
+
+    # Heart Rate Check (> 0 and ( > 140 or < 40 ))
+    hr = getattr(vitals, 'heart_rate', 0)
+    if hr > 0 and (hr > 140 or hr < 40):
+        alerts.append({**meta, "vital_type": "Heart Rate", "triggered_value": f"{hr} bpm"})
+
+    # Blood Pressure Check (Both systolic and diastolic must be > 0)
+    sys = getattr(vitals, 'bp_systolic', 0)
+    dia = getattr(vitals, 'bp_diastolic', 0)
+    if sys > 0 and dia > 0:
+        if (sys > 200 or sys < 80) or (dia > 120 or dia < 50):
+            alerts.append({
+                **meta, 
+                "vital_type": "Blood Pressure", 
+                "triggered_value": f"{sys}/{dia}"
+            })
 
     return alerts
-
 
 def get_vital_statuses(vitals):
     """

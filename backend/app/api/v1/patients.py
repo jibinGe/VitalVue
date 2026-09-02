@@ -743,7 +743,6 @@ async def get_shared_dynamic_metric_history(
         ]
     }
 
-
 @router.get("/history/{patient_id}/{metric_name}")
 async def get_dynamic_metric_history(
     patient_id: int,
