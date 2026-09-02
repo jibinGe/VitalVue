@@ -1255,13 +1255,24 @@ async def discharge_and_archive_patient(
     
     # 3. Asymmetric Asset Liberation Actions (Safely setting fields to None)
     # org-hierarchy v2 (RUN-024): free the occupied bed before severing the link
+    # Free Bed occupancy
     if patient.bed_id:
         freed_bed = await db.get(Bed, patient.bed_id)
         if freed_bed:
             freed_bed.is_occupied = False
-    patient.bed_id = None             # v2 leaf link
-    patient.room_id = None            # Free up room/bed mapping for incoming active admissions
-    patient.device_id = None          # Unbind physical telemetry hardware band for redevelopment
+            db.add(freed_bed)
+
+    # Free Room occupancy
+    if patient.room_id:
+        freed_room = await db.get(Room, patient.room_id)
+        if freed_room:
+            freed_room.is_occupied = False
+            db.add(freed_room)
+
+    # Sever relationships from the patient record
+    patient.bed_id = None                # v2 leaf link
+    patient.room_id = None               # Unlinks room from patient
+    patient.device_id = None             # Unbind physical telemetry hardware band
     patient.is_monitoring_paused = False # Reset pause parameter
     
     # 4. Flush Redis Realtime Hot State Elements
