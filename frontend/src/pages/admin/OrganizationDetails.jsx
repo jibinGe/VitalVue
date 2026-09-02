@@ -109,9 +109,11 @@ export default function OrganizationDetails() {
     const orgBeds = allBeds.filter((b) => wardIdSet.has(b.ward_id));
     setBeds(orgBeds);
 
-    // Filter rooms in this org's wards
+    // Filter rooms in this org's departments (dept-level) or wards (ward-level)
     const allRooms = Array.isArray(roomRes.data) ? roomRes.data : roomRes.data?.items ?? [];
-    const orgRooms = allRooms.filter((r) => wardIdSet.has(r.ward_id));
+    const orgRooms = allRooms.filter(
+      (r) => (r.department_id && deptIdSet.has(r.department_id)) || (r.ward_id && wardIdSet.has(r.ward_id))
+    );
     setRooms(orgRooms);
 
     // Staff
@@ -196,7 +198,12 @@ export default function OrganizationDetails() {
     } else if (entity === 'bed') {
       setFormData({ bed_no: item.bed_no || '', ward_id: item.ward_id });
     } else if (entity === 'room') {
-      setFormData({ room_number: item.room_number || '', ward_id: item.ward_id, is_occupied: item.is_occupied });
+      setFormData({
+        room_number: item.room_number || '',
+        ward_id: item.ward_id || null,
+        department_id: item.department_id || null,
+        is_occupied: item.is_occupied ?? false,
+      });
     }
     setFormOpen(true);
   };
@@ -753,6 +760,10 @@ export default function OrganizationDetails() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {rooms.map((room) => {
                 const ward = wards.find((w) => w.id === room.ward_id);
+                const dept = departments.find((d) => d.id === (room.department_id || ward?.department_id));
+                const subtitle = dept
+                  ? (ward ? `${dept.name} • ${ward.name}` : dept.name)
+                  : (ward ? ward.name : 'Facility Room');
                 return (
                   <div
                     key={room.id}
@@ -764,7 +775,7 @@ export default function OrganizationDetails() {
                       </div>
                       <div>
                         <h4 className="text-sm font-semibold text-white">Room {room.room_number}</h4>
-                        <p className="text-xs text-white/40">{ward ? ward.name : `Ward #${room.ward_id}`}</p>
+                        <p className="text-xs text-white/40">{subtitle}</p>
                       </div>
                     </div>
 
@@ -1002,12 +1013,28 @@ export default function OrganizationDetails() {
         )}
 
         {formEntity === 'room' && (
-          <FormField label="Room Number" required>
-            <AdminInput
-              value={formData.room_number || ''}
-              onChange={(e) => setFormData((f) => ({ ...f, room_number: e.target.value }))}
-            />
-          </FormField>
+          <div className="space-y-3">
+            <FormField label="Room Number" required>
+              <AdminInput
+                value={formData.room_number || ''}
+                onChange={(e) => setFormData((f) => ({ ...f, room_number: e.target.value }))}
+              />
+            </FormField>
+            <FormField label="Department">
+              <select
+                value={formData.department_id || ''}
+                onChange={(e) => setFormData((f) => ({ ...f, department_id: e.target.value ? Number(e.target.value) : null }))}
+                className="w-full px-3 py-2 bg-[#252528] border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-[#CCA166]/50"
+              >
+                <option value="">None / Direct</option>
+                {departments.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
+            </FormField>
+          </div>
         )}
       </EntityForm>
 

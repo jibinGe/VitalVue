@@ -9,7 +9,7 @@ import Checkbox from '@/components/ui/checkbox'
 import Dropdown from '@/components/ui/dropdown'
 import DatePicker from '@/components/ui/date-picker';
 import { patientService } from '@/services/patientService';
-import ConfirmationModal from '@/components/ui/ConfirmationModal';
+import UnarchivePatientModal from '@/components/dashboard/UnarchivePatientModal';
 
 export default function PatientArchives() {
     const [quick_filter, set_quick_filter] = useState(true)
@@ -45,9 +45,9 @@ export default function PatientArchives() {
     const [archivedPatients, setArchivedPatients] = useState([]);
     const [loadingArchives, setLoadingArchives] = useState(false);
     const [unarchiveModalOpen, setUnarchiveModalOpen] = useState(false);
+    const [selectedPatient, setSelectedPatient] = useState(null);
     const [selectedPatientId, setSelectedPatientId] = useState(null);
     const [selectedPatientName, setSelectedPatientName] = useState(null);
-    const [isUnarchiving, setIsUnarchiving] = useState(false);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
     useEffect(() => {
@@ -207,6 +207,7 @@ export default function PatientArchives() {
                                                             <Eye className='size-4 lg:size-6' />
                                                         </button>
                                                         <button className='text-para hover:text-[#4DE573]' title="Unarchive Patient" onClick={() => {
+                                                            setSelectedPatient(patient);
                                                             setSelectedPatientId(patient.id || patient.userId);
                                                             setSelectedPatientName(patient.name);
                                                             setUnarchiveModalOpen(true);
@@ -252,35 +253,17 @@ export default function PatientArchives() {
                     </div>
                 </div>
             </MainBody>
-            <ConfirmationModal
+            <UnarchivePatientModal
                 isOpen={unarchiveModalOpen}
                 onClose={() => {
-                    if (!isUnarchiving) {
-                        setUnarchiveModalOpen(false);
-                        setSelectedPatientId(null);
-                        setSelectedPatientName(null);
-                    }
+                    setUnarchiveModalOpen(false);
+                    setSelectedPatient(null);
+                    setSelectedPatientId(null);
+                    setSelectedPatientName(null);
                 }}
-                title="Unarchive Patient"
-                message={`Are you sure you want to unarchive ${selectedPatientName}? This will resume monitoring for the patient.`}
-                confirmText={isUnarchiving ? "Unarchiving..." : "Confirm"}
-                cancelText="Cancel"
-                onConfirm={async () => {
-                    if (!selectedPatientId || isUnarchiving) return;
-                    setIsUnarchiving(true);
-                    try {
-                        const response = await patientService.unarchivePatient(selectedPatientId);
-                        if (response.success) {
-                            setUnarchiveModalOpen(false);
-                            setRefreshTrigger(prev => prev + 1);
-                        } else {
-                            console.error(response.message);
-                        }
-                    } catch (error) {
-                        console.error(error);
-                    } finally {
-                        setIsUnarchiving(false);
-                    }
+                patient={selectedPatient || (selectedPatientId ? { id: selectedPatientId, name: selectedPatientName } : null)}
+                onSuccess={() => {
+                    setRefreshTrigger(prev => prev + 1);
                 }}
             />
             <Footer />
