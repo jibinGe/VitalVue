@@ -1,7 +1,7 @@
 from sqlalchemy import ForeignKey, String, Integer, Boolean, Float
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
-
+from typing import Optional
 class Organization(Base):
     __tablename__ = "organizations"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
