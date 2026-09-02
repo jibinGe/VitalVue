@@ -4,9 +4,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Building2, GitBranch, BedDouble,
   Users, Settings, LogOut, ChevronLeft, ChevronRight,
-  Activity, Shield, Menu, X, Radio,
+  Activity, Shield, Menu, X, Radio, Plus, CheckCircle2, AlertCircle,
 } from 'lucide-react';
 import { useAdminAuth } from '../../contexts/AdminAuthContext';
+import { AdminProvider, useAdmin } from '../../contexts/AdminContext';
+import QuickAddModal from '../../components/admin/QuickAddModal';
 
 const NAV_GROUPS = [
   {
@@ -16,16 +18,16 @@ const NAV_GROUPS = [
     ],
   },
   {
-    label: 'Organization',
+    label: 'Facilities',
     items: [
-      { to: '/admin/organizations', icon: Building2, label: 'Organizations' },
+      { to: '/admin/organizations', icon: Building2, label: 'Hospitals & Command Center' },
+      { to: '/admin/wards', icon: BedDouble, label: 'Wards & Bed Directory' },
       { to: '/admin/departments', icon: GitBranch, label: 'Departments' },
       { to: '/admin/nursing-stations', icon: Radio, label: 'Nursing Stations' },
-      { to: '/admin/wards', icon: BedDouble, label: 'Wards & Beds' },
     ],
   },
   {
-    label: 'Staff',
+    label: 'Care Team',
     items: [
       { to: '/admin/staff', icon: Users, label: 'Doctors & Nurses' },
     ],
@@ -33,7 +35,7 @@ const NAV_GROUPS = [
   {
     label: 'System',
     items: [
-      { to: '/admin/settings', icon: Settings, label: 'Settings' },
+      { to: '/admin/settings', icon: Settings, label: 'Settings & Audit' },
     ],
   },
 ];
@@ -41,8 +43,16 @@ const NAV_GROUPS = [
 const SIDEBAR_WIDTH = 260;
 const SIDEBAR_COLLAPSED = 72;
 
-export default function AdminLayout() {
+function AdminLayoutInner() {
   const { admin, logout } = useAdminAuth();
+  const {
+    organizations,
+    selectedOrgId,
+    setSelectedOrgId,
+    openQuickAdd,
+    toast,
+  } = useAdmin();
+
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -69,6 +79,29 @@ export default function AdminLayout() {
         )}
       </AnimatePresence>
 
+      {/* ── Global Toast ────────────────────────────────────── */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.95 }}
+            className={`fixed top-4 right-4 z-50 flex items-center gap-2.5 px-4 py-3 rounded-xl border shadow-2xl text-xs font-medium backdrop-blur-xl ${
+              toast.type === 'success'
+                ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
+                : 'bg-red-500/15 border-red-500/30 text-red-400'
+            }`}
+          >
+            {toast.type === 'success' ? (
+              <CheckCircle2 className="size-4 shrink-0 text-emerald-400" />
+            ) : (
+              <AlertCircle className="size-4 shrink-0 text-red-400" />
+            )}
+            <span>{toast.message}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ── Sidebar ────────────────────────────────────────── */}
       <motion.aside
         animate={{ width: w }}
@@ -76,7 +109,6 @@ export default function AdminLayout() {
         className="fixed top-0 left-0 h-full z-40 flex flex-col bg-[#1E1E21] border-r border-white/5 overflow-hidden"
         style={{
           width: w,
-          // On mobile, slide in/out
           transform: mobileOpen ? 'translateX(0)' : undefined,
         }}
       >
@@ -95,7 +127,7 @@ export default function AdminLayout() {
                 className="overflow-hidden"
               >
                 <p className="text-white font-bold text-base leading-none">VitalVue</p>
-                <p className="text-[#CCA166] text-xs font-medium mt-0.5">Master Admin</p>
+                <p className="text-[#CCA166] text-xs font-medium mt-0.5">Admin Command</p>
               </motion.div>
             )}
           </AnimatePresence>
@@ -136,7 +168,7 @@ export default function AdminLayout() {
                     className={({ isActive }) =>
                       `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group relative
                       ${isActive
-                        ? 'bg-[#CCA166]/12 text-[#CCA166] border border-[#CCA166]/15'
+                        ? 'bg-[#CCA166]/12 text-[#CCA166] border border-[#CCA166]/15 font-semibold'
                         : 'text-white/40 hover:text-white/80 hover:bg-white/5'
                       }`
                     }
@@ -175,7 +207,6 @@ export default function AdminLayout() {
 
         {/* Admin info + logout */}
         <div className="px-3 py-4 border-t border-white/5 shrink-0 space-y-2">
-          {/* User info */}
           <AnimatePresence>
             {!collapsed && admin && (
               <motion.div
@@ -223,8 +254,8 @@ export default function AdminLayout() {
         transition={{ type: 'spring', damping: 24, stiffness: 200 }}
         className="flex-1 flex flex-col min-h-screen"
       >
-        {/* Top bar */}
-        <div className="sticky top-0 z-20 flex items-center justify-between px-6 py-4 bg-[#1A1A1C]/90 backdrop-blur-xl border-b border-white/5 h-[72px]">
+        {/* Top bar with Hospital Context Switcher & Universal Quick Add */}
+        <div className="sticky top-0 z-20 flex items-center justify-between px-6 py-4 bg-[#1A1A1C]/90 backdrop-blur-xl border-b border-white/5 h-[72px] gap-4">
           {/* Mobile hamburger */}
           <button
             onClick={() => setMobileOpen((o) => !o)}
@@ -233,10 +264,49 @@ export default function AdminLayout() {
             {mobileOpen ? <X className="size-5" /> : <Menu className="size-5" />}
           </button>
 
-          <div className="flex items-center gap-2 ml-auto">
-            <Activity className="size-4 text-[#CCA166]/60" />
-            <span className="text-xs text-white/30">Admin Portal</span>
-            <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          {/* Hospital Switcher */}
+          <div className="flex items-center gap-2 max-w-xs md:max-w-md">
+            <Building2 className="size-4 text-[#CCA166] shrink-0" />
+            <div className="flex flex-col">
+              <span className="text-[10px] uppercase font-bold text-white/30 tracking-wider">
+                Active Hospital Scope
+              </span>
+              <select
+                value={selectedOrgId || 'all'}
+                onChange={(e) => setSelectedOrgId(e.target.value)}
+                className="bg-transparent border-0 text-xs md:text-sm font-semibold text-white focus:ring-0 cursor-pointer p-0 pr-6 hover:text-[#CCA166] transition-colors"
+              >
+                <option value="all" className="bg-[#222225] text-white">
+                  🏥 All Hospitals (Network View)
+                </option>
+                {organizations.map((org) => (
+                  <option key={org.id} value={org.id} className="bg-[#222225] text-white">
+                    {org.name} — {org.city || org.country}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Universal Quick Add + Status */}
+          <div className="flex items-center gap-3 ml-auto">
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => openQuickAdd('department')}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-[#1A1A1C] bg-gradient-to-r from-[#B2884D] to-[#CCA166] hover:opacity-90 shadow-md shadow-[#CCA166]/15 transition-all"
+            >
+              <Plus className="size-3.5 stroke-[2.5]" />
+              <span className="hidden sm:inline">Quick Add</span>
+            </motion.button>
+
+            <div className="h-6 w-px bg-white/10 hidden sm:block" />
+
+            <div className="hidden sm:flex items-center gap-2">
+              <Activity className="size-3.5 text-[#CCA166]/60" />
+              <span className="text-xs text-white/30">Master Admin</span>
+              <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            </div>
           </div>
         </div>
 
@@ -245,6 +315,17 @@ export default function AdminLayout() {
           <Outlet />
         </div>
       </motion.main>
+
+      {/* ── Global Quick Add Modal ─────────────────────────── */}
+      <QuickAddModal />
     </div>
+  );
+}
+
+export default function AdminLayout() {
+  return (
+    <AdminProvider>
+      <AdminLayoutInner />
+    </AdminProvider>
   );
 }

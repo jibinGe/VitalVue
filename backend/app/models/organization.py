@@ -75,13 +75,18 @@ class Bed(Base):
     ward: Mapped["Ward"] = relationship(back_populates="beds")
 
 class Room(Base):
-    """Physical room inside a Ward (e.g. procedure room, consultation room, OT).
-    Hierarchy: Department → Ward → Room  (parallel to Department → Ward → Bed)."""
+    """Physical room inside a Ward OR directly under a Department.
+    Hierarchy A (dept-level): Department → Room  (consultation/procedure rooms, OTs).
+    Hierarchy B (ward-level): Department → Ward → Room  (legacy, kept for backward-compat)."""
     __tablename__ = "rooms"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     room_number: Mapped[str] = mapped_column(String(50), nullable=False)
     is_occupied: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, server_default="true")
-    ward_id: Mapped[int] = mapped_column(ForeignKey("wards.id"), index=True)
+    # dept-level room: department_id is set, ward_id is NULL
+    department_id: Mapped[Optional[int]] = mapped_column(ForeignKey("departments.id"), nullable=True, index=True)
+    # ward-level room: ward_id is set (legacy / back-compat)
+    ward_id: Mapped[Optional[int]] = mapped_column(ForeignKey("wards.id"), nullable=True, index=True)
 
-    ward: Mapped["Ward"] = relationship(back_populates="rooms")
+    ward: Mapped[Optional["Ward"]] = relationship(back_populates="rooms")
+    department: Mapped[Optional["Department"]] = relationship("Department")

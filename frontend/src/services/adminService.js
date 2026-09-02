@@ -194,6 +194,10 @@ export const adminService = {
     return adminRequest('post', '/api/v1/admin/beds', data);
   },
 
+  async createBedsBatch(data) {
+    return adminRequest('post', '/api/v1/admin/beds/batch', data);
+  },
+
   async updateBed(id, data) {
     return adminRequest('patch', `/api/v1/admin/beds/${id}`, data);
   },

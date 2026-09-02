@@ -90,10 +90,22 @@ async def get_rooms(ward_id: int, include_inactive: bool = False, db: AsyncSessi
     result = await db.execute(q)
     return result.scalars().all()
 
-# 5b. Get all Rooms for a Department (across all wards) — for the "Department → Room" admission flow
+# 5b. Get all Rooms for a Department — covers BOTH topologies:
+#   A) dept-level rooms  (room.department_id == dept_id, room.ward_id IS NULL)
+#   B) ward-level rooms  (room.ward_id → ward.department_id == dept_id)
 @router.get("/departments/{dept_id}/rooms")
 async def rooms_by_dept(dept_id: int, include_inactive: bool = False, db: AsyncSession = Depends(get_db)):
-    q = select(Room).join(Ward, Room.ward_id == Ward.id).where(Ward.department_id == dept_id)
+    from sqlalchemy import or_
+
+    # Subquery: all ward IDs that belong to this department
+    ward_ids_q = select(Ward.id).where(Ward.department_id == dept_id)
+
+    q = select(Room).where(
+        or_(
+            Room.department_id == dept_id,                     # dept-level room
+            Room.ward_id.in_(ward_ids_q),                      # ward-level room
+        )
+    )
     if not include_inactive:
         q = q.where(Room.is_active == True)  # noqa: E712
     result = await db.execute(q)

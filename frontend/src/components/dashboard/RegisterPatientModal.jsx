@@ -89,6 +89,9 @@ export default function RegisterPatientModal({ isOpen, onClose, onSuccess }) {
     nurse_id: "",
   });
 
+  // "ward_bed" | "room"
+  const [assignmentType, setAssignmentType] = useState("ward_bed");
+
   const [errors, setErrors] = useState({});
 
   const [orgId, setOrgId] = useState(null);
@@ -119,6 +122,7 @@ export default function RegisterPatientModal({ isOpen, onClose, onSuccess }) {
         department_id: "", ward_id: "", bed_id: "", room_id: "",
         doctor_id: "", nurse_id: "",
       });
+      setAssignmentType("ward_bed");
       setDepartments([]);
       setWards([]);
       setBeds([]);
@@ -149,32 +153,37 @@ export default function RegisterPatientModal({ isOpen, onClose, onSuccess }) {
     }).catch(() => {}).finally(() => setLoadingDepts(false));
   }, [orgId]);
 
+  // When department changes: reset ward/bed/room and fetch wards (for ward flow)
+  // or fetch rooms directly (for room flow)
   useEffect(() => {
-    if (!form.department_id) { setWards([]); setBeds([]); return; }
-    setLoadingWards(true);
-    setForm((f) => ({ ...f, ward_id: "", bed_id: "" }));
-    apiClient.get(`/api/v1/discovery/departments/${form.department_id}/wards`)
-      .then((r) => setWards(r.data || []))
-      .catch(() => setWards([]))
-      .finally(() => setLoadingWards(false));
-  }, [form.department_id]);
+    if (!form.department_id) { setWards([]); setBeds([]); setRooms([]); return; }
+    setForm((f) => ({ ...f, ward_id: "", bed_id: "", room_id: "" }));
+    if (assignmentType === "ward_bed") {
+      setLoadingWards(true);
+      apiClient.get(`/api/v1/discovery/departments/${form.department_id}/wards`)
+        .then((r) => setWards(r.data || []))
+        .catch(() => setWards([]))
+        .finally(() => setLoadingWards(false));
+    } else {
+      // Room flow: fetch all rooms in this department
+      setLoadingRooms(true);
+      apiClient.get(`/api/v1/discovery/departments/${form.department_id}/rooms`)
+        .then((r) => setRooms(r.data || []))
+        .catch(() => setRooms([]))
+        .finally(() => setLoadingRooms(false));
+    }
+  }, [form.department_id, assignmentType]);
 
+  // When ward changes: fetch beds (ward_bed flow only)
   useEffect(() => {
-    if (!form.ward_id) { setBeds([]); setRooms([]); return; }
+    if (assignmentType !== "ward_bed" || !form.ward_id) { setBeds([]); return; }
     setLoadingBeds(true);
-    setLoadingRooms(true);
-    setForm((f) => ({ ...f, bed_id: "", room_id: "" }));
-    Promise.all([
-      apiClient.get(`/api/v1/discovery/wards/${form.ward_id}/beds`),
-      apiClient.get(`/api/v1/discovery/wards/${form.ward_id}/rooms`),
-    ])
-      .then(([bedsRes, roomsRes]) => {
-        setBeds(bedsRes.data || []);
-        setRooms(roomsRes.data || []);
-      })
-      .catch(() => { setBeds([]); setRooms([]); })
-      .finally(() => { setLoadingBeds(false); setLoadingRooms(false); });
-  }, [form.ward_id]);
+    setForm((f) => ({ ...f, bed_id: "" }));
+    apiClient.get(`/api/v1/discovery/wards/${form.ward_id}/beds`)
+      .then((r) => setBeds(r.data || []))
+      .catch(() => setBeds([]))
+      .finally(() => setLoadingBeds(false));
+  }, [form.ward_id, assignmentType]);
 
   const set = useCallback((field, value) => {
     setForm((f) => ({ ...f, [field]: value }));
@@ -199,8 +208,12 @@ export default function RegisterPatientModal({ isOpen, onClose, onSuccess }) {
     }
     if (step === 1) {
       if (!form.department_id) newErrors.department_id = "Select a department";
-      if (!form.ward_id) newErrors.ward_id = "Select a ward";
-      if (!form.bed_id && !form.room_id) newErrors.bed_id = "Select a bed or a room";
+      if (assignmentType === "ward_bed") {
+        if (!form.ward_id) newErrors.ward_id = "Select a ward";
+        if (!form.bed_id) newErrors.bed_id = "Select a bed";
+      } else {
+        if (!form.room_id) newErrors.room_id = "Select a room";
+      }
     }
     if (step === 3) {
       if (!form.pin) newErrors.pin = "PIN is required";
@@ -432,7 +445,9 @@ export default function RegisterPatientModal({ isOpen, onClose, onSuccess }) {
 
                   {/* Step 1 – Location */}
                   {step === 1 && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-5">
+
+                      {/* Department */}
                       <FieldGroup label="Department" required error={errors.department_id}>
                         <select
                           className={selectCls}
@@ -444,74 +459,111 @@ export default function RegisterPatientModal({ isOpen, onClose, onSuccess }) {
                           {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
                         </select>
                       </FieldGroup>
-                      <FieldGroup label="Ward" required error={errors.ward_id}>
-                        <select
-                          className={selectCls}
-                          value={form.ward_id}
-                          onChange={(e) => set("ward_id", e.target.value)}
-                          disabled={!form.department_id || loadingWards}
-                        >
-                          <option value="">{loadingWards ? "Loading..." : "Select ward"}</option>
-                          {wards.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
-                        </select>
-                      </FieldGroup>
-                      <FieldGroup label="Bed" error={errors.bed_id}>
-                        <select
-                          className={selectCls}
-                          value={form.bed_id}
-                          onChange={(e) => {
-                            set("bed_id", e.target.value);
-                            if (e.target.value) set("room_id", ""); // mutual exclusion
-                          }}
-                          disabled={!form.ward_id || loadingBeds}
-                        >
-                          <option value="">{loadingBeds ? "Loading..." : "Select bed (optional)"}</option>
-                          {beds.length === 0 && form.ward_id && !loadingBeds
-                            ? <option disabled>No available beds</option>
-                            : beds.map((b) => <option key={b.id} value={b.id}>{b.bed_no || `Bed ${b.id}`}</option>)
-                          }
-                        </select>
-                      </FieldGroup>
-                      <FieldGroup label="Room" error={!form.bed_id ? errors.bed_id : undefined}>
-                        <select
-                          className={selectCls}
-                          value={form.room_id}
-                          onChange={(e) => {
-                            set("room_id", e.target.value);
-                            if (e.target.value) set("bed_id", ""); // mutual exclusion
-                          }}
-                          disabled={!form.ward_id || loadingRooms}
-                        >
-                          <option value="">{loadingRooms ? "Loading..." : "Select room (optional)"}</option>
-                          {rooms.length === 0 && form.ward_id && !loadingRooms
-                            ? <option disabled>No available rooms</option>
-                            : rooms.map((r) => <option key={r.id} value={r.id}>{r.room_number || `Room ${r.id}`}</option>)
-                          }
-                        </select>
-                      </FieldGroup>
-                      {!form.bed_id && !form.room_id && form.ward_id && (
-                        <p className="col-span-2 text-xs text-amber-400/80">⚠ Select either a Bed or a Room to proceed.</p>
+
+                      {/* Assignment Type Radio — only show after dept is picked */}
+                      {form.department_id && (
+                        <div className="flex gap-3">
+                          {[{ value: "ward_bed", label: "🛏 Ward & Bed", desc: "Inpatient ward admission" },
+                            { value: "room",     label: "🚪 Room",       desc: "Direct room assignment" }].map(({ value, label, desc }) => (
+                            <button
+                              key={value}
+                              type="button"
+                              onClick={() => handleAssignmentTypeChange(value)}
+                              className={`flex-1 flex items-start gap-3 px-4 py-3 rounded-xl border text-left transition-all ${
+                                assignmentType === value
+                                  ? "bg-[#b2884d]/15 border-[#b2884d]/60 text-white"
+                                  : "bg-white/3 border-white/10 text-white/50 hover:border-white/25"
+                              }`}
+                            >
+                              <span className={`mt-0.5 w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all ${
+                                assignmentType === value ? "border-[#cca166]" : "border-white/30"
+                              }`}>
+                                {assignmentType === value && <span className="w-2 h-2 rounded-full bg-[#cca166]" />}
+                              </span>
+                              <div>
+                                <p className="text-sm font-medium">{label}</p>
+                                <p className="text-xs text-white/40 mt-0.5">{desc}</p>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
                       )}
-                      <FieldGroup label="Assign Doctor" error={errors.doctor_id}>
-                        <select className={selectCls} value={form.doctor_id} onChange={(e) => set("doctor_id", e.target.value)}>
-                          <option value="">Optional — select doctor</option>
-                          {doctors.map((d) => (
-                            <option key={d.id} value={d.id}>
-                              {d.full_name}{d.is_on_call ? " (On-call)" : ""}
-                            </option>
-                          ))}
-                        </select>
-                      </FieldGroup>
-                      <FieldGroup label="Assign Nurse" error={errors.nurse_id}>
-                        <select className={selectCls} value={form.nurse_id} onChange={(e) => set("nurse_id", e.target.value)}>
-                          <option value="">Optional — select nurse</option>
-                          {nurses.map((n) => (
-                            <option key={n.id} value={n.id}>{n.full_name}</option>
-                          ))}
-                        </select>
-                      </FieldGroup>
+
+                      {/* Ward + Bed flow */}
+                      {assignmentType === "ward_bed" && form.department_id && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <FieldGroup label="Ward" required error={errors.ward_id}>
+                            <select
+                              className={selectCls}
+                              value={form.ward_id}
+                              onChange={(e) => set("ward_id", e.target.value)}
+                              disabled={!form.department_id || loadingWards}
+                            >
+                              <option value="">{loadingWards ? "Loading..." : "Select ward"}</option>
+                              {wards.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+                            </select>
+                          </FieldGroup>
+                          <FieldGroup label="Bed" required error={errors.bed_id}>
+                            <select
+                              className={selectCls}
+                              value={form.bed_id}
+                              onChange={(e) => set("bed_id", e.target.value)}
+                              disabled={!form.ward_id || loadingBeds}
+                            >
+                              <option value="">{loadingBeds ? "Loading..." : "Select bed"}</option>
+                              {beds.length === 0 && form.ward_id && !loadingBeds
+                                ? <option disabled>No available beds</option>
+                                : beds.map((b) => <option key={b.id} value={b.id}>{b.bed_no || `Bed ${b.id}`}</option>)
+                              }
+                            </select>
+                          </FieldGroup>
+                        </div>
+                      )}
+
+                      {/* Room-only flow */}
+                      {assignmentType === "room" && form.department_id && (
+                        <FieldGroup label="Room" required error={errors.room_id}>
+                          <select
+                            className={selectCls}
+                            value={form.room_id}
+                            onChange={(e) => set("room_id", e.target.value)}
+                            disabled={loadingRooms}
+                          >
+                            <option value="">{loadingRooms ? "Loading..." : "Select room"}</option>
+                            {rooms.length === 0 && !loadingRooms
+                              ? <option disabled>No rooms in this department</option>
+                              : rooms.map((r) => <option key={r.id} value={r.id}>{r.room_number || `Room ${r.id}`}</option>)
+                            }
+                          </select>
+                        </FieldGroup>
+                      )}
+
+                      {/* Doctor / Nurse — always shown */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <FieldGroup label="Assign Doctor" error={errors.doctor_id}>
+                          <select className={selectCls} value={form.doctor_id} onChange={(e) => set("doctor_id", e.target.value)}>
+                            <option value="">Optional — select doctor</option>
+                            {doctors.map((d) => (
+                              <option key={d.id} value={d.id}>
+                                {d.full_name}{d.is_on_call ? " (On-call)" : ""}
+                              </option>
+                            ))}
+                          </select>
+                        </FieldGroup>
+                        <FieldGroup label="Assign Nurse" error={errors.nurse_id}>
+                          <select className={selectCls} value={form.nurse_id} onChange={(e) => set("nurse_id", e.target.value)}>
+                            <option value="">Optional — select nurse</option>
+                            {nurses.map((n) => (
+                              <option key={n.id} value={n.id}>{n.full_name}</option>
+                            ))}
+                          </select>
+                        </FieldGroup>
+                      </div>
+
                     </div>
                   )}
+
+
 
                   {/* Step 2 – Medical */}
                   {step === 2 && (

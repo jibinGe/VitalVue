@@ -1,265 +1,408 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Users, Stethoscope, UserCheck, RefreshCw } from 'lucide-react';
+import {
+  Users, Stethoscope, UserCheck, RefreshCw, Plus,
+  Filter, Phone, ShieldCheck,
+} from 'lucide-react';
 import EntityTable from '../../components/admin/EntityTable';
 import EntityForm, { FormField, AdminInput, AdminSelect } from '../../components/admin/EntityForm';
 import ConfirmModal from '../../components/admin/ConfirmModal';
 import StatusBadge from '../../components/admin/StatusBadge';
 import { adminService } from '../../services/adminService';
-
-const DOCTOR_COLUMNS = [
-  { key: 'user_id', label: 'Staff ID' },
-  { key: 'full_name', label: 'Full Name' },
-  { key: 'specialization', label: 'Specialization' },
-  { key: 'phone_number', label: 'Phone' },
-  { key: 'is_active', label: 'Status', render: (v) => <StatusBadge status={v} /> },
-];
-
-const NURSE_COLUMNS = [
-  { key: 'user_id', label: 'Staff ID' },
-  { key: 'full_name', label: 'Full Name' },
-  { key: 'license_no', label: 'License No.' },
-  { key: 'phone_number', label: 'Phone' },
-  { key: 'is_active', label: 'Status', render: (v) => <StatusBadge status={v} /> },
-];
-
-const EMPTY_DOCTOR = { user_id: '', full_name: '', phone_number: '', specialization: '', organization_id: '', department_id: '', password: '' };
-const EMPTY_NURSE  = { user_id: '', full_name: '', phone_number: '', license_no: '', organization_id: '', password: '' };
+import { useAdmin } from '../../contexts/AdminContext';
 
 export default function StaffPage() {
-  const [activeTab, setActiveTab] = useState('doctors');
+  const { selectedOrgId, organizations, openQuickAdd, triggerRefresh, refreshKey } = useAdmin();
+
+  const [activeTab, setActiveTab] = useState('doctors'); // 'doctors' | 'nurses'
   const [doctors, setDoctors] = useState([]);
   const [nurses, setNurses] = useState([]);
-  const [orgs, setOrgs] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Filter state
+  const [filterOrgId, setFilterOrgId] = useState(selectedOrgId ? String(selectedOrgId) : 'all');
+  const [filterDeptId, setFilterDeptId] = useState('all');
+
+  // Edit Modal State
   const [formOpen, setFormOpen] = useState(false);
   const [editTarget, setEditTarget] = useState(null);
   const [formData, setFormData] = useState({});
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState('');
 
+  // Status Toggle State
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmTarget, setConfirmTarget] = useState(null);
   const [confirmLoading, setConfirmLoading] = useState(false);
 
+  // Sync with global org selection
+  useEffect(() => {
+    if (selectedOrgId) setFilterOrgId(String(selectedOrgId));
+  }, [selectedOrgId]);
+
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [drRes, nrRes, orgRes, deptRes] = await Promise.all([
+    const [drRes, nrRes, deptRes] = await Promise.all([
       adminService.listDoctors(),
       adminService.listNurses(),
-      adminService.listOrganizations(),
       adminService.listDepartments(),
     ]);
+
     if (drRes.success) setDoctors(Array.isArray(drRes.data) ? drRes.data : drRes.data?.items ?? []);
     if (nrRes.success) setNurses(Array.isArray(nrRes.data) ? nrRes.data : nrRes.data?.items ?? []);
-    if (orgRes.success) setOrgs(Array.isArray(orgRes.data) ? orgRes.data : orgRes.data?.items ?? []);
     if (deptRes.success) setDepartments(Array.isArray(deptRes.data) ? deptRes.data : deptRes.data?.items ?? []);
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    fetchData();
+  }, [fetchData, refreshKey]);
 
+  // Lookup maps
+  const orgMap = useMemo(() => Object.fromEntries(organizations.map((o) => [o.id, o.name])), [organizations]);
+  const deptMap = useMemo(() => Object.fromEntries(departments.map((d) => [d.id, d.name])), [departments]);
+
+  // Filtered department options
+  const availableDepts = useMemo(() => {
+    if (filterOrgId === 'all') return departments;
+    return departments.filter((d) => d.organization_id === Number(filterOrgId));
+  }, [departments, filterOrgId]);
+
+  // Enrich Doctors
+  const enrichedDoctors = useMemo(() => {
+    return doctors
+      .filter((d) => {
+        if (filterOrgId !== 'all' && d.organization_id !== Number(filterOrgId)) return false;
+        if (filterDeptId !== 'all' && d.department_id !== Number(filterDeptId)) return false;
+        return true;
+      })
+      .map((d) => ({
+        ...d,
+        hospital_name: orgMap[d.organization_id] || '—',
+        department_name: deptMap[d.department_id] || 'General / Unassigned',
+      }));
+  }, [doctors, orgMap, deptMap, filterOrgId, filterDeptId]);
+
+  // Enrich Nurses
+  const enrichedNurses = useMemo(() => {
+    return nurses
+      .filter((n) => {
+        if (filterOrgId !== 'all' && n.organization_id !== Number(filterOrgId)) return false;
+        return true;
+      })
+      .map((n) => ({
+        ...n,
+        hospital_name: orgMap[n.organization_id] || '—',
+      }));
+  }, [nurses, orgMap, filterOrgId]);
+
+  // Table Columns
+  const DOCTOR_COLUMNS = [
+    { key: 'user_id', label: 'Doctor ID', render: (v) => <span className="font-mono font-bold text-white">{v}</span> },
+    { key: 'full_name', label: 'Full Name' },
+    { key: 'hospital_name', label: 'Hospital' },
+    { key: 'department_name', label: 'Department' },
+    { key: 'specialization', label: 'Specialization', render: (v) => v || 'General' },
+    { key: 'phone_number', label: 'Phone', render: (v) => v || '—' },
+    { key: 'is_active', label: 'Status', render: (v) => <StatusBadge status={v} /> },
+  ];
+
+  const NURSE_COLUMNS = [
+    { key: 'user_id', label: 'Nurse ID', render: (v) => <span className="font-mono font-bold text-white">{v}</span> },
+    { key: 'full_name', label: 'Full Name' },
+    { key: 'hospital_name', label: 'Hospital' },
+    { key: 'license_no', label: 'License No.', render: (v) => <span className="font-mono text-cyan-400">{v}</span> },
+    { key: 'phone_number', label: 'Phone', render: (v) => v || '—' },
+    { key: 'is_active', label: 'Status', render: (v) => <StatusBadge status={v} /> },
+  ];
+
+  // Actions
   const openAdd = () => {
-    setEditTarget(null);
-    setFormData(activeTab === 'doctors' ? { ...EMPTY_DOCTOR } : { ...EMPTY_NURSE });
-    setFormError('');
-    setFormOpen(true);
+    openQuickAdd(activeTab === 'doctors' ? 'doctor' : 'nurse', {
+      organization_id: filterOrgId !== 'all' ? Number(filterOrgId) : undefined,
+      department_id: filterDeptId !== 'all' ? Number(filterDeptId) : undefined,
+    });
   };
 
   const openEdit = (row) => {
     setEditTarget(row);
     if (activeTab === 'doctors') {
-      setFormData({ user_id: row.user_id || '', full_name: row.full_name || '', phone_number: row.phone_number || '', specialization: row.specialization || '', organization_id: row.organization_id || '', department_id: row.department_id || '', password: '' });
+      setFormData({
+        full_name: row.full_name || '',
+        phone_number: row.phone_number || '',
+        specialization: row.specialization || '',
+        department_id: row.department_id || '',
+        organization_id: row.organization_id || '',
+      });
     } else {
-      setFormData({ user_id: row.user_id || '', full_name: row.full_name || '', phone_number: row.phone_number || '', license_no: row.license_no || '', organization_id: row.organization_id || '', password: '' });
+      setFormData({
+        full_name: row.full_name || '',
+        phone_number: row.phone_number || '',
+        license_no: row.license_no || '',
+        organization_id: row.organization_id || '',
+      });
     }
     setFormError('');
     setFormOpen(true);
   };
 
   const handleFormSubmit = async () => {
-    if (!formData.full_name?.trim()) { setFormError('Full name is required.'); return; }
-    if (!formData.user_id?.trim()) { setFormError('Staff ID is required.'); return; }
-    if (!editTarget && !formData.password?.trim()) { setFormError('Password is required when creating a new account.'); return; }
     setFormLoading(true);
     setFormError('');
-    let res;
-    // Strip empty password from edit payloads — backend only accepts it on create
-    const payload = editTarget
-      ? (({ password, ...rest }) => rest)(formData)
-      : formData;
-    if (activeTab === 'doctors') {
-      res = editTarget
-        ? await adminService.updateDoctor(editTarget.id, payload)
-        : await adminService.createDoctor(payload);
-    } else {
-      res = editTarget
-        ? await adminService.updateNurse(editTarget.id, payload)
-        : await adminService.createNurse(payload);
-    }
+    const res = await adminService.updateEntity(activeTab, editTarget.id, formData);
     setFormLoading(false);
-    if (res.success) { setFormOpen(false); fetchData(); }
-    else setFormError(res.message);
+    if (res.success) {
+      setFormOpen(false);
+      fetchData();
+      triggerRefresh();
+    } else {
+      setFormError(res.message);
+    }
   };
 
-  const openToggle = (row) => { setConfirmTarget(row); setConfirmOpen(true); };
+  const openToggle = (row) => {
+    setConfirmTarget({
+      entity: activeTab,
+      id: row.id,
+      name: row.full_name || row.user_id,
+      is_active: row.is_active,
+    });
+    setConfirmOpen(true);
+  };
 
-  const handleToggleStatus = async () => {
+  const handleConfirmToggle = async () => {
     if (!confirmTarget) return;
     setConfirmLoading(true);
-    const status = !confirmTarget.is_active;
-    if (activeTab === 'doctors') await adminService.setDoctorStatus(confirmTarget.id, status);
-    else await adminService.setNurseStatus(confirmTarget.id, status);
+    await adminService.setEntityStatus(confirmTarget.entity, confirmTarget.id, !confirmTarget.is_active);
     setConfirmLoading(false);
     setConfirmOpen(false);
     setConfirmTarget(null);
     fetchData();
+    triggerRefresh();
   };
 
-  const field = (key) => ({
-    value: formData[key] ?? '',
-    onChange: (e) => setFormData((f) => ({ ...f, [key]: e.target.value })),
-  });
-
-  const isDoctor = activeTab === 'doctors';
-
   return (
-    <div className="space-y-6">
-      <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between flex-wrap gap-4">
+    <div className="space-y-6 max-w-7xl mx-auto">
+      {/* ── Page Header ─────────────────────────────────────────────── */}
+      <motion.div
+        initial={{ opacity: 0, y: -12 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex items-center justify-between flex-wrap gap-4"
+      >
         <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-[#CCA166]/8 border border-[#CCA166]/15 rounded-xl">
-            <Users className="size-5 text-[#CCA166]" />
+          <div className="p-2.5 bg-[#CCA166]/10 border border-[#CCA166]/20 rounded-xl text-[#CCA166]">
+            <Users className="size-6" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-white">Doctors & Nurses</h1>
-            <p className="text-white/35 text-sm">Manage medical and nursing staff across your organization</p>
+            <h1 className="text-xl font-bold text-white">Medical Care Team Directory</h1>
+            <p className="text-white/40 text-xs">
+              Manage doctor credentials, nursing staff, department assignments and rosters
+            </p>
           </div>
         </div>
-        <button onClick={fetchData} className="p-2 rounded-xl bg-white/5 border border-white/10 text-white/40 hover:text-white hover:bg-white/10 transition-all">
-          <RefreshCw className="size-4" />
-        </button>
+
+        <div className="flex items-center gap-2.5">
+          <button
+            onClick={fetchData}
+            className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-white/40 hover:text-white hover:bg-white/10 transition-all"
+            title="Refresh"
+          >
+            <RefreshCw className="size-4" />
+          </button>
+          <button
+            onClick={openAdd}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-[#1A1A1C] bg-gradient-to-r from-[#B2884D] to-[#CCA166] hover:opacity-90 shadow-md shadow-[#CCA166]/15 transition-all"
+          >
+            <Plus className="size-3.5 stroke-[2.5]" />
+            <span>Add {activeTab === 'doctors' ? 'Doctor' : 'Nurse'}</span>
+          </button>
+        </div>
       </motion.div>
 
-      {/* Tabs */}
-      <div className="flex gap-2 p-1 bg-white/5 rounded-xl border border-white/5 w-max">
-        {[
-          { key: 'doctors', label: 'Doctors', icon: Stethoscope },
-          { key: 'nurses', label: 'Nurses', icon: UserCheck },
-        ].map(({ key, label, icon: Icon }) => (
-          <button
-            key={key}
-            onClick={() => setActiveTab(key)}
-            className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium transition-all ${
-              activeTab === key ? 'bg-[#CCA166] text-white shadow-lg shadow-[#CCA166]/20' : 'text-white/40 hover:text-white'
-            }`}
+      {/* ── Cascading Filter Bar ─────────────────────────────────────── */}
+      <div className="bg-[#1E1E21] border border-white/5 rounded-2xl p-4 flex flex-wrap items-center gap-3">
+        <span className="text-xs font-semibold text-white/40 uppercase tracking-wider flex items-center gap-1.5 mr-1">
+          <Filter className="size-3.5 text-[#CCA166]" /> Scopes:
+        </span>
+
+        {/* Hospital Dropdown */}
+        <div className="min-w-[200px] flex-1">
+          <select
+            value={filterOrgId}
+            onChange={(e) => {
+              setFilterOrgId(e.target.value);
+              setFilterDeptId('all');
+            }}
+            className="w-full px-3 py-1.5 bg-[#252528] border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-[#CCA166]/50"
           >
-            <Icon className="size-3.5" />
-            {label}
+            <option value="all">🏥 All Hospitals ({organizations.length})</option>
+            {organizations.map((org) => (
+              <option key={org.id} value={org.id}>
+                {org.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Department Dropdown (for Doctors) */}
+        {activeTab === 'doctors' && (
+          <div className="min-w-[200px] flex-1">
+            <select
+              value={filterDeptId}
+              onChange={(e) => setFilterDeptId(e.target.value)}
+              className="w-full px-3 py-1.5 bg-[#252528] border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-[#CCA166]/50"
+            >
+              <option value="all">🏢 All Departments ({availableDepts.length})</option>
+              {availableDepts.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {(filterOrgId !== 'all' || filterDeptId !== 'all') && (
+          <button
+            onClick={() => {
+              setFilterOrgId('all');
+              setFilterDeptId('all');
+            }}
+            className="text-xs text-white/40 hover:text-white underline ml-auto px-2"
+          >
+            Reset Filters
           </button>
-        ))}
+        )}
       </div>
 
-      {/* Summary badges */}
-      <div className="flex gap-3 flex-wrap">
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/8 rounded-lg text-xs text-white/50">
-          <Stethoscope className="size-3.5 text-[#CCA166]" />
-          {doctors.length} Doctors
-        </div>
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/8 rounded-lg text-xs text-white/50">
-          <UserCheck className="size-3.5 text-[#CCA166]" />
-          {nurses.length} Nurses
-        </div>
+      {/* ── Tabs ─────────────────────────────────────────────────────── */}
+      <div className="flex items-center gap-2 border-b border-white/10 pb-3">
+        {[
+          { id: 'doctors', label: 'Doctors', icon: Stethoscope, count: enrichedDoctors.length },
+          { id: 'nurses', label: 'Nurses', icon: UserCheck, count: enrichedNurses.length },
+        ].map((tab) => {
+          const Icon = tab.icon;
+          const active = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+                active
+                  ? 'bg-[#CCA166] text-[#1A1A1C] shadow-md shadow-[#CCA166]/20 font-bold'
+                  : 'bg-[#1E1E21] text-white/60 hover:text-white border border-white/5 hover:border-white/10'
+              }`}
+            >
+              <Icon className="size-3.5" />
+              <span>{tab.label}</span>
+              <span
+                className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                  active ? 'bg-[#1A1A1C]/20 text-[#1A1A1C]' : 'bg-white/10 text-white/50'
+                }`}
+              >
+                {tab.count}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
-      {/* Table */}
-      <motion.div key={activeTab} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="bg-[#1E1E21] border border-white/5 rounded-2xl p-5">
+      {/* ── Table ────────────────────────────────────────────────────── */}
+      <motion.div
+        key={activeTab}
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-[#1E1E21] border border-white/5 rounded-2xl p-5"
+      >
         <EntityTable
-          columns={isDoctor ? DOCTOR_COLUMNS : NURSE_COLUMNS}
-          data={isDoctor ? doctors : nurses}
+          columns={activeTab === 'doctors' ? DOCTOR_COLUMNS : NURSE_COLUMNS}
+          data={activeTab === 'doctors' ? enrichedDoctors : enrichedNurses}
           isLoading={loading}
           onEdit={openEdit}
           onToggleStatus={openToggle}
           onAdd={openAdd}
-          addLabel={isDoctor ? 'Add Doctor' : 'Add Nurse'}
-          searchPlaceholder={isDoctor ? 'Search doctors...' : 'Search nurses...'}
-          emptyMessage={`No ${isDoctor ? 'doctors' : 'nurses'} found.`}
+          addLabel={`Add ${activeTab === 'doctors' ? 'Doctor' : 'Nurse'}`}
+          searchPlaceholder={`Search ${activeTab} by name, ID, phone...`}
+          emptyMessage={`No ${activeTab} found for current filter selection.`}
         />
       </motion.div>
 
-      {/* Form */}
+      {/* ── Edit Modal ────────────────────────────────────────────────── */}
       <EntityForm
         isOpen={formOpen}
         onClose={() => setFormOpen(false)}
         onSubmit={handleFormSubmit}
-        title={editTarget ? `Edit ${isDoctor ? 'Doctor' : 'Nurse'}` : `Add ${isDoctor ? 'Doctor' : 'Nurse'}`}
-        submitLabel={editTarget ? 'Save Changes' : `Create ${isDoctor ? 'Doctor' : 'Nurse'}`}
+        title={`Edit ${activeTab === 'doctors' ? 'Doctor' : 'Nurse'} Profile`}
+        submitLabel="Save Changes"
         isLoading={formLoading}
       >
-        {formError && <p className="text-sm text-red-400 bg-red-500/8 border border-red-500/15 rounded-xl px-4 py-3">{formError}</p>}
-
-        <div className="grid grid-cols-2 gap-4">
-          <FormField label="Staff ID" required>
-            <AdminInput placeholder={isDoctor ? 'e.g. DR-001' : 'e.g. NR-001'} {...field('user_id')} />
-          </FormField>
-          <FormField label="Phone Number" required>
-            <AdminInput placeholder="+91 9999999999" type="tel" {...field('phone_number')} />
-          </FormField>
-        </div>
+        {formError && (
+          <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 mb-3">
+            {formError}
+          </p>
+        )}
 
         <FormField label="Full Name" required>
-          <AdminInput placeholder="e.g. Dr. Anjali Sharma" {...field('full_name')} />
+          <AdminInput
+            value={formData.full_name || ''}
+            onChange={(e) => setFormData((f) => ({ ...f, full_name: e.target.value }))}
+          />
         </FormField>
 
-        {isDoctor ? (
-          <FormField label="Specialization">
-            <AdminInput placeholder="e.g. Cardiologist" {...field('specialization')} />
-          </FormField>
+        <FormField label="Phone Number">
+          <AdminInput
+            type="tel"
+            value={formData.phone_number || ''}
+            onChange={(e) => setFormData((f) => ({ ...f, phone_number: e.target.value }))}
+          />
+        </FormField>
+
+        {activeTab === 'doctors' ? (
+          <>
+            <FormField label="Specialization">
+              <AdminInput
+                placeholder="e.g. Cardiologist"
+                value={formData.specialization || ''}
+                onChange={(e) => setFormData((f) => ({ ...f, specialization: e.target.value }))}
+              />
+            </FormField>
+
+            <FormField label="Department Assignment">
+              <AdminSelect
+                value={formData.department_id || ''}
+                onChange={(e) => setFormData((f) => ({ ...f, department_id: e.target.value }))}
+              >
+                <option value="">General / No Department</option>
+                {departments.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name} ({orgMap[d.organization_id]})
+                  </option>
+                ))}
+              </AdminSelect>
+            </FormField>
+          </>
         ) : (
-          <FormField label="License Number" required>
-            <AdminInput placeholder="e.g. MCI-2024-XXXX" {...field('license_no')} />
-          </FormField>
-        )}
-
-        <FormField label="Organization">
-          <AdminSelect {...field('organization_id')}>
-            <option value="">Select organization...</option>
-            {orgs.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
-          </AdminSelect>
-        </FormField>
-
-        {isDoctor && (
-          <FormField label="Department">
-            <AdminSelect {...field('department_id')}>
-              <option value="">Select department (optional)...</option>
-              {departments
-                .filter((d) => !formData.organization_id || d.organization_id === Number(formData.organization_id))
-                .map((d) => <option key={d.id} value={d.id}>{d.name}</option>)
-              }
-            </AdminSelect>
-          </FormField>
-        )}
-
-        {!editTarget && (
-          <FormField label="Password" required>
+          <FormField label="Nursing License No." required>
             <AdminInput
-              type="password"
-              placeholder="Initial login password"
-              autoComplete="new-password"
-              {...field('password')}
+              value={formData.license_no || ''}
+              onChange={(e) => setFormData((f) => ({ ...f, license_no: e.target.value }))}
             />
           </FormField>
         )}
       </EntityForm>
 
+      {/* ── Status Confirm Modal ───────────────────────────────────────── */}
       <ConfirmModal
         isOpen={confirmOpen}
-        onClose={() => { setConfirmOpen(false); setConfirmTarget(null); }}
-        onConfirm={handleToggleStatus}
+        onClose={() => {
+          setConfirmOpen(false);
+          setConfirmTarget(null);
+        }}
+        onConfirm={handleConfirmToggle}
         isLoading={confirmLoading}
-        title={confirmTarget?.is_active ? `Deactivate ${isDoctor ? 'Doctor' : 'Nurse'}` : `Activate ${isDoctor ? 'Doctor' : 'Nurse'}`}
-        message={`Are you sure you want to ${confirmTarget?.is_active ? 'deactivate' : 'activate'} "${confirmTarget?.full_name}"?`}
+        title={confirmTarget?.is_active ? 'Deactivate Staff Member' : 'Activate Staff Member'}
+        message={`Are you sure you want to ${confirmTarget?.is_active ? 'deactivate' : 'activate'} "${confirmTarget?.name}"?`}
         confirmLabel={confirmTarget?.is_active ? 'Deactivate' : 'Activate'}
       />
     </div>

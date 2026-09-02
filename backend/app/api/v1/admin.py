@@ -8,7 +8,7 @@ from app.models.organization import Organization, Department, Station, Ward, Bed
 from app.models.user import Doctor, Nurse, UserRole
 from app.core.security import get_password_hash
 from app.schemas.organization import (
-    OrganizationCreate, DepartmentCreate, StationCreate, WardCreate, BedCreate, RoomCreate,
+    OrganizationCreate, DepartmentCreate, StationCreate, WardCreate, BedCreate, BedBatchCreate, RoomCreate,
 )
 
 router = APIRouter()
@@ -59,8 +59,38 @@ async def create_bed(body: BedCreate, db: AsyncSession = Depends(get_db)):
     return obj
 
 
+@router.post("/beds/batch", status_code=201, dependencies=[Depends(allow_admins)])
+async def create_beds_batch(body: BedBatchCreate, db: AsyncSession = Depends(get_db)):
+    ward = await db.get(Ward, body.ward_id)
+    if not ward:
+        raise HTTPException(status_code=404, detail="Ward not found")
+    existing_stmt = select(Bed.bed_no).where(Bed.ward_id == body.ward_id)
+    existing_beds = set((await db.execute(existing_stmt)).scalars().all())
+
+    created = []
+    for num in body.bed_numbers:
+        clean_num = str(num).strip()
+        if not clean_num or clean_num in existing_beds:
+            continue
+        bed = Bed(bed_no=clean_num, ward_id=body.ward_id, is_occupied=False, is_active=True)
+        db.add(bed)
+        created.append(bed)
+        existing_beds.add(clean_num)
+
+    if not created:
+        raise HTTPException(status_code=400, detail="No new valid beds to create (they may already exist)")
+
+    await db.commit()
+    for b in created:
+        await db.refresh(b)
+    return created
+
+
 @router.post("/rooms", status_code=201, dependencies=[Depends(allow_admins)])
 async def create_room(body: RoomCreate, db: AsyncSession = Depends(get_db)):
+    """Create a dept-level room (department_id) or ward-level room (ward_id).
+    Exactly one parent must be provided — enforced by the RoomCreate schema validator.
+    """
     obj = Room(**body.model_dump(), is_occupied=False)
     db.add(obj)
     await db.commit()
@@ -165,7 +195,7 @@ _EDITABLE = {
     "stations":      {"name", "station_no", "department_id"},
     "wards":         {"name", "ward_no", "department_id", "station_id"},
     "beds":          {"bed_no", "ward_id"},
-    "rooms":         {"room_number", "ward_id", "is_occupied"},
+    "rooms":         {"room_number", "ward_id", "department_id", "is_occupied"},
     "doctors":       {"full_name", "phone_number", "specialization", "is_on_call", "department_id", "organization_id"},
     "nurses":        {"full_name", "phone_number", "license_no", "organization_id"},
 }
