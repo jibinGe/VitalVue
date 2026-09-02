@@ -90,6 +90,15 @@ async def get_rooms(ward_id: int, include_inactive: bool = False, db: AsyncSessi
     result = await db.execute(q)
     return result.scalars().all()
 
+# 5b. Get all Rooms for a Department (across all wards) — for the "Department → Room" admission flow
+@router.get("/departments/{dept_id}/rooms")
+async def rooms_by_dept(dept_id: int, include_inactive: bool = False, db: AsyncSession = Depends(get_db)):
+    q = select(Room).join(Ward, Room.ward_id == Ward.id).where(Ward.department_id == dept_id)
+    if not include_inactive:
+        q = q.where(Room.is_active == True)  # noqa: E712
+    result = await db.execute(q)
+    return result.scalars().all()
+
 # --- org-hierarchy v2 (RUN-024) ---
 
 @router.get("/organizations/nearby")
