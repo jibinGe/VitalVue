@@ -198,12 +198,20 @@ export const usePatients = (wardId = 'all', refreshTrigger = 0, searchQuery = ""
             _alertTriggeredVal: data.triggered_value,
           };
 
+          console.log('[usePatients] Alert patient data - alt phone check:', {
+            patient_alt_phone: patient.alt_phone,
+            patient_alt_phone_number: patient.alt_phone_number,
+            data_alt_phone: data.alt_phone,
+            patient_phone: patient.phone_number,
+          });
+
           setCriticalAlarmData({
             name:        patient.full_name || patient.name || "Unknown Patient",
             userId:      data.patient_id,
             room:        data.room_name ?? patient.room_no ?? "General",
             ward:        data.ward_name ?? patient.ward_name ?? patient.ward ?? patient.ward_no,
             phoneNumber: data.phone_number ?? patient.phone_number ?? patient.phone,
+            altPhone:    data.alt_phone ?? patient.alt_phone ?? patient.alt_phone_number ?? patient.altPhone ?? "",
             vitals:      vitalsSnapshot,
             alert:       data,
             source:      'home'

@@ -335,8 +335,13 @@ export default function TvDashboard() {
             </button>
           </div>
 
-          <div className="text-white/60 text-lg md:text-xl font-lufga shrink-0 ml-2">
-            {currentTime}
+          <div className="flex flex-col items-end shrink-0 ml-3">
+            <div className="text-white text-xl md:text-2xl lg:text-3xl font-lufga font-medium tracking-wider tabular-nums">
+              {currentTime}
+            </div>
+            <div className="text-white/40 text-xs font-lufga tracking-wide">
+              {currentDate}
+            </div>
           </div>
         </div>
       </div>
@@ -404,6 +409,7 @@ export default function TvDashboard() {
         room={criticalAlarmData?.room}
         ward={criticalAlarmData?.ward}
         phoneNumber={criticalAlarmData?.phoneNumber}
+        altPhone={criticalAlarmData?.altPhone}
         vitals={criticalAlarmData?.vitals}
         alert={criticalAlarmData?.alert}
         isConnected={criticalAlarmData?.isConnected}

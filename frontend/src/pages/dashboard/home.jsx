@@ -1250,6 +1250,7 @@ export default function Home() {
         room={criticalAlarmData?.room}
         ward={criticalAlarmData?.ward}
         phoneNumber={criticalAlarmData?.phoneNumber}
+        altPhone={criticalAlarmData?.altPhone}
         vitals={criticalAlarmData?.vitals}
         alert={criticalAlarmData?.alert}
         isConnected={criticalAlarmData?.isConnected}
