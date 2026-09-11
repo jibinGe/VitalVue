@@ -1,8 +1,30 @@
 import React, { useState } from "react";
 import DatePicker from "react-datepicker";
 
-function MyDatePicker({ className = "", label, labelClass = "", required = false, placeholder, inputClass = "min-h-11 lg:min-h-12" }) {
-    const [selectedDate, setSelectedDate] = useState(null);
+function MyDatePicker({
+    className = "",
+    label,
+    labelClass = "",
+    required = false,
+    placeholder,
+    inputClass = "min-h-11 lg:min-h-12",
+    selected,
+    onChange,
+    isClearable = true,
+    dateFormat = "yyyy-MM-dd",
+    ...props
+}) {
+    const [internalDate, setInternalDate] = useState(null);
+    const dateValue = selected !== undefined ? selected : internalDate;
+
+    const handleDateChange = (date) => {
+        if (selected === undefined) {
+            setInternalDate(date);
+        }
+        if (onChange) {
+            onChange(date);
+        }
+    };
 
     return (
         <div className={`relative flex flex-col gap-0 ${className}`}>
@@ -15,13 +37,14 @@ function MyDatePicker({ className = "", label, labelClass = "", required = false
                 </label>
             }
             <DatePicker
-                selected={selectedDate}
-                onChange={date => setSelectedDate(date)}
-                dateFormat="yyyy-MM-dd"
+                selected={dateValue}
+                onChange={handleDateChange}
+                dateFormat={dateFormat}
                 placeholderText={placeholder}
-                isClearable={false}
+                isClearable={isClearable}
                 showPopperArrow={false}
                 className={`px-4 w-full text-sm lg:text-base font-normal text-para placeholder:text-para border border-[#CAD5E2]/20 bg-white/10 rounded-[14px] placeholder:font-light placeholder:transition-all placeholder:duration-300 focus:placeholder:translate-x-2 focus:placeholder:opacity-0 ring-0 ring-primary/40 focus:ring-1 ${inputClass}`}
+                {...props}
             />
         </div>
     );

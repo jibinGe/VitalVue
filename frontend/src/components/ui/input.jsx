@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 
-export default function Input({ className = "", inputClass = " min-h-11.5 lg:min-h-13", labelClass = "text-sm lg:text-base", leftIcon, leftIconClass = "left-1.5", type = "text", label, placeholder, error, id, name, required, ...props }) {
+export default function Input({ className = "", inputClass = " min-h-11.5 lg:min-h-13", labelClass = "text-sm lg:text-base", leftIcon, leftIconClass = "left-1.5", rightIcon, rightIconClass = "right-3", type = "text", label, placeholder, error, id, name, required, ...props }) {
     const [newType, setNewType] = useState(type);
     const handleChange = () => {
         setNewType((prev) => prev === 'password' ? 'text' : 'password')
@@ -22,7 +22,12 @@ export default function Input({ className = "", inputClass = " min-h-11.5 lg:min
                             {leftIcon}
                         </span>
                     }
-                    <input type={newType} name={name} id={id} className={`${leftIcon ? 'px-9' : 'px-4'} w-full text-sm lg:text-base font-normal text-para placeholder:text-para bg-[#2F2F31] border border-[#CAD5E2]/20 rounded-[14px] placeholder:font-light placeholder:transition-all placeholder:duration-300 focus:placeholder:translate-x-2 focus:placeholder:opacity-0 ring-0 ring-primary/40 focus:ring-1 ${inputClass}`} placeholder={placeholder} required={required} {...props} />
+                    <input type={newType} name={name} id={id} className={`${leftIcon ? 'px-9' : 'px-4'} ${rightIcon ? 'pr-12' : ''} w-full text-sm lg:text-base font-normal text-para placeholder:text-para bg-[#2F2F31] border border-[#CAD5E2]/20 rounded-[14px] placeholder:font-light placeholder:transition-all placeholder:duration-300 focus:placeholder:translate-x-2 focus:placeholder:opacity-0 ring-0 ring-primary/40 focus:ring-1 ${inputClass}`} placeholder={placeholder} required={required} {...props} />
+                    {rightIcon &&
+                        <span className={`absolute top-1/2 -translate-y-1/2 ${rightIconClass}`}>
+                            {rightIcon}
+                        </span>
+                    }
                     {type === 'password' &&
                         <button onClick={() => handleChange()} className='absolute top-1/2 -translate-y-1/2 right-0 px-3'>
                             {newType === 'password' ?
