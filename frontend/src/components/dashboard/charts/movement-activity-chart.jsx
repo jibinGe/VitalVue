@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell, CartesianGrid, Tooltip } from 'recharts';
-import { formatToLocalTime } from '@/utilities/dateUtils';
+import { formatChartTimeLabel, spansMultipleDays } from '@/utilities/dateUtils';
 
 const MovementActivityChart = ({ movementData = [], statistics = null }) => {
     // Transform API data to chart format
@@ -13,8 +13,9 @@ const MovementActivityChart = ({ movementData = [], statistics = null }) => {
 
         // Group data by time intervals to reduce data points for better visualization
         // For movement, we'll show presence/absence as a binary indicator
+        const multiDay = spansMultipleDays(movementData.map((item) => item.time));
         const processedData = movementData.map((item) => {
-            const time = formatToLocalTime(item.timestamp);
+            const time = formatChartTimeLabel(item.time, multiDay);
 
             // If value is null, treat as no movement (0), otherwise use the value or 1 for movement detected
             const hasMovement = item.value !== null && item.value !== undefined;

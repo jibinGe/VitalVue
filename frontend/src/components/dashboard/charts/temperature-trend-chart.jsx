@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { formatToLocalTime } from '@/utilities/dateUtils';
+import { formatChartTimeLabel, spansMultipleDays } from '@/utilities/dateUtils';
 import {
     AreaChart,
     Area,
@@ -51,11 +51,12 @@ export default function TemperatureTrendChart({ temperatureData = [] }) {
 
         const data = [];
         const values = [];
+        const multiDay = spansMultipleDays(temperatureData.map((item) => item.time));
 
         for (let i = 0; i < temperatureData.length; i += step) {
             const item = temperatureData[i];
             data.push({
-                time: formatToLocalTime(item.timestamp),
+                time: formatChartTimeLabel(item.time, multiDay),
                 temp: item.value,
             });
             values.push(item.value);

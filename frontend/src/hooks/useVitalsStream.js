@@ -18,7 +18,7 @@ export const useVitalsStream = (patientId) => {
     if (!patientId) return;
 
     // Use full URL since EventSource doesn't use the axios instance
-    const API_BASE_URL = 'https://vitalvue-api.genesysailabs.com';
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
     const eventSource = new EventSource(`${API_BASE_URL}/api/v1/stream/vitals-stream/${patientId}`);
 
     eventSource.onopen = () => {

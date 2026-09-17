@@ -11,7 +11,7 @@ import {
     Filler,
 } from 'chart.js';
 
-import { formatToLocalTime } from '../../utilities/dateUtils.js';
+import { formatChartTimeLabel, spansMultipleDays } from '../../utilities/dateUtils.js';
 
 ChartJS.register(
     CategoryScale,
@@ -36,12 +36,13 @@ const HeartRateChart = ({ heartRateData = [] }) => {
 
             // Sample data points if too many (for performance)
             const sampleRate = heartRateData.length > 200 ? Math.ceil(heartRateData.length / 200) : 1;
+            const multiDay = spansMultipleDays(heartRateData.map((item) => item.time));
 
             heartRateData.forEach((item, index) => {
                 if (index % sampleRate === 0 || index === heartRateData.length - 1) {
                     // Replaced formatTime with formatToLocalTime
                     // Standardized to 'time' property from patientService
-                    labels.push(formatToLocalTime(item.time));
+                    labels.push(formatChartTimeLabel(item.time, multiDay));
                     data.push(item.value);
                 }
             });

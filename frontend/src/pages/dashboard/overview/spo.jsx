@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { patientService } from '@/services/patientService';
-import { formatToLocalTime } from '@/utilities/dateUtils';
+import { formatChartTimeLabel, spansMultipleDays } from '@/utilities/dateUtils';
 import Mainbody from '@/components/dashboard/main-body'
 import Footer from '@/components/dashboard/footer'
 import TopTitle from '@/components/dashboard/top-title'
@@ -129,6 +129,7 @@ export default function Spo() {
     const data = vitalData.spo2Data;
     const desaturations = [];
     const drops = [];
+    const multiDay = spansMultipleDays(data.map((point) => point.time));
 
     let currentEpisode = null;
 
@@ -149,7 +150,7 @@ export default function Spo() {
 
           desaturations.push({
             title: 'Desaturation',
-            time: `${formatToLocalTime(currentEpisode.start.time)} - ${formatToLocalTime(currentEpisode.end.time)}`,
+            time: `${formatChartTimeLabel(currentEpisode.start.time, multiDay)} - ${formatChartTimeLabel(currentEpisode.end.time, multiDay)}`,
             duration: durationMin > 0 ? `${durationMin} min` : "< 1 min",
             value: `${currentEpisode.minValue}%`,
           });
@@ -164,7 +165,7 @@ export default function Spo() {
         if (diff <= -4) {
           drops.push({
             title: 'Sudden Drop',
-            time: formatToLocalTime(point.time),
+            time: formatChartTimeLabel(point.time, multiDay),
             icon: (
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M10.667 11.333H14.667V7.33301" stroke="white" strokeWidth="1.33333" strokeLinecap="round" strokeLinejoin="round" />
@@ -180,7 +181,7 @@ export default function Spo() {
     if (currentEpisode) {
       desaturations.push({
         title: 'Desaturation (Ongoing)',
-        time: `${formatToLocalTime(currentEpisode.start.time)} - Now`,
+        time: `${formatChartTimeLabel(currentEpisode.start.time, multiDay)} - Now`,
         duration: "--",
         value: `${currentEpisode.minValue}%`,
       });

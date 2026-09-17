@@ -9,7 +9,7 @@ import {
     ReferenceLine,
 } from 'recharts';
 import { useMemo } from 'react';
-import { formatToLocalTime } from '@/utilities/dateUtils';
+import { formatChartTimeLabel, spansMultipleDays } from '@/utilities/dateUtils';
 
 const mockData = [
     { time: '08:12 AM', RR: 98 },
@@ -32,11 +32,12 @@ export default function SpoTrend({ spo2Data = [] }) {
         if (spo2Data && spo2Data.length > 0) {
             // Sample data points if too many (for performance)
             const sampleRate = spo2Data.length > 200 ? Math.ceil(spo2Data.length / 200) : 1;
+            const multiDay = spansMultipleDays(spo2Data.map(item => item.time));
 
             return spo2Data
                 .filter((_, index) => index % sampleRate === 0 || index === spo2Data.length - 1)
                 .map((item) => ({
-                    time: formatToLocalTime(item.time),
+                    time: formatChartTimeLabel(item.time, multiDay),
                     RR: item.value,
                 }));
         }

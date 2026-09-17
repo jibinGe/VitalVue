@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { formatToLocalTime } from '@/utilities/dateUtils';
+import { formatChartTimeLabel, spansMultipleDays } from '@/utilities/dateUtils';
 import {
     AreaChart,
     Area,
@@ -28,10 +28,12 @@ export default function RespiratoryRateChart({
             return [];
         }
 
+        const multiDay = spansMultipleDays(respiratoryRateData.map((item) => item.time));
+
         return respiratoryRateData.map((item) => {
             return {
-                time: formatToLocalTime(item.timestamp),
-                timestamp: item.timestamp,
+                time: formatChartTimeLabel(item.time, multiDay),
+                timestamp: item.time,
                 RR: item.value || 0,
                 quality: item.quality || 100,
             };

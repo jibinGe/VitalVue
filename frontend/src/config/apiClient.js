@@ -1,7 +1,6 @@
 import axios from 'axios';
 
-// API Base URL - Kept as placeholder for future backend integration
-const API_BASE_URL = 'https://vitalvue-api.genesysailabs.com'; // Or any dummy URL
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 // Create axios instance
 const apiClient = axios.create({

@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react'
 import QRCode from 'qrcode'
 import apiClient from '@/config/apiClient'
 
-const API_BASE_URL = 'https://vitalvue-api.genesysailabs.com'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
 const QR_TTL = 120 // seconds – matches backend ex=120
 
 export default function QRLoginPanel({ onSuccess }) {
