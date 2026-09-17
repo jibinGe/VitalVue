@@ -9,3 +9,4 @@ backend/deploy.sh
 backend/.venv
 backend/migrations
 backend/migrations/versions
+*.pyc

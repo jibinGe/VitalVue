@@ -531,22 +531,35 @@ async def get_patient_vitals_history(
     bucket_size = scale_minutes * 60
     time_bucket = func.floor(func.extract('epoch', Vitals.created_at) / bucket_size) * bucket_size
 
+    # A disconnected/removed row is unreliable two different ways: most clinical fields get
+    # explicitly zeroed by ingest_vitals's rule enforcement (so ">0" catches them), but fields
+    # like hrv_score are NOT zeroed on disconnect — they just carry whatever stale/placeholder
+    # value the device last reported, which is why is_connected/is_removed must be checked too.
+    # Conversely, plenty of rows are flagged connected yet still carry a zeroed clinical value,
+    # which is why ">0" must be checked too. Neither signal alone is reliable; combine both.
+    is_live = and_(Vitals.is_connected == True, Vitals.is_removed == False)
+    valid_hr = and_(Vitals.heart_rate > 0, is_live)
+    valid_spo2 = and_(Vitals.spo2 > 0, is_live)
+    valid_temp = and_(Vitals.temp > 0, is_live)
+    valid_bp = and_(Vitals.bp_systolic > 0, Vitals.bp_diastolic > 0, is_live)
+    valid_hrv = and_(Vitals.hrv_score > 0, is_live)
+
     query = (
         select(
             func.to_timestamp(time_bucket).label("timestamp"),
             # Row 1: Primary Vitals (Averages)
-            func.avg(Vitals.heart_rate).label("hr"),
-            func.avg(Vitals.spo2).label("spo2"),
-            func.avg(Vitals.temp).label("temp"),
-            func.avg(Vitals.bp_systolic).label("sys"),
-            func.avg(Vitals.bp_diastolic).label("dia"),
+            func.avg(Vitals.heart_rate).filter(valid_hr).label("hr"),
+            func.avg(Vitals.spo2).filter(valid_spo2).label("spo2"),
+            func.avg(Vitals.temp).filter(valid_temp).label("temp"),
+            func.avg(Vitals.bp_systolic).filter(valid_bp).label("sys"),
+            func.avg(Vitals.bp_diastolic).filter(valid_bp).label("dia"),
             # Row 2: Risk Analysis (Max severity in bucket)
             func.max(Vitals.news2_score).label("news2"),
             func.max(Vitals.af_warning).label("af"),
             func.max(Vitals.stroke_risk).label("stroke"),
             func.max(Vitals.seizure_risk).label("seizure"),
             # Row 3: Advanced Metrics & Status
-            func.avg(Vitals.hrv_score).label("hrv"),
+            func.avg(Vitals.hrv_score).filter(valid_hrv).label("hrv"),
             func.max(Vitals.stress_level).label("stress"),
             func.avg(Vitals.movement).label("move"),
             func.avg(Vitals.battery_percent).label("batt"),
@@ -570,10 +583,10 @@ async def get_patient_vitals_history(
         {
             "timestamp": row.timestamp,
             "primary_vitals": {
-                "heart_rate": round(row.hr, 1),
-                "spo2": round(row.spo2, 1),
-                "temp": round(row.temp, 1),
-                "blood_pressure": f"{int(row.sys)}/{int(row.dia)}"
+                "heart_rate": round(row.hr, 1) if row.hr is not None else None,
+                "spo2": round(row.spo2, 1) if row.spo2 is not None else None,
+                "temp": round(row.temp, 1) if row.temp is not None else None,
+                "blood_pressure": f"{int(row.sys)}/{int(row.dia)}" if row.sys is not None and row.dia is not None else None
             },
             "clinical_risks": {
                 "news2_score": row.news2,
@@ -582,12 +595,12 @@ async def get_patient_vitals_history(
                 "seizure_risk": row.seizure
             },
             "advanced_metrics": {
-                "hrv_score": round(row.hrv, 1),
+                "hrv_score": round(row.hrv, 1) if row.hrv is not None else None,
                 "stress_level": row.stress,
-                "movement_index": round(row.move, 1)
+                "movement_index": round(row.move, 1) if row.move is not None else None
             },
             "device_status": {
-                "battery": int(row.batt),
+                "battery": int(row.batt) if row.batt is not None else None,
                 "is_connected": row.conn
             }
         }
@@ -716,13 +729,20 @@ async def get_shared_dynamic_metric_history(
     # 3. Dynamic Aggregation Logic
     bucket_size = scale_minutes * 60
     time_bucket = func.floor(func.extract('epoch', Vitals.created_at) / bucket_size) * bucket_size
-    
+
     # Get the actual SQLAlchemy column object dynamically
     target_column = getattr(Vitals, metric_name)
-    
+
     # Decide aggregation type: Numbers get Averaged, Strings get Maximum (latest/worst state)
     is_numeric = isinstance(target_column.type, (Integer, Float))
-    agg_func = func.avg(target_column) if is_numeric else func.max(target_column)
+    # A disconnected/removed row is unreliable two different ways: most clinical fields get
+    # explicitly zeroed by ingest_vitals's rule enforcement (so ">0" catches them), but some
+    # fields (e.g. hrv_score) are NOT zeroed on disconnect — they just carry whatever stale
+    # value the device last reported, which is why is_connected/is_removed must be checked
+    # too. Conversely, plenty of rows are flagged connected yet still carry a zeroed value,
+    # which is why ">0" must be checked too. Neither signal alone is reliable; combine both.
+    valid_reading = and_(target_column > 0, Vitals.is_connected == True, Vitals.is_removed == False)
+    agg_func = func.avg(target_column).filter(valid_reading) if is_numeric else func.max(target_column)
 
     query = (
         select(
@@ -791,13 +811,20 @@ async def get_dynamic_metric_history(
     # 3. Dynamic Aggregation Logic
     bucket_size = scale_minutes * 60
     time_bucket = func.floor(func.extract('epoch', Vitals.created_at) / bucket_size) * bucket_size
-    
+
     # Get the actual SQLAlchemy column object dynamically
     target_column = getattr(Vitals, metric_name)
-    
+
     # Decide aggregation type: Numbers get Averaged, Strings get Maximum (latest/worst state)
     is_numeric = isinstance(target_column.type, (Integer, Float))
-    agg_func = func.avg(target_column) if is_numeric else func.max(target_column)
+    # A disconnected/removed row is unreliable two different ways: most clinical fields get
+    # explicitly zeroed by ingest_vitals's rule enforcement (so ">0" catches them), but some
+    # fields (e.g. hrv_score) are NOT zeroed on disconnect — they just carry whatever stale
+    # value the device last reported, which is why is_connected/is_removed must be checked
+    # too. Conversely, plenty of rows are flagged connected yet still carry a zeroed value,
+    # which is why ">0" must be checked too. Neither signal alone is reliable; combine both.
+    valid_reading = and_(target_column > 0, Vitals.is_connected == True, Vitals.is_removed == False)
+    agg_func = func.avg(target_column).filter(valid_reading) if is_numeric else func.max(target_column)
 
     query = (
         select(
