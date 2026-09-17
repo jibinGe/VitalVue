@@ -1,0 +1,970 @@
+
+Failed to fetch staff tokens for patient 5: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "device_tokens" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+Failed to fetch staff tokens for patient 27: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "device_tokens" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+[parameters: (datetime.datetime(2026, 9, 3, 8, 34, 14, 829702), 'POST', '/api/v1/vitals/ingest', 500, 15, '172.18.0.1', '3350d533dc67472f9bc9f00101621290', 'DBAPIError', "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.InFailedSQLTransactionError'>: current transaction is aborted, commands ign ... (199 characters truncated) ... d_at, users.user_type \nFROM users \nWHERE users.id = $1::INTEGER]\n[parameters: (9,)]\n(Background on this error at: https://sqlalche.me/e/20/dbapi)", 'Traceback (most recent call last):\n  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 538, in _prepare ... (7824 characters truncated) ... tgresql/asyncpg.py", line 572, in execute\n    self._adapt_connection.await_(\n  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/util/_concu')]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+INFO:     172.18.0.1:43946 - "POST /api/v1/vitals/ingest HTTP/1.1" 500 Internal Server Error
+ERROR:    Exception in ASGI application
+asyncpg.exceptions.InFailedSQLTransactionError: current transaction is aborted, commands ignored until end of transaction block
+The above exception was the direct cause of the following exception:
+    self._handle_exception(error)
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 501, in _handle_exception
+    self._adapt_connection._handle_exception(error)
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 789, in _handle_exception
+    raise translated_error from error
+sqlalchemy.dialects.postgresql.asyncpg.AsyncAdapt_asyncpg_dbapi.Error: <class 'asyncpg.exceptions.InFailedSQLTransactionError'>: current transaction is aborted, commands ignored until end of transaction block
+The above exception was the direct cause of the following exception:
+  File "/usr/local/lib/python3.12/site-packages/starlette/middleware/errors.py", line 186, in __call__
+  File "/usr/local/lib/python3.12/site-packages/starlette/middleware/errors.py", line 164, in __call__
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "/usr/local/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 62, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/usr/local/lib/python3.12/site-packages/starlette/_exception_handler.py", line 64, in wrapped_app
+  File "/usr/local/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/usr/local/lib/python3.12/site-packages/starlette/_exception_handler.py", line 64, in wrapped_app
+  File "/usr/local/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    self._handle_dbapi_exception(
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 2335, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+    self._handle_exception(error)
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 501, in _handle_exception
+    self._adapt_connection._handle_exception(error)
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 789, in _handle_exception
+    raise translated_error from error
+sqlalchemy.exc.DBAPIError: (sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.InFailedSQLTransactionError'>: current transaction is aborted, commands ignored until end of transaction block
+(Background on this error at: https://sqlalche.me/e/20/dbapi)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+✅ Critical Alert Sent successfully. Response: {'status': 'success', 'hasError': False, 'data': 'Your request is in process, check delivery reports for status', 'errors': None, 'request_id': 'ae604524260d4fb2b8eefb42e5d3e7e7'}
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+Failed to fetch staff tokens for patient 5: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "device_tokens" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+Failed to fetch staff tokens for patient 27: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "device_tokens" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+✅ Critical Alert Sent successfully. Response: {'status': 'success', 'hasError': False, 'data': 'Your request is in process, check delivery reports for status', 'errors': None, 'request_id': '5f2324d9d0e748c18c1e5d87b2232645'}
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+Failed to fetch staff tokens for patient 27: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "device_tokens" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+Failed to fetch staff tokens for patient 5: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "device_tokens" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+✅ Critical Alert Sent successfully. Response: {'status': 'success', 'hasError': False, 'data': 'Your request is in process, check delivery reports for status', 'errors': None, 'request_id': '7979e314ee0849449f06a78e71f3c10c'}
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+Failed to fetch staff tokens for patient 29: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "device_tokens" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+✅ Critical Alert Sent successfully. Response: {'status': 'success', 'hasError': False, 'data': 'Your request is in process, check delivery reports for status', 'errors': None, 'request_id': '46cf54d476ad4a3d8490f67fe43d4117'}
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+Failed to fetch staff tokens for patient 5: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "device_tokens" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+Failed to fetch staff tokens for patient 5: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "device_tokens" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+✅ Critical Alert Sent successfully. Response: {'status': 'success', 'hasError': False, 'data': 'Your request is in process, check delivery reports for status', 'errors': None, 'request_id': '207d761ff37340f18f7f00c11edae5e2'}
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+✅ Critical Alert Sent successfully. Response: {'status': 'success', 'hasError': False, 'data': 'Your request is in process, check delivery reports for status', 'errors': None, 'request_id': 'f5ade914ca424f4b9fc036b9acc033ef'}
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+Failed to fetch staff tokens for patient 5: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "device_tokens" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+✅ Critical Alert Sent successfully. Response: {'status': 'success', 'hasError': False, 'data': 'Your request is in process, check delivery reports for status', 'errors': None, 'request_id': '67049d00bc2141dc94cf6c23c4da5e65'}
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+Failed to fetch staff tokens for patient 5: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "device_tokens" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+Failed to fetch staff tokens for patient 5: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "device_tokens" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+✅ Critical Alert Sent successfully. Response: {'status': 'success', 'hasError': False, 'data': 'Your request is in process, check delivery reports for status', 'errors': None, 'request_id': 'e93ac62f3b4c423eb4767b4960f6405e'}
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+Failed to fetch staff tokens for patient 29: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "device_tokens" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+✅ Critical Alert Sent successfully. Response: {'status': 'success', 'hasError': False, 'data': 'Your request is in process, check delivery reports for status', 'errors': None, 'request_id': 'b39607541e1b459ca69134303b2652a9'}
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+Failed to fetch staff tokens for patient 5: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "device_tokens" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+✅ Critical Alert Sent successfully. Response: {'status': 'success', 'hasError': False, 'data': 'Your request is in process, check delivery reports for status', 'errors': None, 'request_id': '43ed09826bbe458b9b7eab3b9d6aeeab'}
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+Failed to fetch staff tokens for patient 29: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "device_tokens" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+Failed to fetch staff tokens for patient 5: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "device_tokens" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+Failed to fetch staff tokens for patient 29: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "device_tokens" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+Failed to fetch staff tokens for patient 5: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "device_tokens" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+Failed to fetch staff tokens for patient 29: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "device_tokens" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+Failed to fetch staff tokens for patient 5: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "device_tokens" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+✅ Critical Alert Sent successfully. Response: {'status': 'success', 'hasError': False, 'data': 'Your request is in process, check delivery reports for status', 'errors': None, 'request_id': '9a836f675d2a41338e83ce55fc6aee12'}
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+api_log write failed: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+[SQL: INSERT INTO api_logs (created_at, method, path, status_code, latency_ms, client_host, request_id, error_type, error_detail, traceback) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::VARCHAR, $3::VARCHAR, $4::INTEGER, $5::INTEGER, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::VARCHAR) RETURNING api_logs.id]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+✅ Critical Alert Sent successfully. Response: {'status': 'success', 'hasError': False, 'data': 'Your request is in process, check delivery reports for status', 'errors': None, 'request_id': '79ba4553b6f34061b66de29ea159359e'}
+api_log purge error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "api_logs" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)

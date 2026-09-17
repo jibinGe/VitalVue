@@ -524,7 +524,6 @@ async def bulk_ingest_vitals(
 
                     alert_data["id"] = alert_data["alert_id"] = new_alert.id
                     await redis.setex(lock_key, 300, "active")
-                    await redis.publish(f"patient:{payload.patient_id}:alerts", json.dumps(alert_data))
 
                     _push_tokens = await staff_tokens_for_patient(db, payload.patient_id)
                     if _push_tokens:
@@ -538,9 +537,7 @@ async def bulk_ingest_vitals(
             await redis.delete(f"alert_lock:{payload.patient_id}:Band Status")
 
         # Visual Status Mapping & Overall Triage
-        serializable_vitals = {**vital_dict, **calculated_data}
         vital_statuses = get_vital_statuses(new_vitals)
-        serializable_vitals.update(vital_statuses)
 
         patient_status = get_patient_overall_status(
             new_vitals,
@@ -574,17 +571,7 @@ async def bulk_ingest_vitals(
                     )
                     await redis.setex(wa_lock_key, 900, "active")
 
-        # Stream Telemetry to Redis Pub/Sub
-        serializable_vitals["created_at"] = timestamp_str
-        stream_payload = json.dumps({
-            "patient_id": payload.patient_id,
-            "patient_status": patient_status,
-            "vitals": serializable_vitals,
-            "ward_name": ward_name,
-            "room_number": room_number,
-            "timestamp": timestamp_str
-        })
-        await redis.publish(f"patient:{payload.patient_id}:stream", stream_payload)
+        # Maintain online heartbeat TTL in Redis
         await redis.setex(f"patient_active:{payload.patient_id}", 65, "online")
 
         processed_count += 1

@@ -9,7 +9,7 @@ from app.models.vitals import Vitals
 from app.services.alerts import send_critical_alert
 from app.models.clinical import Alert, Action
 from typing import List, Optional
-from app.schemas.patient import PaginatedPatientArchiveResponse, PatientDetailResponse, MonitoringToggleSchema, PatientDischargeResponseSchema, PatientReadmitSchema
+from app.schemas.patient import PaginatedPatientArchiveResponse, PatientDetailResponse, MonitoringToggleSchema, PatientDischargeResponseSchema, PatientReadmitSchema, PatientActionCreate
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from sqlalchemy.future import select
@@ -17,7 +17,7 @@ from app.api.deps import get_current_user, allow_admins, allow_clinical_staff
 from sqlalchemy import func, and_, text, or_
 from app.models.clinical import Alert, Action, ClinicalNote
 from app.schemas.clinical_audit import PatientClinicalTimelineResponse
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy import func, and_, text, select, inspect, Integer, Float, String, Boolean
 import json
 import random
@@ -368,7 +368,7 @@ async def get_assigned_patients(
         )
 
     result = await db.execute(query)
-    patients = result.scalars().all()
+    patients = result.unique().scalars().all()
 
     response_data = []
     for p in patients:
@@ -923,88 +923,111 @@ async def flag_doctor(
 @router.post("/patients/{patient_id}/action")
 async def perform_patient_action(
     patient_id: int,
-    action_type: str = Body(..., embed=True),
-    alert_id: int = Body(None, embed=True),
-    other_details: str = Body(None, embed=True),
-    performed_at: datetime = Body(None, embed=True),
+    payload: PatientActionCreate,
     db: AsyncSession = Depends(get_db),
     redis = Depends(get_redis),
     current_user: User = Depends(get_current_user)
 ):
     # 1. Validation: Ensure Patient exists
-    patient_check = await db.execute(select(Patient).where(Patient.id == patient_id))
-    patient = patient_check.scalars().first()
+    patient_res = await db.execute(select(Patient).where(Patient.id == patient_id))
+    patient = patient_res.scalars().first()
     if not patient:
-        raise HTTPException(status_code=404, detail="Patient not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail=f"Patient with ID {patient_id} not found"
+        )
 
-    # 2. Fix Timezone Mismatch (Naive vs Aware)
-    # SQLAlchemy TIMESTAMP WITHOUT TIME ZONE needs naive objects
-    clean_performed_at = performed_at
-    if clean_performed_at:
-        if clean_performed_at.tzinfo is not None:
-            clean_performed_at = clean_performed_at.replace(tzinfo=None)
+    # 2. Timezone Normalization (Naive UTC for TIMESTAMP WITHOUT TIME ZONE)
+    now_utc_naive = datetime.now(timezone.utc).replace(tzinfo=None)
+    if payload.performed_at:
+        clean_performed_at = payload.performed_at.replace(tzinfo=None) if payload.performed_at.tzinfo else payload.performed_at
     else:
-        clean_performed_at = datetime.utcnow()
+        clean_performed_at = now_utc_naive
 
-    # 3. Handle Foreign Key logic (Convert 0 to None)
-    # This prevents the asyncpg.exceptions.ForeignKeyViolationError
-    actual_alert_id = alert_id if alert_id != 0 else None
+    # 3. Handle Alert Lookup (Non-blocking / Graceful fallback)
+    target_alert_id = payload.alert_id if (payload.alert_id and payload.alert_id > 0) else None
+    alert: Optional[Alert] = None
 
-    # 4. Create the Action Log
+    if target_alert_id:
+        alert_res = await db.execute(
+            select(Alert).where(Alert.id == target_alert_id, Alert.patient_id == patient_id)
+        )
+        alert = alert_res.scalars().first()
+        
+        if alert:
+            # Mark the existing alert as resolved
+            alert.is_resolved = True
+            alert.resolved_at = now_utc_naive
+            alert.resolved_by = current_user.id
+            alert.status = "resolved"
+        else:
+            # Fallback: Alert ID is stale or missing from DB.
+            # Decouple foreign key so action logging never fails.
+            target_alert_id = None
+
+    # 4. Create and stage the Action Log
     new_action = Action(
         patient_id=patient_id,
-        alert_id=actual_alert_id,
+        alert_id=target_alert_id,
         staff_id=current_user.id,
-        action_type=action_type,
-        other_details=other_details,
+        action_type=payload.action_type,
+        other_details=payload.other_details or "",
         performed_at=clean_performed_at,
-        created_at=datetime.utcnow()
+        created_at=now_utc_naive
     )
     db.add(new_action)
 
-    # 5. If linked to an Alert, Mark the Alert as Resolved
-    if actual_alert_id:
-        alert_result = await db.execute(select(Alert).where(Alert.id == actual_alert_id))
-        alert = alert_result.scalars().first()
-        
-        if alert:
-            alert.is_resolved = True
-            alert.resolved_at = datetime.utcnow()
-            alert.resolved_by = current_user.id
-            alert.status = "resolved" # Matching your Alert model status column
-            
-            # Broadcast "Clear Alert" signal to Dashboard
-            clear_payload = {
-                "event": "ALERT_RESOLVED",
-                "alert_id": actual_alert_id,
-                "patient_id": patient_id,
-                "action_taken": action_type,
-                "by": current_user.full_name
-            }
-            await redis.publish(f"patient:{patient_id}:alerts", json.dumps(clear_payload))
+    # 5. Commit to database
+    try:
+        await db.commit()
+        await db.refresh(new_action)
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error while saving action: {str(e)}"
+        )
 
-    # 6. Broadcast Action to Ward Stream for Real-time Timeline
+    # 6. Clear Redis locks & broadcast resolution
+    if alert:
+        # Clear the debounce lock for this specific vital so new alerts can fire if needed
+        if alert.vital_type:
+            await redis.delete(f"alert_lock:{patient_id}:{alert.vital_type}")
+
+        clear_payload = {
+            "event": "ALERT_RESOLVED",
+            "alert_id": alert.id,
+            "patient_id": patient_id,
+            "action_taken": payload.action_type,
+            "by": getattr(current_user, "full_name", f"User #{current_user.id}")
+        }
+        await redis.publish(f"patient:{patient_id}:alerts", json.dumps(clear_payload))
+
+    # Reset common hardware locks if a hardware/network reset was performed
+    if payload.action_type in ["Network Reset", "Reconnected Band", "Band Repositioned"]:
+        await redis.delete(f"alert_lock:{patient_id}:Network")
+        await redis.delete(f"alert_lock:{patient_id}:Connectivity")
+        await redis.delete(f"alert_lock:{patient_id}:Band Status")
+        await redis.delete(f"patient_dead_state:{patient_id}")
+
+    # 7. Broadcast Action to Ward Stream
     action_payload = {
         "event": "ACTION_LOGGED",
+        "action_id": new_action.id,
         "patient_id": patient_id,
-        "patient_name": patient.full_name,
-        "staff_name": current_user.full_name,
-        "action": action_type,
-        "details": other_details,
+        "patient_name": getattr(patient, "full_name", "Unknown"),
+        "staff_name": getattr(current_user, "full_name", f"User #{current_user.id}"),
+        "action": payload.action_type,
+        "details": payload.other_details or "",
         "time": clean_performed_at.isoformat()
     }
     await redis.publish("ward_vitals_stream", json.dumps(action_payload))
 
-    try:
-        await db.commit()
-    except Exception as e:
-        await db.rollback()
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
-    
     return {
         "status": "success",
         "action_id": new_action.id,
-        "message": f"Action '{action_type}' recorded successfully"
+        "alert_resolved": alert is not None,
+        "message": f"Action '{payload.action_type}' recorded successfully"
     }
 
 @router.post("/patients/{patient_id}/alerts/{alert_id}/snooze")
@@ -1310,10 +1333,10 @@ async def readmit_historical_patient(
     current_user: User = Depends(get_current_user)
 ):
     """
-    Modifies an archived patient record directly to reactivate it for a new stay.
-    Resets administrative lifecycle fields to active defaults while keeping identities intact.
+    Reactivates an archived patient record directly in-place.
+    Assigns department, ward, bed, room, assigned doctor, and resets monitoring lifecycle flags.
     """
-    # 1. Fetch the exact existing patient record row
+    # 1. Fetch existing patient record
     patient = await db.get(Patient, payload.archived_patient_id)
     if not patient:
         raise HTTPException(
@@ -1321,45 +1344,105 @@ async def readmit_historical_patient(
             detail="Archived patient record not found"
         )
         
-    # Check if they are actually discharged/archived before allowing reactivation
     if patient.archive_status != "archived" or not patient.is_discharged:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, 
             detail="Operation rejected: This patient record profile is already active in the system."
         )
 
-    # 2. UPDATE FIELDS IN PLACE (Reversing the discharge parameters)
-    # Re-initializes them back into active tracking loops
+    # 2. Validate Facility Hierarchy & Assets
+    if payload.department_id:
+        dept = await db.get(Department, payload.department_id)
+        if not dept or not dept.is_active:
+            raise HTTPException(status_code=400, detail="Specified Department does not exist or is inactive.")
+
+    if payload.ward_id:
+        ward = await db.get(Ward, payload.ward_id)
+        if not ward or not ward.is_active:
+            raise HTTPException(status_code=400, detail="Specified Ward does not exist or is inactive.")
+
+    # Validate and mark Bed as occupied
+    if payload.bed_id:
+        bed = await db.get(Bed, payload.bed_id)
+        if not bed or not bed.is_active:
+            raise HTTPException(status_code=400, detail="Specified Bed does not exist or is inactive.")
+        if bed.is_occupied:
+            raise HTTPException(status_code=400, detail=f"Bed {bed.bed_no} is currently occupied.")
+        bed.is_occupied = True
+        db.add(bed)
+
+    # Validate and mark Room as occupied
+    if payload.room_id:
+        room = await db.get(Room, payload.room_id)
+        if not room or not room.is_active:
+            raise HTTPException(status_code=400, detail="Specified Room does not exist or is inactive.")
+        if room.is_occupied:
+            raise HTTPException(status_code=400, detail=f"Room {room.room_number} is currently occupied.")
+        room.is_occupied = True
+        db.add(room)
+
+    # Validate assigned doctor
+    if payload.assigned_doctor:
+        doctor = await db.get(User, payload.assigned_doctor)
+        if not doctor:
+            raise HTTPException(status_code=400, detail="Assigned Doctor does not exist.")
+
+    # Check Device collision if provided
+    if payload.device_id:
+        device_in_use = await db.scalar(
+            select(Patient.id)
+            .where(Patient.device_id == payload.device_id)
+            .where(Patient.archive_status == "active")
+        )
+        if device_in_use:
+            raise HTTPException(
+                status_code=400, 
+                detail="Hardware collision: That device is currently assigned to another active patient."
+            )
+
+    # 3. Update Patient record attributes in place
     patient.is_discharged = False
     patient.archive_status = "active"
     patient.is_monitoring_paused = False
-    patient.discharged_at = None       # Clear out past checkout timestamp metadata
-    
-    # Reset structural asset parameters to clear placeholders
-    # They stay None here so clinicians can triage assignments using patch requests later
-    # patient.room_id = None
-    # patient.device_id = None
-    # patient.doctor_id = None
-    # patient.nurse_id = None
-    
-    # 3. Clean up Redis Hot Cache State Tracks
-    # Delete past dead-state indicators so background workers know this row has returned to life
-    await redis.delete(f"patient_dead_state:{payload.archived_patient_id}")
-    
-    # Clear any past flashing network alarm references remaining from their previous stay
-    await redis.delete(f"alert_lock:{payload.archived_patient_id}:Network")
-    await redis.delete(f"alert_lock:{payload.archived_patient_id}:Connectivity")
-    await redis.delete(f"alert_lock:{payload.archived_patient_id}:Band Status")
+    patient.discharged_at = None
 
-    # 4. Commit updates to PostgreSQL
+    # Structural assignments
+    patient.bed_id = payload.bed_id
+    patient.room_id = payload.room_id
+    patient.doctor_id = payload.assigned_doctor  # Maps assigned_doctor to doctor_id FK
+    if payload.device_id:
+        patient.device_id = payload.device_id
+
+    # If department_id or ward_id are explicit columns on Patient, assign them:
+    if hasattr(patient, "ward_id"):
+        patient.ward_id = payload.ward_id
+    if hasattr(patient, "department_id"):
+        patient.department_id = payload.department_id
+
+    db.add(patient)
+
+    # 4. Clean up Redis Hot Cache State Tracks
+    await redis.delete(f"patient_dead_state:{patient.id}")
+    await redis.delete(f"alert_lock:{patient.id}:Network")
+    await redis.delete(f"alert_lock:{patient.id}:Connectivity")
+    await redis.delete(f"alert_lock:{patient.id}:Band Status")
+    
+    # Initialize active window for the watchdog cron
+    await redis.setex(f"patient_active:{patient.id}", 180, "online")
+
+    # 5. Commit all changes cleanly
     await db.commit()
+    await db.refresh(patient)
     
     return {
         "status": "success",
-        "message": "Patient record reactivated successfully in place. Status moved back to active pending triage allocation.",
+        "message": "Patient readmitted successfully. Physical assets and medical team assigned.",
         "patient_id": patient.id,
         "archive_status": patient.archive_status,
-        "is_discharged": patient.is_discharged
+        "is_discharged": patient.is_discharged,
+        "bed_id": patient.bed_id,
+        "room_id": patient.room_id,
+        "doctor_id": patient.doctor_id
     }
 
 # @router.post("/readmit", status_code=status.HTTP_201_CREATED)

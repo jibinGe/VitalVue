@@ -47,12 +47,20 @@ class PatientDischargeResponseSchema(BaseModel):
     archive_status: str
     is_discharged: bool
 
+class PatientActionCreate(BaseModel):
+    action_type: str = Field(..., description="Action taken, e.g. 'Network Reset', 'Medication Given'")
+    alert_id: Optional[int] = Field(None, description="Optional associated alert ID")
+    other_details: Optional[str] = Field(None, description="Additional notes or details")
+    performed_at: Optional[datetime] = Field(None, description="Timestamp when the action was performed")
+
 class PatientReadmitSchema(BaseModel):
     archived_patient_id: int = Field(..., description="The ID of the past archived patient record")
-    # room_id: int = Field(..., description="The new room/bed assignment for this stay")
-    # device_id: str = Field(..., description="The hardware ID of the new band being attached")
-    # doctor_id: int = Field(..., description="Assigned primary doctor ID")
-    # nurse_id: Optional[int] = Field(None, description="Assigned tracking nurse ID")
+    department_id: Optional[int] = Field(None, description="Assigned Department ID")
+    ward_id: Optional[int] = Field(None, description="Assigned Ward ID")
+    room_id: Optional[int] = Field(None, description="Assigned Room ID")
+    bed_id: Optional[int] = Field(None, description="Assigned Bed ID")
+    assigned_doctor: Optional[int] = Field(None, description="Primary attending Doctor ID")
+    device_id: Optional[str] = Field(None, description="New hardware band device address")
 
 
 class PatientArchiveItemSchema(BaseModel):
