@@ -8,6 +8,7 @@ function CriticalAlarmCard({ alarmData, onDismiss, onSnooze, onTakeAction, onVie
     room,
     ward,
     phoneNumber,
+    altPhone,
     vitals = {},
     alert = null,
     isConnected = true,
@@ -154,7 +155,7 @@ function CriticalAlarmCard({ alarmData, onDismiss, onSnooze, onTakeAction, onVie
           </div>
         )}
         {phoneNumber && (
-          <div className="flex items-center justify-center gap-1.5 mb-2">
+          <div className="flex items-center justify-center gap-1.5 mb-1">
             <div
               className="flex items-center gap-1.5 px-3 py-1 rounded-full"
               style={{
@@ -162,11 +163,27 @@ function CriticalAlarmCard({ alarmData, onDismiss, onSnooze, onTakeAction, onVie
                 border: `1px solid rgba(${themeColorRgba},0.25)`,
               }}
             >
-              <span className={`${isTvMode ? 'text-base' : 'text-xl'} font-semibold`} >{phoneNumber}</span>
+              <span className={`${isTvMode ? 'text-base' : 'text-xl'} font-semibold`}>Phone Number: {phoneNumber}</span>
             </div>
           </div>
         )}
-        {!phoneNumber && !(room || ward) && <div className="mb-5" />}
+
+        <div className="flex items-center justify-center gap-1.5 mb-2">
+          <div
+            className="flex items-center gap-1.5 px-3 py-1 rounded-full"
+            style={{
+              background: `rgba(${themeColorRgba},0.06)`,
+              border: `1px solid rgba(${themeColorRgba},0.18)`,
+            }}
+          >
+            <span className={`${isTvMode ? 'text-sm' : 'text-base'} font-medium`} style={{ color: `rgba(${themeColorRgba},0.85)` }}>
+              Alt Phone Number: {altPhone}
+            </span>
+          </div>
+        </div>
+
+
+        {!phoneNumber && !(room || ward) && <div className="mb-3" />}
 
         <div
           className="w-full h-px mb-5"
@@ -326,6 +343,7 @@ export default function CriticalAlarmModal({
   room,
   ward,
   phoneNumber,
+  altPhone,
   vitals,
   alert,
   isConnected,
@@ -338,6 +356,7 @@ export default function CriticalAlarmModal({
     room,
     ward,
     phoneNumber,
+    altPhone,
     vitals,
     alert,
     isConnected,
@@ -414,7 +433,7 @@ export default function CriticalAlarmModal({
       <div
         className="fixed inset-0 z-[101] flex flex-col items-center justify-start p-4 overflow-y-auto gap-6 pt-[10vh] pb-[10vh]"
         onClick={() => {
-           // Optional: you could dismiss all by clicking background, but safer to let user act on each
+          // Optional: you could dismiss all by clicking background, but safer to let user act on each
         }}
       >
         <AnimatePresence>

@@ -66,6 +66,7 @@ export const usePatientHistory = (patientId, filterTab = 'Live') => {
 
         // Map device status
         battery_percent: row.device_status?.battery,
+        phone_battery: row.device_status?.phone_battery ?? row.device_status?.phone_battery_percent ?? row.phone_battery,
         is_connected: row.device_status?.is_connected
       }));
 

@@ -147,29 +147,32 @@ export default function WardsPage() {
       });
   }, [beds, wardMap, deptMap, orgMap, filterOrgId, filterDeptId, filterWardId]);
 
-  // Enrich Rooms table data
+  // Enrich Rooms table data (supports both dept-level and ward-level rooms)
   const enrichedRooms = useMemo(() => {
     return rooms
       .filter((r) => {
         const ward = wardMap[r.ward_id];
-        if (!ward) return false;
+        const deptId = r.department_id || ward?.department_id;
+        const dept = deptMap[deptId];
+        if (!dept && !ward) return false;
         if (filterOrgId !== 'all') {
-          const dept = deptMap[ward.department_id];
           if (dept?.organization_id !== Number(filterOrgId)) return false;
         }
-        if (filterDeptId !== 'all' && ward.department_id !== Number(filterDeptId)) return false;
-        if (filterWardId !== 'all' && r.ward_id !== Number(filterWardId)) return false;
+        if (filterDeptId !== 'all' && deptId !== Number(filterDeptId)) return false;
+        if (filterWardId !== 'all') {
+          if (!r.ward_id || r.ward_id !== Number(filterWardId)) return false;
+        }
         return true;
       })
       .map((r) => {
         const ward = wardMap[r.ward_id];
-        const dept = ward ? deptMap[ward.department_id] : null;
+        const dept = deptMap[r.department_id || ward?.department_id];
         const orgName = dept ? orgMap[dept.organization_id] : '—';
         return {
           ...r,
           hospital_name: orgName,
           department_name: dept?.name || '—',
-          ward_name: ward?.name || `Ward #${r.ward_id}`,
+          ward_name: ward?.name || (r.department_id ? 'Direct Dept Room' : '—'),
         };
       });
   }, [rooms, wardMap, deptMap, orgMap, filterOrgId, filterDeptId, filterWardId]);
@@ -199,7 +202,8 @@ export default function WardsPage() {
     { key: 'id', label: 'ID' },
     { key: 'room_number', label: 'Room No.', render: (v) => <span className="font-mono font-semibold text-white">{v}</span> },
     { key: 'hospital_name', label: 'Hospital' },
-    { key: 'ward_name', label: 'Ward' },
+    { key: 'department_name', label: 'Department' },
+    { key: 'ward_name', label: 'Ward / Scope' },
     { key: 'is_occupied', label: 'Occupancy', render: (v) => <StatusBadge status={v ? 'occupied' : 'available'} /> },
     { key: 'is_active', label: 'Status', render: (v) => <StatusBadge status={v} /> },
   ];
@@ -233,7 +237,12 @@ export default function WardsPage() {
     } else if (activeTab === 'beds') {
       setFormData({ bed_no: row.bed_no || '', ward_id: row.ward_id });
     } else {
-      setFormData({ room_number: row.room_number || '', ward_id: row.ward_id, is_occupied: row.is_occupied });
+      setFormData({
+        room_number: row.room_number || '',
+        ward_id: row.ward_id || null,
+        department_id: row.department_id || null,
+        is_occupied: row.is_occupied ?? false,
+      });
     }
     setFormError('');
     setFormOpen(true);
@@ -512,12 +521,28 @@ export default function WardsPage() {
         )}
 
         {activeTab === 'rooms' && (
-          <FormField label="Room Number" required>
-            <AdminInput
-              value={formData.room_number || ''}
-              onChange={(e) => setFormData((f) => ({ ...f, room_number: e.target.value }))}
-            />
-          </FormField>
+          <div className="space-y-3">
+            <FormField label="Room Number" required>
+              <AdminInput
+                value={formData.room_number || ''}
+                onChange={(e) => setFormData((f) => ({ ...f, room_number: e.target.value }))}
+              />
+            </FormField>
+            <FormField label="Department">
+              <select
+                value={formData.department_id || ''}
+                onChange={(e) => setFormData((f) => ({ ...f, department_id: e.target.value ? Number(e.target.value) : null }))}
+                className="w-full px-3 py-2 bg-[#252528] border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-[#CCA166]/50"
+              >
+                <option value="">None / Unassigned</option>
+                {departments.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
+            </FormField>
+          </div>
         )}
       </EntityForm>
 

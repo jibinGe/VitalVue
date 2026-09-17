@@ -165,10 +165,17 @@ export default function RegisterPatientModal({ isOpen, onClose, onSuccess }) {
         .catch(() => setWards([]))
         .finally(() => setLoadingWards(false));
     } else {
-      // Room flow: fetch all rooms in this department
+      // Room flow: fetch all available rooms in this department
       setLoadingRooms(true);
       apiClient.get(`/api/v1/discovery/departments/${form.department_id}/rooms`)
-        .then((r) => setRooms(r.data || []))
+        .then((r) => {
+          const allRooms = r.data || [];
+          // Filter to only display available (unoccupied and active) rooms
+          const availableRooms = allRooms.filter(
+            (room) => !room.is_occupied && (room.is_active ?? true)
+          );
+          setRooms(availableRooms);
+        })
         .catch(() => setRooms([]))
         .finally(() => setLoadingRooms(false));
     }
@@ -184,6 +191,12 @@ export default function RegisterPatientModal({ isOpen, onClose, onSuccess }) {
       .catch(() => setBeds([]))
       .finally(() => setLoadingBeds(false));
   }, [form.ward_id, assignmentType]);
+
+  const handleAssignmentTypeChange = (type) => {
+    setAssignmentType(type);
+    setForm((f) => ({ ...f, ward_id: "", bed_id: "", room_id: "" }));
+    setErrors((e) => ({ ...e, ward_id: undefined, bed_id: undefined, room_id: undefined }));
+  };
 
   const set = useCallback((field, value) => {
     setForm((f) => ({ ...f, [field]: value }));
@@ -522,20 +535,38 @@ export default function RegisterPatientModal({ isOpen, onClose, onSuccess }) {
 
                       {/* Room-only flow */}
                       {assignmentType === "room" && form.department_id && (
-                        <FieldGroup label="Room" required error={errors.room_id}>
-                          <select
-                            className={selectCls}
-                            value={form.room_id}
-                            onChange={(e) => set("room_id", e.target.value)}
-                            disabled={loadingRooms}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <FieldGroup
+                            label={`Room${rooms.length > 0 && !loadingRooms ? ` (${rooms.length} available)` : ""}`}
+                            required
+                            error={errors.room_id}
                           >
-                            <option value="">{loadingRooms ? "Loading..." : "Select room"}</option>
-                            {rooms.length === 0 && !loadingRooms
-                              ? <option disabled>No rooms in this department</option>
-                              : rooms.map((r) => <option key={r.id} value={r.id}>{r.room_number || `Room ${r.id}`}</option>)
-                            }
-                          </select>
-                        </FieldGroup>
+                            <select
+                              className={selectCls}
+                              value={form.room_id}
+                              onChange={(e) => set("room_id", e.target.value)}
+                              disabled={loadingRooms}
+                            >
+                              <option value="">{loadingRooms ? "Loading available rooms..." : "Select room"}</option>
+                              {rooms.length === 0 && !loadingRooms ? (
+                                <option disabled>No available rooms in this department</option>
+                              ) : (
+                                rooms.map((r) => {
+                                  const label = r.room_number
+                                    ? r.room_number.toLowerCase().startsWith("room")
+                                      ? r.room_number
+                                      : `Room ${r.room_number}`
+                                    : `Room ${r.id}`;
+                                  return (
+                                    <option key={r.id} value={r.id}>
+                                      {label}
+                                    </option>
+                                  );
+                                })
+                              )}
+                            </select>
+                          </FieldGroup>
+                        </div>
                       )}
 
                       {/* Doctor / Nurse — always shown */}

@@ -5,9 +5,16 @@ const StressPatternChart = ({ className = "w-full h-12", historyData = [] }) => 
     const data = historyData && historyData.length > 0
         ? historyData.map(h => {
              let v = 50;
-             if (h.stress_level === "Low") v = 30;
-             if (h.stress_level === "Moderate") v = 60;
-             if (h.stress_level === "High") v = 90;
+             const num = Number(h.stress_level);
+             if (!isNaN(num) && h.stress_level !== "" && h.stress_level !== null) {
+               v = Math.min(100, Math.max(0, num));
+             } else if (h.stress_level === "Low") {
+               v = 30;
+             } else if (h.stress_level === "Moderate") {
+               v = 60;
+             } else if (h.stress_level === "High") {
+               v = 90;
+             }
              return { value: v };
         })
         : [{ value: 0 }, { value: 0 }];

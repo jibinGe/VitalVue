@@ -109,6 +109,12 @@ const PatientCard = memo(({
     const batteryValue = parseInt(item.deviceBattery) || 0;
     const batteryColor = getBatteryColor(batteryValue);
 
+    const phoneBatteryRaw = item.phoneBattery !== undefined && item.phoneBattery !== null ? item.phoneBattery : null;
+    const phoneBatteryValue = (phoneBatteryRaw !== null && phoneBatteryRaw !== "" && !isNaN(parseInt(phoneBatteryRaw)))
+        ? parseInt(phoneBatteryRaw)
+        : null;
+    const phoneBatteryColor = phoneBatteryValue !== null ? getBatteryColor(phoneBatteryValue) : "#9CA3AF";
+
     return (
         <motion.div
             layout
@@ -305,11 +311,11 @@ const PatientCard = memo(({
                                 );
                             })}
 
-                            {/* Device card — Status, WiFi indicator (header), Battery */}
-                            <div className={`bg-[#2F2F31] rounded-[20px] ${isTvMode ? 'p-2' : 'p-2.5'} flex flex-col justify-between items-start overflow-hidden relative shadow-[0px_0px_50px_0px_rgba(0,0,0,0.08)] z-2 ${isTvMode ? 'min-h-[90px]' : 'min-h-[140px]'}`}>
+                            {/* Device card — Status, WiFi indicator (header), Battery, Phone Battery */}
+                            <div className={`bg-[#2F2F31] rounded-[20px] ${isTvMode ? 'p-2' : 'p-2.5 pb-7'} flex flex-col justify-between items-start overflow-hidden relative shadow-[0px_0px_50px_0px_rgba(0,0,0,0.08)] z-2 ${isTvMode ? 'min-h-[90px]' : 'min-h-[140px]'}`}>
                                 <div className="w-full relative z-10">
                                     {/* Header row: Device icon + label + WiFi status icon */}
-                                    <div className="flex items-center justify-between gap-2 mb-2">
+                                    <div className={`flex items-center justify-between gap-2 ${isTvMode ? 'mb-1' : 'mb-1.5'}`}>
                                         <div className="flex items-center gap-2">
                                             <div className={`${isTvMode ? 'size-5 [&_svg]:size-3' : 'size-8'} rounded-full flex items-center justify-center shrink-0 bg-yellow`}>
                                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -349,7 +355,7 @@ const PatientCard = memo(({
                                             </svg>
                                         </div>
                                     </div>
-                                    <div className="flex flex-col gap-2 w-full">
+                                    <div className={`flex flex-col ${isTvMode ? 'gap-1' : 'gap-1.5'} w-full`}>
                                         <div className="flex items-center gap-1.5 w-full justify-between xl:justify-start">
                                             <span className="font-lufga font-medium text-[13px] xl:text-[14px] text-white flex items-center gap-1">
                                                 Status
@@ -363,9 +369,22 @@ const PatientCard = memo(({
                                         </div>
                                         <div className="flex items-center gap-1.5 w-full justify-between xl:justify-start">
                                             <span className="font-lufga font-medium text-[13px] xl:text-[14px] text-white">Battery</span>
-                                            <div className="bg-white/10 px-2 py-[2px] mt-0.5 flex items-center justify-center rounded-full text-[11px] xl:text-[12px] font-lufga gap-1.5">
+                                            <div className={`bg-white/10 px-2 py-[2px] mt-0.5 flex items-center justify-center rounded-full ${isTvMode ? 'text-[10px]' : 'text-[11px] xl:text-[12px]'} font-lufga gap-1.5`}>
                                                 <BatteryIcon percent={batteryValue} color={batteryColor} />
                                                 <span style={{ color: batteryColor }}>{item.deviceBattery || "80%"}</span>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 w-full justify-between xl:justify-start">
+                                            <span className="font-lufga font-medium text-[13px] xl:text-[14px] text-white" title="Phone Battery">Phone</span>
+                                            <div className={`bg-white/10 px-2 py-[2px] mt-0.5 flex items-center justify-center rounded-full ${isTvMode ? 'text-[10px]' : 'text-[11px] xl:text-[12px]'} font-lufga gap-1.5`}>
+                                                {phoneBatteryValue !== null ? (
+                                                    <>
+                                                        <BatteryIcon percent={phoneBatteryValue} color={phoneBatteryColor} />
+                                                        <span style={{ color: phoneBatteryColor }}>{phoneBatteryValue}%</span>
+                                                    </>
+                                                ) : (
+                                                    <span className="text-white/40">--</span>
+                                                )}
                                             </div>
                                         </div>
                                     </div>

@@ -14,6 +14,38 @@ export default function TvDashboard() {
 
   // Dummy state for PatientCard props that we don't need on TV
   const [cardMenu, setCardMenu] = useState(null);
+  const [selectedFilter, setSelectedFilter] = useState("All");
+
+  // Helper for real-time HH:mm:ss clock
+  const getFormattedTime = () => {
+    const d = new Date();
+    const h = String(d.getHours()).padStart(2, "0");
+    const m = String(d.getMinutes()).padStart(2, "0");
+    const s = String(d.getSeconds()).padStart(2, "0");
+    return `${h}:${m}:${s}`;
+  };
+
+  const getFormattedDate = () => {
+    return new Date().toLocaleDateString(undefined, {
+      weekday: "short",
+      day: "numeric",
+      month: "short"
+    });
+  };
+
+  // Real-time running live clock (500ms tick to prevent any interval drift)
+  const [currentTime, setCurrentTime] = useState(getFormattedTime);
+  const [currentDate, setCurrentDate] = useState(getFormattedDate);
+
+  useEffect(() => {
+    const tick = () => {
+      setCurrentTime(getFormattedTime());
+      setCurrentDate(getFormattedDate());
+    };
+    tick();
+    const timer = setInterval(tick, 500);
+    return () => clearInterval(timer);
+  }, []);
 
   // Exact same logic from home.jsx for determining cardData
   const cardData = useMemo(() => {
@@ -128,28 +160,63 @@ export default function TvDashboard() {
         ],
         alerts: [],
         deviceBattery: live.battery_percent !== undefined ? `${live.battery_percent}%` : (latestHistoryVitals?.battery_percent !== undefined ? `${latestHistoryVitals.battery_percent}%` : (p.device_battery || "80%")),
+        phoneBattery: live.phone_battery !== undefined
+          ? live.phone_battery
+          : (live.phoneBattery !== undefined
+              ? live.phoneBattery
+              : (latestHistoryVitals?.phone_battery !== undefined
+                  ? latestHistoryVitals.phone_battery
+                  : (latestHistoryVitals?.phoneBattery !== undefined
+                      ? latestHistoryVitals.phoneBattery
+                      : (p.phone_battery ?? p.phoneBattery ?? null)))),
         isConnected: isConnected,
         isRemoved: isRemoved,
       };
     });
   }, [rawPatients, liveVitals, liveStatuses]);
 
-  // Filter only Critical and Warning
+  // Priority ranking: Critical (1) > Warning (2) > Stable (3)
   const getStatusPriority = (status) => {
     const s = (status || "").toLowerCase();
     if (s === "critical") return 1;
     if (s === "warning" || s === "high" || s === "low") return 2;
-    return 3;
+    if (s === "stable") return 3;
+    return 4;
   };
 
-  const displayData = useMemo(() => {
-    return cardData
-      .filter(item => {
-        const s = (item.status || "").toLowerCase();
-        return s === "critical" || s === "warning";
-      })
-      .sort((a, b) => getStatusPriority(a.status) - getStatusPriority(b.status));
+  // Triage counts for header badges
+  const triageCounts = useMemo(() => {
+    let critical = 0;
+    let warning = 0;
+    let stable = 0;
+    cardData.forEach((item) => {
+      const s = (item.status || "").toLowerCase();
+      if (s === "critical") critical++;
+      else if (s === "warning" || s === "high" || s === "low") warning++;
+      else stable++;
+    });
+    return { critical, warning, stable, total: cardData.length };
   }, [cardData]);
+
+  // Show all patients (critical, warning, stable) sorted by clinical priority
+  const displayData = useMemo(() => {
+    let list = cardData;
+    if (selectedFilter !== "All") {
+      list = cardData.filter((item) => {
+        const s = (item.status || "").toLowerCase();
+        if (selectedFilter === "Critical") return s === "critical";
+        if (selectedFilter === "Warning") return s === "warning" || s === "high" || s === "low";
+        if (selectedFilter === "Stable") return s === "stable";
+        return true;
+      });
+    }
+
+    return [...list].sort((a, b) => {
+      const priorityDiff = getStatusPriority(a.status) - getStatusPriority(b.status);
+      if (priorityDiff !== 0) return priorityDiff;
+      return (a.room || "").localeCompare(b.room || "", undefined, { numeric: true });
+    });
+  }, [cardData, selectedFilter]);
 
   // Auto-scroll logic
   const scrollRef = useRef(null);
@@ -160,7 +227,7 @@ export default function TvDashboard() {
     let scrollDirection = 1; // 1 for down, -1 for up
     let animationFrameId;
     let lastTime = 0;
-    const scrollSpeed = 60; // pixels per second
+    const scrollSpeed = 50; // pixels per second
 
     const scrollLoop = (time) => {
       if (!lastTime) lastTime = time;
@@ -196,13 +263,86 @@ export default function TvDashboard() {
   // Full screen styling for TV
   return (
     <div ref={scrollRef} className="w-screen h-screen bg-[#1A1A1C] overflow-y-auto p-4 md:p-6 lg:p-8 scroll-smooth">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl md:text-4xl font-lufga text-white flex items-center gap-3">
-          <span className="bg-[#E54D4D] size-4 rounded-full animate-pulse"></span>
-          Critical Events Monitor
-        </h1>
-        <div className="text-white/60 text-lg md:text-xl font-lufga">
-          {new Date().toLocaleTimeString()}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div className="flex items-center gap-3">
+          <span
+            className={`size-4 rounded-full shrink-0 ${
+              triageCounts.critical > 0
+                ? "bg-[#E54D4D] animate-pulse shadow-[0_0_12px_#E54D4D]"
+                : triageCounts.warning > 0
+                ? "bg-[#E5DB4C] shadow-[0_0_12px_#E5DB4C]"
+                : "bg-[#4DE573] shadow-[0_0_12px_#4DE573]"
+            }`}
+          />
+          <h1 className="text-2xl md:text-3xl lg:text-4xl font-lufga text-white flex items-center gap-2">
+            Patient Vitals Monitor
+            {selectedWard?.name && (
+              <span className="text-white/40 text-lg md:text-2xl font-normal">
+                · {selectedWard.name}
+              </span>
+            )}
+          </h1>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {/* Triage summary badges */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => setSelectedFilter(selectedFilter === "Critical" ? "All" : "Critical")}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs md:text-sm font-medium transition-all ${
+                selectedFilter === "Critical"
+                  ? "bg-[#E54D4D]/25 border-[#E54D4D] text-[#E54D4D] shadow-[0_0_12px_rgba(229,77,77,0.35)]"
+                  : "bg-[#E54D4D]/10 border-[#E54D4D]/30 text-[#E54D4D] hover:bg-[#E54D4D]/20"
+              }`}
+            >
+              <span className={`size-2.5 rounded-full bg-[#E54D4D] ${triageCounts.critical > 0 ? "animate-pulse" : ""}`}></span>
+              <span>Critical: {triageCounts.critical}</span>
+            </button>
+
+            <button
+              onClick={() => setSelectedFilter(selectedFilter === "Warning" ? "All" : "Warning")}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs md:text-sm font-medium transition-all ${
+                selectedFilter === "Warning"
+                  ? "bg-[#E5DB4C]/25 border-[#E5DB4C] text-[#E5DB4C] shadow-[0_0_12px_rgba(229,219,76,0.35)]"
+                  : "bg-[#E5DB4C]/10 border-[#E5DB4C]/30 text-[#E5DB4C] hover:bg-[#E5DB4C]/20"
+              }`}
+            >
+              <span className="size-2.5 rounded-full bg-[#E5DB4C]"></span>
+              <span>Warning: {triageCounts.warning}</span>
+            </button>
+
+            <button
+              onClick={() => setSelectedFilter(selectedFilter === "Stable" ? "All" : "Stable")}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs md:text-sm font-medium transition-all ${
+                selectedFilter === "Stable"
+                  ? "bg-[#4DE573]/25 border-[#4DE573] text-[#4DE573] shadow-[0_0_12px_rgba(77,229,115,0.35)]"
+                  : "bg-[#4DE573]/10 border-[#4DE573]/30 text-[#4DE573] hover:bg-[#4DE573]/20"
+              }`}
+            >
+              <span className="size-2.5 rounded-full bg-[#4DE573]"></span>
+              <span>Stable: {triageCounts.stable}</span>
+            </button>
+
+            <button
+              onClick={() => setSelectedFilter("All")}
+              className={`px-3 py-1.5 rounded-full border text-xs md:text-sm font-medium transition-all ${
+                selectedFilter === "All"
+                  ? "bg-white/20 border-white/40 text-white shadow-[0_0_12px_rgba(255,255,255,0.15)]"
+                  : "bg-white/5 border-white/15 text-white/70 hover:bg-white/10"
+              }`}
+            >
+              Total: {triageCounts.total}
+            </button>
+          </div>
+
+          <div className="flex flex-col items-end shrink-0 ml-3">
+            <div className="text-white text-xl md:text-2xl lg:text-3xl font-lufga font-medium tracking-wider tabular-nums">
+              {currentTime}
+            </div>
+            <div className="text-white/40 text-xs font-lufga tracking-wide">
+              {currentDate}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -222,12 +362,18 @@ export default function TvDashboard() {
               >
                 <div className="size-24 mb-6 bg-white/5 rounded-full flex items-center justify-center">
                   <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 22C17.5 22 22 17.5 22 12C22 6.5 17.5 2 12 2C6.5 2 2 6.5 2 12C2 17.5 6.5 22 12 22Z" stroke="#4DE573" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M7.75 12L10.58 14.83L16.25 9.17004" stroke="#4DE573" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    <circle cx="12" cy="12" r="10" stroke="white" strokeOpacity="0.2" strokeWidth="2" />
+                    <path d="M12 8v4M12 16h.01" stroke="white" strokeOpacity="0.4" strokeWidth="2" strokeLinecap="round" />
                   </svg>
                 </div>
-                <h3 className="text-3xl text-white font-medium mb-3 font-lufga">All Patients Stable</h3>
-                <p className="text-xl text-para">There are no critical or warning alerts at this time.</p>
+                <h3 className="text-3xl text-white font-medium mb-3 font-lufga">
+                  {selectedFilter === "All" ? "No Patients Found" : `No ${selectedFilter} Patients`}
+                </h3>
+                <p className="text-xl text-para">
+                  {selectedFilter === "All"
+                    ? "There are no patients admitted at this time."
+                    : `There are currently no patients in ${selectedFilter.toLowerCase()} status.`}
+                </p>
               </motion.div>
             ) : (
               displayData.map((item, index) => (
@@ -263,6 +409,7 @@ export default function TvDashboard() {
         room={criticalAlarmData?.room}
         ward={criticalAlarmData?.ward}
         phoneNumber={criticalAlarmData?.phoneNumber}
+        altPhone={criticalAlarmData?.altPhone}
         vitals={criticalAlarmData?.vitals}
         alert={criticalAlarmData?.alert}
         isConnected={criticalAlarmData?.isConnected}

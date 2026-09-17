@@ -130,11 +130,14 @@ export const patientService = {
   /**
    * Unarchive / Readmit a patient
    */
-  async unarchivePatient(patientId) {
+  async unarchivePatient(dataOrId) {
     try {
-      const response = await apiClient.post(`/api/v1/patients/readmit`, {
-        archived_patient_id: patientId,
-      });
+      const payload =
+        typeof dataOrId === "object" && dataOrId !== null
+          ? dataOrId
+          : { archived_patient_id: dataOrId };
+
+      const response = await apiClient.post(`/api/v1/patients/readmit`, payload);
       return {
         success: true,
         data: response.data,
@@ -142,10 +145,17 @@ export const patientService = {
       };
     } catch (error) {
       console.error('Error unarchiving patient:', error);
+      const detail = error.response?.data?.detail;
+      const errMsg =
+        typeof detail === "string"
+          ? detail
+          : Array.isArray(detail)
+          ? detail.map((d) => d.msg || JSON.stringify(d)).join(", ")
+          : error.response?.data?.message || error.message || "Failed to unarchive patient";
       return {
         success: false,
         data: null,
-        message: error.response?.data?.message || error.message || "Failed to unarchive patient",
+        message: errMsg,
       };
     }
   },

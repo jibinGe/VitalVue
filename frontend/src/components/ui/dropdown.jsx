@@ -2,12 +2,23 @@ import { useState, useEffect, useRef } from 'react'
 import { Angle } from '../../utilities/icons';
 import { AnimatePresence, motion } from 'framer-motion'
 
-export default function Dropdown({ className = "", label, labelClass = "text-sm lg:text-base", required, items = [], placeholder, btnClass = "min-h-11 md:min-h-12", dropdownClass = "left-0 w-full", dropdownPosition = "bottom", onSelect }) {
-  const [defaultItem, setDefaultItem] = useState('')
+export default function Dropdown({ className = "", label, labelClass = "text-sm lg:text-base", required, items = [], placeholder, value, btnClass = "min-h-11 md:min-h-12", dropdownClass = "left-0 w-full", dropdownPosition = "bottom", onSelect }) {
+  const getInitialItem = () => {
+    if (value !== undefined && value !== null) {
+      return typeof value === 'object' ? value : { name: value };
+    }
+    return typeof placeholder === 'string' ? { name: placeholder } : placeholder || { name: 'Select' };
+  };
+
+  const [defaultItem, setDefaultItem] = useState(getInitialItem);
 
   useEffect(() => {
-    setDefaultItem(typeof placeholder === 'string' ? { name: placeholder } : placeholder || { name: 'Select' })
-  }, [placeholder])
+    if (value !== undefined && value !== null) {
+      setDefaultItem(typeof value === 'object' ? value : { name: value });
+    } else {
+      setDefaultItem(typeof placeholder === 'string' ? { name: placeholder } : placeholder || { name: 'Select' });
+    }
+  }, [value, placeholder]);
 
   const [isOpen, setIsOpen] = useState(false);
 
