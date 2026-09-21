@@ -7,5 +7,5 @@ backend/key.pem
 backend/deploy.sh
 backend/deploy.sh
 backend/.venv
-backend/migrations
-backend/migrations/versions
+backend/migrations/versions/__pycache__
+*.pyc

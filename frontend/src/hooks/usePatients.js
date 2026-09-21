@@ -41,7 +41,7 @@ export const usePatients = (wardId = 'all', refreshTrigger = 0, searchQuery = ""
     if (!token) return;
 
     // Use the backend base URL from settings/config or fallback to the current window origin for relatives
-    const backendBaseUrl = 'https://vitalvue-api.genesysailabs.com'; 
+    const backendBaseUrl = import.meta.env.VITE_API_BASE_URL;
     
     let streamUrl = `${backendBaseUrl}/api/v1/stream/assigned/stream`;
     if (wardId && wardId !== "all") {

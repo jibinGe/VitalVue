@@ -96,6 +96,8 @@ class Nurse(User):
     __tablename__ = "nurses"
     id: Mapped[int] = mapped_column(ForeignKey("users.id"), primary_key=True)
     license_no: Mapped[str] = mapped_column(String(50), unique=True)
+    # "head" | "team_leader" | "nurse"
+    nurse_type: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     __mapper_args__ = {"polymorphic_identity": "nurse"}
 
 class Doctor(User):
@@ -105,6 +107,8 @@ class Doctor(User):
     is_on_call: Mapped[bool] = mapped_column(Boolean, nullable=True)
     # org-hierarchy v2 — doctors now belong to a department (doctors-by-department discovery)
     department_id: Mapped[Optional[int]] = mapped_column(ForeignKey("departments.id"), nullable=True, index=True)
+    # "department" | "duty" — whether the doctor is attached to a department or is a general duty doctor
+    doctor_type: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     __mapper_args__ = {"polymorphic_identity": "doctor"}
 
 class OrgAdmin(User):

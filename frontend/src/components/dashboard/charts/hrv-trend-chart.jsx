@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { ComposedChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer } from 'recharts';
-import { formatToLocalTime } from '@/utilities/dateUtils';
+import { formatChartTimeLabel, spansMultipleDays } from '@/utilities/dateUtils';
 
 const HrvTrendChart = ({ hrvData = [], statistics = null }) => {
   // Calculate baseline from statistics average, or default to 50
@@ -13,15 +13,17 @@ const HrvTrendChart = ({ hrvData = [], statistics = null }) => {
       return [];
     }
 
+    const multiDay = spansMultipleDays(hrvData.map((item) => item.time));
+
     return hrvData.map((item) => {
-      const displayDate = formatToLocalTime(item.timestamp);
+      const displayDate = formatChartTimeLabel(item.time, multiDay);
       const value = item.value || 0;
 
       const positive = value > baseline ? value : baseline;
       const negative = value < baseline ? value : baseline;
 
       return {
-        date: item.timestamp,
+        date: item.time,
         displayDate: displayDate,
         value: value,
         quality: item.quality || 100,

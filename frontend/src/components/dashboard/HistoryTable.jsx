@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatToLocalTime } from '@/utilities/dateUtils';
+import { formatChartTimeLabel, spansMultipleDays } from '@/utilities/dateUtils';
 import { Hart, Spo, Bp, Temp } from '@/utilities/icons';
 
 const HistoryTable = ({ history = [] }) => {
@@ -12,9 +12,10 @@ const HistoryTable = ({ history = [] }) => {
   }
 
   // Sort history by recorded_at DESC (latest first)
-  const sortedHistory = [...history].sort((a, b) => 
+  const sortedHistory = [...history].sort((a, b) =>
     new Date(b.recorded_at) - new Date(a.recorded_at)
   );
+  const multiDay = spansMultipleDays(sortedHistory.map((record) => record.recorded_at || record.timestamp));
 
   return (
     <div className="w-full overflow-hidden rounded-2xl bg-[#2F2F31] border border-white/10 shadow-xl">
@@ -62,7 +63,7 @@ const HistoryTable = ({ history = [] }) => {
             {sortedHistory.map((record, index) => (
               <tr key={index} className="hover:bg-white/5 transition-colors">
                 <td className="p-4 text-white font-medium whitespace-nowrap">
-                  {formatToLocalTime(record.recorded_at || record.timestamp || new Date().toISOString())}
+                  {formatChartTimeLabel(record.recorded_at || record.timestamp || new Date().toISOString(), multiDay)}
                 </td>
                 <td className="p-4 text-center text-white text-lg">
                   {record.heart_rate || '--'}

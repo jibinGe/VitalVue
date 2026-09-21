@@ -56,7 +56,7 @@ export const formatDateTimeToLocal = (dateInput) => {
     return validDate.toLocaleString('en-US', {
       timeZone: getUserTimezone(),
       day: '2-digit',
-      month: 'short', 
+      month: 'short',
       year: 'numeric',
       hour: 'numeric',
       minute: '2-digit',
@@ -66,4 +66,28 @@ export const formatDateTimeToLocal = (dateInput) => {
     console.error("Error formatting datetime:", error);
     return "Unknown";
   }
+};
+
+/**
+ * True if the given timestamps don't all fall on the same local calendar day.
+ * Used to decide whether a trend chart needs date+time labels (7d/24h-crossing-midnight)
+ * or time-only is unambiguous (1h/6h within a single day).
+ */
+export const spansMultipleDays = (dateInputs) => {
+  const days = new Set();
+  for (const input of (dateInputs || [])) {
+    const validDate = parseValidDate(input);
+    if (!validDate) continue;
+    days.add(validDate.toLocaleDateString('en-US', { timeZone: getUserTimezone() }));
+    if (days.size > 1) return true;
+  }
+  return false;
+};
+
+/**
+ * Chart axis / tooltip label: time-only when every point is the same local day,
+ * date+time when the series spans multiple days, so multi-day ranges aren't ambiguous.
+ */
+export const formatChartTimeLabel = (dateInput, multiDay) => {
+  return multiDay ? formatDateTimeToLocal(dateInput) : formatToLocalTime(dateInput);
 };

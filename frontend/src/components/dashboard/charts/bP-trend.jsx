@@ -9,7 +9,7 @@ import {
     ReferenceLine,
 } from "recharts";
 import { useMemo } from "react";
-import { formatToLocalTime } from "@/utilities/dateUtils";
+import { formatChartTimeLabel, spansMultipleDays } from "@/utilities/dateUtils";
 
 const mockData = [
     { time: "00:00 PM", sys: 120, dia: 70 },
@@ -30,6 +30,7 @@ const mockData = [
 export default function BPTrend({ bloodPressureData = [] }) {
     const data = useMemo(() => {
         if (bloodPressureData && bloodPressureData.length > 0) {
+            const multiDay = spansMultipleDays(bloodPressureData.map(item => item.time));
             // Filter out null values and extract systolic/diastolic
             const validData = bloodPressureData
                 .filter(item => {
@@ -42,7 +43,7 @@ export default function BPTrend({ bloodPressureData = [] }) {
                 .map(item => {
                     const bpValue = typeof item.value === 'object' ? item.value : { systolic: null, diastolic: null };
                     return {
-                        time: formatToLocalTime(item.time),
+                        time: formatChartTimeLabel(item.time, multiDay),
                         sys: bpValue.systolic,
                         dia: bpValue.diastolic,
                     };

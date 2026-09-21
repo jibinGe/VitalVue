@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell, CartesianGrid, Tooltip } from 'recharts';
-import { formatToLocalTime } from '@/utilities/dateUtils';
+import { formatChartTimeLabel, spansMultipleDays } from '@/utilities/dateUtils';
 
 const SleepStagesChart = ({ sleepSummary = null, date = null }) => {
     // Transform API data to chart format
@@ -14,8 +14,9 @@ const SleepStagesChart = ({ sleepSummary = null, date = null }) => {
         // Process sleep stages data
         // Assuming sleepSummary has a stages array with { timestamp, stage, duration } or similar structure
         // Adjust based on actual API response structure
+        const multiDay = spansMultipleDays(sleepSummary.stages.map((item) => item.timestamp || item.startTime || item.time));
         const processedData = sleepSummary.stages.map((item) => {
-            const time = formatToLocalTime(item.timestamp || item.startTime || item.time);
+            const time = formatChartTimeLabel(item.timestamp || item.startTime || item.time, multiDay);
 
             // Map sleep stage to value and color
             // Stage values: 0 = Awake, 1 = Light Sleep, 2 = Deep Sleep, 3 = REM (adjust based on API)

@@ -12,6 +12,7 @@ import StatusBadge from './StatusBadge';
  *   isLoading: bool
  *   onEdit: (row) => void
  *   onToggleStatus: (row) => void
+ *   extraAction: { icon: Component, title: string, onClick: (row) => void }
  *   onAdd: () => void
  *   addLabel: string
  *   searchPlaceholder: string
@@ -25,6 +26,7 @@ export default function EntityTable({
   isLoading = false,
   onEdit,
   onToggleStatus,
+  extraAction,
   onRowClick,
   onAdd,
   addLabel = 'Add New',
@@ -82,12 +84,12 @@ export default function EntityTable({
         {/* Header */}
         <div
           className="grid text-xs font-semibold uppercase tracking-wider text-white/30 px-5 py-3 border-b border-white/5"
-          style={{ gridTemplateColumns: `repeat(${columns.length + (onEdit || onToggleStatus ? 1 : 0)}, minmax(0, 1fr))` }}
+          style={{ gridTemplateColumns: `repeat(${columns.length + (onEdit || onToggleStatus || extraAction ? 1 : 0)}, minmax(0, 1fr))` }}
         >
           {columns.map((col) => (
             <span key={col.key}>{col.label}</span>
           ))}
-          {(onEdit || onToggleStatus) && <span className="text-right">Actions</span>}
+          {(onEdit || onToggleStatus || extraAction) && <span className="text-right">Actions</span>}
         </div>
 
         {/* Body */}
@@ -112,7 +114,7 @@ export default function EntityTable({
                 transition={{ delay: i * 0.03 }}
                 onClick={() => onRowClick && onRowClick(row)}
                 className={`grid items-center px-5 py-4 border-b border-white/5 last:border-0 hover:bg-white/3 transition-colors duration-150 ${onRowClick ? 'cursor-pointer' : ''}`}
-                style={{ gridTemplateColumns: `repeat(${columns.length + (onEdit || onToggleStatus ? 1 : 0)}, minmax(0, 1fr))` }}
+                style={{ gridTemplateColumns: `repeat(${columns.length + (onEdit || onToggleStatus || extraAction ? 1 : 0)}, minmax(0, 1fr))` }}
               >
                 {columns.map((col) => (
                   <div key={col.key} className="text-sm text-white/80 truncate pr-4">
@@ -124,7 +126,7 @@ export default function EntityTable({
                   </div>
                 ))}
 
-                {(onEdit || onToggleStatus) && (
+                {(onEdit || onToggleStatus || extraAction) && (
                   <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
                     {onEdit && (
                       <button
@@ -149,6 +151,15 @@ export default function EntityTable({
                           ? <ToggleRight className="size-3.5" />
                           : <ToggleLeft className="size-3.5" />
                         }
+                      </button>
+                    )}
+                    {extraAction && (
+                      <button
+                        onClick={() => extraAction.onClick(row)}
+                        className="p-2 rounded-lg bg-white/5 hover:bg-cyan-500/10 text-white/50 hover:text-cyan-400 border border-white/5 hover:border-cyan-500/20 transition-all duration-200"
+                        title={extraAction.title}
+                      >
+                        <extraAction.icon className="size-3.5" />
                       </button>
                     )}
                   </div>

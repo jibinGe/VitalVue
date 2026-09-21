@@ -11,6 +11,8 @@ import StatusBadge from '../../components/admin/StatusBadge';
 import { adminService } from '../../services/adminService';
 import { useAdmin } from '../../contexts/AdminContext';
 
+const NURSE_TYPE_LABELS = { head: 'Head Nurse', team_leader: 'Team Leader', nurse: 'Nurse' };
+
 export default function StaffPage() {
   const { selectedOrgId, organizations, openQuickAdd, triggerRefresh, refreshKey } = useAdmin();
 
@@ -103,6 +105,7 @@ export default function StaffPage() {
     { key: 'full_name', label: 'Full Name' },
     { key: 'hospital_name', label: 'Hospital' },
     { key: 'department_name', label: 'Department' },
+    { key: 'doctor_type', label: 'Type', render: (v) => v === 'duty' ? 'Duty Doctor' : v === 'department' ? 'Department Doctor' : '—' },
     { key: 'specialization', label: 'Specialization', render: (v) => v || 'General' },
     { key: 'phone_number', label: 'Phone', render: (v) => v || '—' },
     { key: 'is_active', label: 'Status', render: (v) => <StatusBadge status={v} /> },
@@ -112,6 +115,7 @@ export default function StaffPage() {
     { key: 'user_id', label: 'Nurse ID', render: (v) => <span className="font-mono font-bold text-white">{v}</span> },
     { key: 'full_name', label: 'Full Name' },
     { key: 'hospital_name', label: 'Hospital' },
+    { key: 'nurse_type', label: 'Type', render: (v) => NURSE_TYPE_LABELS[v] || '—' },
     { key: 'license_no', label: 'License No.', render: (v) => <span className="font-mono text-cyan-400">{v}</span> },
     { key: 'phone_number', label: 'Phone', render: (v) => v || '—' },
     { key: 'is_active', label: 'Status', render: (v) => <StatusBadge status={v} /> },
@@ -134,6 +138,7 @@ export default function StaffPage() {
         specialization: row.specialization || '',
         department_id: row.department_id || '',
         organization_id: row.organization_id || '',
+        doctor_type: row.doctor_type || '',
       });
     } else {
       setFormData({
@@ -141,6 +146,7 @@ export default function StaffPage() {
         phone_number: row.phone_number || '',
         license_no: row.license_no || '',
         organization_id: row.organization_id || '',
+        nurse_type: row.nurse_type || '',
       });
     }
     setFormError('');
@@ -360,6 +366,17 @@ export default function StaffPage() {
 
         {activeTab === 'doctors' ? (
           <>
+            <FormField label="Doctor Type" required>
+              <AdminSelect
+                value={formData.doctor_type || ''}
+                onChange={(e) => setFormData((f) => ({ ...f, doctor_type: e.target.value }))}
+              >
+                <option value="" className="bg-[#222225] text-white">Select Doctor Type...</option>
+                <option value="department" className="bg-[#222225] text-white">Department Doctor</option>
+                <option value="duty" className="bg-[#222225] text-white">Duty Doctor</option>
+              </AdminSelect>
+            </FormField>
+
             <FormField label="Specialization">
               <AdminInput
                 placeholder="e.g. Cardiologist"
@@ -374,21 +391,37 @@ export default function StaffPage() {
                 onChange={(e) => setFormData((f) => ({ ...f, department_id: e.target.value }))}
               >
                 <option value="">General / No Department</option>
-                {departments.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name} ({orgMap[d.organization_id]})
-                  </option>
-                ))}
+                {departments
+                  .filter((d) => d.organization_id === editTarget?.organization_id)
+                  .map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                    </option>
+                  ))}
               </AdminSelect>
             </FormField>
           </>
         ) : (
-          <FormField label="Nursing License No." required>
-            <AdminInput
-              value={formData.license_no || ''}
-              onChange={(e) => setFormData((f) => ({ ...f, license_no: e.target.value }))}
-            />
-          </FormField>
+          <>
+            <FormField label="Nurse Type" required>
+              <AdminSelect
+                value={formData.nurse_type || ''}
+                onChange={(e) => setFormData((f) => ({ ...f, nurse_type: e.target.value }))}
+              >
+                <option value="" className="bg-[#222225] text-white">Select Nurse Type...</option>
+                <option value="head" className="bg-[#222225] text-white">Head Nurse</option>
+                <option value="team_leader" className="bg-[#222225] text-white">Team Leader</option>
+                <option value="nurse" className="bg-[#222225] text-white">Nurse</option>
+              </AdminSelect>
+            </FormField>
+
+            <FormField label="Nursing License No." required>
+              <AdminInput
+                value={formData.license_no || ''}
+                onChange={(e) => setFormData((f) => ({ ...f, license_no: e.target.value }))}
+              />
+            </FormField>
+          </>
         )}
       </EntityForm>
 

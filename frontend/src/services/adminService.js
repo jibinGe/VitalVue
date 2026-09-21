@@ -9,7 +9,8 @@ const adminRequest = async (method, url, data = null, options = {}) => {
     ...options
   };
   try {
-    const response = method === 'get'
+    // axios .get()/.delete() take (url, config) — no data param, unlike .post()/.patch()/.put()
+    const response = (method === 'get' || method === 'delete')
       ? await apiClient[method](url, config)
       : await apiClient[method](url, data, config);
     return { success: true, data: response.data };
@@ -240,6 +241,31 @@ export const adminService = {
 
   async setStationStatus(id, status) {
     return adminRequest('patch', `/api/v1/admin/stations/${id}/status`, { is_active: status });
+  },
+
+  // Station staff rosters (many-to-many — a doctor/nurse can cover several stations)
+  async listStationDoctors(stationId) {
+    return adminRequest('get', `/api/v1/admin/stations/${stationId}/doctors`);
+  },
+
+  async assignStationDoctor(stationId, doctorId) {
+    return adminRequest('post', `/api/v1/admin/stations/${stationId}/doctors`, { doctor_id: doctorId });
+  },
+
+  async unassignStationDoctor(stationId, doctorId) {
+    return adminRequest('delete', `/api/v1/admin/stations/${stationId}/doctors/${doctorId}`);
+  },
+
+  async listStationNurses(stationId) {
+    return adminRequest('get', `/api/v1/admin/stations/${stationId}/nurses`);
+  },
+
+  async assignStationNurse(stationId, nurseId) {
+    return adminRequest('post', `/api/v1/admin/stations/${stationId}/nurses`, { nurse_id: nurseId });
+  },
+
+  async unassignStationNurse(stationId, nurseId) {
+    return adminRequest('delete', `/api/v1/admin/stations/${stationId}/nurses/${nurseId}`);
   },
 
   // ─── Doctors ───────────────────────────────────────────────────────────────

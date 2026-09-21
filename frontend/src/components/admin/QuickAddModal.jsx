@@ -162,6 +162,7 @@ export default function QuickAddModal() {
         });
       } else if (type === 'doctor') {
         if (!orgId) throw new Error('Please select a hospital.');
+        if (!formData.doctor_type) throw new Error('Doctor Type is required.');
         if (!formData.user_id?.trim()) throw new Error('Doctor Login ID is required.');
         if (!formData.full_name?.trim()) throw new Error('Full Name is required.');
         if (!formData.password?.trim()) throw new Error('Initial password is required.');
@@ -172,6 +173,7 @@ export default function QuickAddModal() {
         });
       } else if (type === 'nurse') {
         if (!orgId) throw new Error('Please select a hospital.');
+        if (!formData.nurse_type) throw new Error('Nurse Type is required.');
         if (!formData.user_id?.trim()) throw new Error('Nurse Login ID is required.');
         if (!formData.full_name?.trim()) throw new Error('Full Name is required.');
         if (!formData.license_no?.trim()) throw new Error('License Number is required.');
@@ -282,9 +284,9 @@ export default function QuickAddModal() {
                     }}
                     className="w-full px-3 py-2 bg-[#252528] border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-[#CCA166]/50"
                   >
-                    <option value="">Select Hospital...</option>
+                    <option value="" className="bg-[#252528] text-white">Select Hospital...</option>
                     {organizations.map((o) => (
-                      <option key={o.id} value={o.id}>
+                      <option key={o.id} value={o.id} className="bg-[#252528] text-white">
                         {o.name} ({o.city})
                       </option>
                     ))}
@@ -307,9 +309,9 @@ export default function QuickAddModal() {
                       }}
                       className="w-full px-3 py-2 bg-[#252528] border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-[#CCA166]/50 disabled:opacity-40"
                     >
-                      <option value="">{orgId ? 'Select Department...' : 'Select hospital first'}</option>
+                      <option value="" className="bg-[#252528] text-white">{orgId ? 'Select Department...' : 'Select hospital first'}</option>
                       {departments.map((d) => (
-                        <option key={d.id} value={d.id}>
+                        <option key={d.id} value={d.id} className="bg-[#252528] text-white">
                           {d.name}
                         </option>
                       ))}
@@ -327,9 +329,9 @@ export default function QuickAddModal() {
                       onChange={(e) => setStationId(e.target.value)}
                       className="w-full px-3 py-2 bg-[#252528] border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-[#CCA166]/50 disabled:opacity-40"
                     >
-                      <option value="">None / Unassigned</option>
+                      <option value="" className="bg-[#252528] text-white">None / Unassigned</option>
                       {stations.map((s) => (
-                        <option key={s.id} value={s.id}>
+                        <option key={s.id} value={s.id} className="bg-[#252528] text-white">
                           {s.name} {s.station_no ? `(${s.station_no})` : ''}
                         </option>
                       ))}
@@ -347,9 +349,9 @@ export default function QuickAddModal() {
                       onChange={(e) => setWardId(e.target.value)}
                       className="w-full px-3 py-2 bg-[#252528] border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-[#CCA166]/50 disabled:opacity-40"
                     >
-                      <option value="">{deptId ? 'Select Ward...' : 'Select department first'}</option>
+                      <option value="" className="bg-[#252528] text-white">{deptId ? 'Select Ward...' : 'Select department first'}</option>
                       {wards.map((w) => (
-                        <option key={w.id} value={w.id}>
+                        <option key={w.id} value={w.id} className="bg-[#252528] text-white">
                           {w.name}
                         </option>
                       ))}
@@ -504,6 +506,19 @@ export default function QuickAddModal() {
 
             {type === 'doctor' && (
               <div className="space-y-3">
+                <div>
+                  <label className="text-xs text-white/70 block mb-1">Doctor Type *</label>
+                  <select
+                    required
+                    value={formData.doctor_type || ''}
+                    onChange={(e) => handleFieldChange('doctor_type', e.target.value)}
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-[#CCA166]/50"
+                  >
+                    <option value="" className="bg-[#252528] text-white">Select Doctor Type...</option>
+                    <option value="department" className="bg-[#252528] text-white">Department Doctor</option>
+                    <option value="duty" className="bg-[#252528] text-white">Duty Doctor</option>
+                  </select>
+                </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-xs text-white/70 block mb-1">Doctor Login ID *</label>
@@ -566,6 +581,20 @@ export default function QuickAddModal() {
 
             {type === 'nurse' && (
               <div className="space-y-3">
+                <div>
+                  <label className="text-xs text-white/70 block mb-1">Nurse Type *</label>
+                  <select
+                    required
+                    value={formData.nurse_type || ''}
+                    onChange={(e) => handleFieldChange('nurse_type', e.target.value)}
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-[#CCA166]/50"
+                  >
+                    <option value="" className="bg-[#252528] text-white">Select Nurse Type...</option>
+                    <option value="head" className="bg-[#252528] text-white">Head Nurse</option>
+                    <option value="team_leader" className="bg-[#252528] text-white">Team Leader</option>
+                    <option value="nurse" className="bg-[#252528] text-white">Nurse</option>
+                  </select>
+                </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-xs text-white/70 block mb-1">Nurse Login ID *</label>
