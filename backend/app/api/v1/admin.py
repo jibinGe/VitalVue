@@ -270,7 +270,22 @@ async def update_entity(entity: str, obj_id: int, body: dict, db: AsyncSession =
     applied = {k: v for k, v in (body or {}).items() if k in allowed}
     if not applied:
         raise HTTPException(status_code=422, detail=f"No editable fields for {entity}. Allowed: {sorted(allowed)}")
+    columns = sa_inspect(model).columns
     for k, v in applied.items():
+        # HTML <select>/<input> values always arrive as strings. asyncpg is strict about
+        # bind types (unlike psycopg2, it won't cast "4" -> int), so coerce to the column's
+        # actual Python type. An empty string (a cleared dropdown) means NULL for non-string columns.
+        if isinstance(v, str) and k in columns and columns[k].type.python_type is not str:
+            py_type = columns[k].type.python_type
+            if v == "":
+                v = None
+            elif py_type is bool:
+                v = v.lower() in ("true", "1", "yes")
+            else:
+                try:
+                    v = py_type(v)
+                except (TypeError, ValueError):
+                    raise HTTPException(status_code=422, detail=f"Invalid value for {k}: {v!r}")
         setattr(obj, k, v)
     try:
         await db.commit()
