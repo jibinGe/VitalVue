@@ -48,6 +48,21 @@ class Station(Base):
     department: Mapped["Department"] = relationship(back_populates="stations")
     wards: Mapped[list["Ward"]] = relationship(back_populates="station")
 
+
+class StationDoctor(Base):
+    """Duty-doctor roster for a nursing station (many-to-many: a doctor may cover several
+    stations at once, e.g. across shifts)."""
+    __tablename__ = "station_doctors"
+    station_id: Mapped[int] = mapped_column(ForeignKey("stations.id", ondelete="CASCADE"), primary_key=True)
+    doctor_id: Mapped[int] = mapped_column(ForeignKey("doctors.id", ondelete="CASCADE"), primary_key=True)
+
+
+class StationNurse(Base):
+    """Nursing staff roster for a nursing station (many-to-many)."""
+    __tablename__ = "station_nurses"
+    station_id: Mapped[int] = mapped_column(ForeignKey("stations.id", ondelete="CASCADE"), primary_key=True)
+    nurse_id: Mapped[int] = mapped_column(ForeignKey("nurses.id", ondelete="CASCADE"), primary_key=True)
+
 class Ward(Base):
     __tablename__ = "wards"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)

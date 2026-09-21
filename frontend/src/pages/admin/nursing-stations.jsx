@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Radio, RefreshCw, Plus, Filter } from 'lucide-react';
+import { Radio, RefreshCw, Plus, Filter, Users } from 'lucide-react';
 import EntityTable from '../../components/admin/EntityTable';
 import EntityForm, { FormField, AdminInput, AdminSelect } from '../../components/admin/EntityForm';
 import ConfirmModal from '../../components/admin/ConfirmModal';
 import StatusBadge from '../../components/admin/StatusBadge';
+import StationStaffModal from '../../components/admin/StationStaffModal';
 import { adminService } from '../../services/adminService';
 import { useAdmin } from '../../contexts/AdminContext';
 
@@ -14,7 +15,12 @@ export default function NursingStationsPage() {
   const [data, setData] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [wards, setWards] = useState([]);
+  const [doctors, setDoctors] = useState([]);
+  const [nurses, setNurses] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const [staffModalOpen, setStaffModalOpen] = useState(false);
+  const [staffTarget, setStaffTarget] = useState(null);
 
   // Filters
   const [filterOrgId, setFilterOrgId] = useState(selectedOrgId ? String(selectedOrgId) : 'all');
@@ -36,15 +42,19 @@ export default function NursingStationsPage() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [stationRes, deptRes, wardRes] = await Promise.all([
+    const [stationRes, deptRes, wardRes, doctorRes, nurseRes] = await Promise.all([
       adminService.listStations(),
       adminService.listDepartments(),
       adminService.listWards(),
+      adminService.listDoctors(),
+      adminService.listNurses(),
     ]);
 
     if (stationRes.success) setData(Array.isArray(stationRes.data) ? stationRes.data : stationRes.data?.items ?? []);
     if (deptRes.success) setDepartments(Array.isArray(deptRes.data) ? deptRes.data : deptRes.data?.items ?? []);
     if (wardRes.success) setWards(Array.isArray(wardRes.data) ? wardRes.data : wardRes.data?.items ?? []);
+    if (doctorRes.success) setDoctors(Array.isArray(doctorRes.data) ? doctorRes.data : doctorRes.data?.items ?? []);
+    if (nurseRes.success) setNurses(Array.isArray(nurseRes.data) ? nurseRes.data : nurseRes.data?.items ?? []);
     setLoading(false);
   }, []);
 
@@ -78,6 +88,7 @@ export default function NursingStationsPage() {
           hospital_name: orgName,
           department_name: dept?.name || '—',
           ward_count: assignedWards.length,
+          organization_id: dept?.organization_id,
         };
       });
   }, [data, deptMap, orgMap, wards, filterOrgId, filterDeptId]);
@@ -139,6 +150,11 @@ export default function NursingStationsPage() {
   const openToggle = (row) => {
     setConfirmTarget(row);
     setConfirmOpen(true);
+  };
+
+  const openStaffAssign = (row) => {
+    setStaffTarget(row);
+    setStaffModalOpen(true);
   };
 
   const handleToggleStatus = async () => {
@@ -249,6 +265,7 @@ export default function NursingStationsPage() {
           isLoading={loading}
           onEdit={openEdit}
           onToggleStatus={openToggle}
+          extraAction={{ icon: Users, title: 'Assign Staff', onClick: openStaffAssign }}
           onAdd={openAdd}
           addLabel="Add Nursing Station"
           searchPlaceholder="Search nursing stations..."
@@ -308,6 +325,15 @@ export default function NursingStationsPage() {
         title={confirmTarget?.is_active ? 'Deactivate Station' : 'Activate Station'}
         message={`Are you sure you want to ${confirmTarget?.is_active ? 'deactivate' : 'activate'} "${confirmTarget?.name}"?`}
         confirmLabel={confirmTarget?.is_active ? 'Deactivate' : 'Activate'}
+      />
+
+      {/* ── Assign Staff Modal ───────────────────────────────────────── */}
+      <StationStaffModal
+        isOpen={staffModalOpen}
+        onClose={() => setStaffModalOpen(false)}
+        station={staffTarget}
+        doctors={doctors}
+        nurses={nurses}
       />
     </div>
   );

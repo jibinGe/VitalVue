@@ -4,7 +4,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy import select, inspect as sa_inspect
 from app.database import get_db
 from app.api.deps import allow_admins
-from app.models.organization import Organization, Department, Station, Ward, Bed, Room
+from app.models.organization import Organization, Department, Station, Ward, Bed, Room, StationDoctor, StationNurse
 from app.models.user import Doctor, Nurse, UserRole
 from app.core.security import get_password_hash
 from app.schemas.organization import (
@@ -294,6 +294,89 @@ async def update_entity(entity: str, obj_id: int, body: dict, db: AsyncSession =
         await db.rollback()
         raise HTTPException(status_code=409, detail="constraint violation (duplicate or bad FK)")
     return _row(obj)
+
+
+# --- Station staff rosters (many-to-many: a doctor/nurse may cover several stations) ---
+
+async def _get_station_or_404(station_id: int, db: AsyncSession) -> Station:
+    station = await db.get(Station, station_id)
+    if not station:
+        raise HTTPException(status_code=404, detail="Nursing station not found")
+    return station
+
+
+@router.get("/stations/{station_id}/doctors", dependencies=[Depends(allow_admins)])
+async def list_station_doctors(station_id: int, db: AsyncSession = Depends(get_db)):
+    await _get_station_or_404(station_id, db)
+    stmt = select(Doctor).join(StationDoctor, StationDoctor.doctor_id == Doctor.id).where(
+        StationDoctor.station_id == station_id
+    )
+    rows = (await db.execute(stmt)).scalars().all()
+    return [_row(r) for r in rows]
+
+
+@router.post("/stations/{station_id}/doctors", status_code=201, dependencies=[Depends(allow_admins)])
+async def assign_station_doctor(station_id: int, body: dict, db: AsyncSession = Depends(get_db)):
+    await _get_station_or_404(station_id, db)
+    doctor_id = body.get("doctor_id")
+    if not doctor_id:
+        raise HTTPException(status_code=422, detail="doctor_id is required")
+    if not await db.get(Doctor, doctor_id):
+        raise HTTPException(status_code=404, detail="Doctor not found")
+    db.add(StationDoctor(station_id=station_id, doctor_id=doctor_id))
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(status_code=409, detail="Doctor is already assigned to this station")
+    return {"station_id": station_id, "doctor_id": doctor_id}
+
+
+@router.delete("/stations/{station_id}/doctors/{doctor_id}", dependencies=[Depends(allow_admins)])
+async def unassign_station_doctor(station_id: int, doctor_id: int, db: AsyncSession = Depends(get_db)):
+    link = await db.get(StationDoctor, {"station_id": station_id, "doctor_id": doctor_id})
+    if not link:
+        raise HTTPException(status_code=404, detail="Doctor is not assigned to this station")
+    await db.delete(link)
+    await db.commit()
+    return {"success": True}
+
+
+@router.get("/stations/{station_id}/nurses", dependencies=[Depends(allow_admins)])
+async def list_station_nurses(station_id: int, db: AsyncSession = Depends(get_db)):
+    await _get_station_or_404(station_id, db)
+    stmt = select(Nurse).join(StationNurse, StationNurse.nurse_id == Nurse.id).where(
+        StationNurse.station_id == station_id
+    )
+    rows = (await db.execute(stmt)).scalars().all()
+    return [_row(r) for r in rows]
+
+
+@router.post("/stations/{station_id}/nurses", status_code=201, dependencies=[Depends(allow_admins)])
+async def assign_station_nurse(station_id: int, body: dict, db: AsyncSession = Depends(get_db)):
+    await _get_station_or_404(station_id, db)
+    nurse_id = body.get("nurse_id")
+    if not nurse_id:
+        raise HTTPException(status_code=422, detail="nurse_id is required")
+    if not await db.get(Nurse, nurse_id):
+        raise HTTPException(status_code=404, detail="Nurse not found")
+    db.add(StationNurse(station_id=station_id, nurse_id=nurse_id))
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(status_code=409, detail="Nurse is already assigned to this station")
+    return {"station_id": station_id, "nurse_id": nurse_id}
+
+
+@router.delete("/stations/{station_id}/nurses/{nurse_id}", dependencies=[Depends(allow_admins)])
+async def unassign_station_nurse(station_id: int, nurse_id: int, db: AsyncSession = Depends(get_db)):
+    link = await db.get(StationNurse, {"station_id": station_id, "nurse_id": nurse_id})
+    if not link:
+        raise HTTPException(status_code=404, detail="Nurse is not assigned to this station")
+    await db.delete(link)
+    await db.commit()
+    return {"success": True}
 
 
 # --- API logging toggle (RUN-024) ---
