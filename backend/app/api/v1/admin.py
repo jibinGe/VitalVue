@@ -112,6 +112,7 @@ async def create_doctor(body: dict, db: AsyncSession = Depends(get_db)):
             department_id=body.get("department_id"),
             specialization=body.get("specialization") or "",
             is_on_call=body.get("is_on_call"),
+            doctor_type=body.get("doctor_type"),
             hashed_password=get_password_hash(body["password"]) if body.get("password") else None,
         )
         db.add(doctor)
@@ -134,6 +135,7 @@ async def create_nurse(body: dict, db: AsyncSession = Depends(get_db)):
             role=UserRole.NURSE,
             is_active=True,
             license_no=body["license_no"],
+            nurse_type=body.get("nurse_type"),
             hashed_password=get_password_hash(body["password"]) if body.get("password") else None,
         )
         db.add(nurse)
@@ -196,8 +198,8 @@ _EDITABLE = {
     "wards":         {"name", "ward_no", "department_id", "station_id"},
     "beds":          {"bed_no", "ward_id"},
     "rooms":         {"room_number", "ward_id", "department_id", "is_occupied"},
-    "doctors":       {"full_name", "phone_number", "specialization", "is_on_call", "department_id", "organization_id"},
-    "nurses":        {"full_name", "phone_number", "license_no", "organization_id"},
+    "doctors":       {"full_name", "phone_number", "specialization", "is_on_call", "department_id", "organization_id", "doctor_type"},
+    "nurses":        {"full_name", "phone_number", "license_no", "organization_id", "nurse_type"},
 }
 
 # Optional parent filters accepted on list (applied only if the model has the column).

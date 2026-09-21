@@ -14,6 +14,8 @@ import EntityForm, { FormField, AdminInput, AdminSelect } from '../../components
 import ConfirmModal from '../../components/admin/ConfirmModal';
 import StatusBadge from '../../components/admin/StatusBadge';
 
+const NURSE_TYPE_LABELS = { head: 'Head Nurse', team_leader: 'Team Leader', nurse: 'Nurse' };
+
 export default function OrganizationDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -844,6 +846,7 @@ export default function OrganizationDetails() {
 
                       <div className="flex items-center justify-between text-xs text-white/40 pt-2 border-t border-white/5">
                         <span>{dept ? dept.name : 'All Depts'}</span>
+                        <span>{doc.doctor_type === 'duty' ? 'Duty Doctor' : doc.doctor_type === 'department' ? 'Dept. Doctor' : '—'}</span>
                         <span>{doc.phone_number || '—'}</span>
                       </div>
                     </div>
@@ -887,7 +890,7 @@ export default function OrganizationDetails() {
                     </div>
 
                     <div className="flex items-center justify-between text-xs text-white/40 pt-2 border-t border-white/5">
-                      <span>Nurse Roster</span>
+                      <span>{NURSE_TYPE_LABELS[nurse.nurse_type] || 'Nurse Roster'}</span>
                       <span>{nurse.phone_number || '—'}</span>
                     </div>
                   </div>
