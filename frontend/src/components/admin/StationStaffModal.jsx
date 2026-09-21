@@ -116,7 +116,7 @@ export default function StationStaffModal({ isOpen, onClose, station, doctors = 
   const availableDoctors = useMemo(() => {
     const assignedIds = new Set(assignedDoctors.map((d) => d.id));
     return doctors.filter(
-      (d) => d.department_id === station?.department_id && d.doctor_type === 'duty' && !assignedIds.has(d.id)
+      (d) => d.organization_id === station?.organization_id && d.doctor_type === 'duty' && !assignedIds.has(d.id)
     );
   }, [doctors, assignedDoctors, station]);
 

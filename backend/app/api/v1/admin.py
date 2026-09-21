@@ -14,6 +14,15 @@ from app.schemas.organization import (
 router = APIRouter()
 
 
+async def _assert_department_in_org(department_id, organization_id, db: AsyncSession) -> None:
+    """A doctor's department must belong to their own hospital — reject cross-hospital picks."""
+    if department_id is None or organization_id is None:
+        return
+    dept = await db.get(Department, department_id)
+    if not dept or dept.organization_id != organization_id:
+        raise HTTPException(status_code=422, detail="That department does not belong to this doctor's hospital")
+
+
 @router.post("/organizations", status_code=201, dependencies=[Depends(allow_admins)])
 async def create_organization(body: OrganizationCreate, db: AsyncSession = Depends(get_db)):
     obj = Organization(**body.model_dump())
@@ -101,6 +110,7 @@ async def create_room(body: RoomCreate, db: AsyncSession = Depends(get_db)):
 @router.post("/doctors", status_code=201, dependencies=[Depends(allow_admins)])
 async def create_doctor(body: dict, db: AsyncSession = Depends(get_db)):
     # Joined-table inheritance: instantiate Doctor directly → writes users + doctors in one go.
+    await _assert_department_in_org(body.get("department_id"), body.get("organization_id"), db)
     try:
         doctor = Doctor(
             user_id=body["user_id"],
@@ -287,6 +297,8 @@ async def update_entity(entity: str, obj_id: int, body: dict, db: AsyncSession =
                 except (TypeError, ValueError):
                     raise HTTPException(status_code=422, detail=f"Invalid value for {k}: {v!r}")
         setattr(obj, k, v)
+    if entity == "doctors":
+        await _assert_department_in_org(obj.department_id, obj.organization_id, db)
     try:
         await db.commit()
         await db.refresh(obj)
@@ -305,6 +317,13 @@ async def _get_station_or_404(station_id: int, db: AsyncSession) -> Station:
     return station
 
 
+async def _assert_same_hospital(station: Station, staff_organization_id, db: AsyncSession) -> None:
+    """Reject assigning a doctor/nurse to a station in a different hospital."""
+    dept = await db.get(Department, station.department_id)
+    if not dept or dept.organization_id != staff_organization_id:
+        raise HTTPException(status_code=422, detail="This staff member belongs to a different hospital than the station")
+
+
 @router.get("/stations/{station_id}/doctors", dependencies=[Depends(allow_admins)])
 async def list_station_doctors(station_id: int, db: AsyncSession = Depends(get_db)):
     await _get_station_or_404(station_id, db)
@@ -317,12 +336,14 @@ async def list_station_doctors(station_id: int, db: AsyncSession = Depends(get_d
 
 @router.post("/stations/{station_id}/doctors", status_code=201, dependencies=[Depends(allow_admins)])
 async def assign_station_doctor(station_id: int, body: dict, db: AsyncSession = Depends(get_db)):
-    await _get_station_or_404(station_id, db)
+    station = await _get_station_or_404(station_id, db)
     doctor_id = body.get("doctor_id")
     if not doctor_id:
         raise HTTPException(status_code=422, detail="doctor_id is required")
-    if not await db.get(Doctor, doctor_id):
+    doctor = await db.get(Doctor, doctor_id)
+    if not doctor:
         raise HTTPException(status_code=404, detail="Doctor not found")
+    await _assert_same_hospital(station, doctor.organization_id, db)
     db.add(StationDoctor(station_id=station_id, doctor_id=doctor_id))
     try:
         await db.commit()
@@ -354,12 +375,14 @@ async def list_station_nurses(station_id: int, db: AsyncSession = Depends(get_db
 
 @router.post("/stations/{station_id}/nurses", status_code=201, dependencies=[Depends(allow_admins)])
 async def assign_station_nurse(station_id: int, body: dict, db: AsyncSession = Depends(get_db)):
-    await _get_station_or_404(station_id, db)
+    station = await _get_station_or_404(station_id, db)
     nurse_id = body.get("nurse_id")
     if not nurse_id:
         raise HTTPException(status_code=422, detail="nurse_id is required")
-    if not await db.get(Nurse, nurse_id):
+    nurse = await db.get(Nurse, nurse_id)
+    if not nurse:
         raise HTTPException(status_code=404, detail="Nurse not found")
+    await _assert_same_hospital(station, nurse.organization_id, db)
     db.add(StationNurse(station_id=station_id, nurse_id=nurse_id))
     try:
         await db.commit()

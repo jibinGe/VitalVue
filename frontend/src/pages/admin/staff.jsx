@@ -391,11 +391,13 @@ export default function StaffPage() {
                 onChange={(e) => setFormData((f) => ({ ...f, department_id: e.target.value }))}
               >
                 <option value="">General / No Department</option>
-                {departments.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name} ({orgMap[d.organization_id]})
-                  </option>
-                ))}
+                {departments
+                  .filter((d) => d.organization_id === editTarget?.organization_id)
+                  .map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                    </option>
+                  ))}
               </AdminSelect>
             </FormField>
           </>
