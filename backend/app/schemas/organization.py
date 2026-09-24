@@ -45,7 +45,7 @@ class WardCreate(BaseModel):
     name: str
     ward_no: str | None = None
     department_id: int
-    station_id: int | None = None
+    station_id: int  # every ward sits under a nursing station
 
 class WardRead(BaseModel):
     model_config = {"from_attributes": True}
@@ -74,6 +74,9 @@ class RoomCreate(BaseModel):
     # Exactly one of department_id (dept-level) or ward_id (ward-level) should be provided
     department_id: Optional[int] = None
     ward_id: Optional[int] = None
+    # Nursing station the room sits under. Required for dept-level rooms; ward-level rooms
+    # inherit their ward's station when omitted.
+    station_id: Optional[int] = None
 
     @model_validator(mode="after")
     def check_parent(self) -> "RoomCreate":
@@ -81,6 +84,8 @@ class RoomCreate(BaseModel):
             raise ValueError("Provide either department_id (dept-level room) or ward_id (ward-level room)")
         if self.department_id is not None and self.ward_id is not None:
             raise ValueError("Provide only one of department_id or ward_id, not both")
+        if self.ward_id is None and self.station_id is None:
+            raise ValueError("station_id is required for a dept-level room")
         return self
 
 class RoomRead(BaseModel):
@@ -89,5 +94,6 @@ class RoomRead(BaseModel):
     room_number: str
     department_id: Optional[int] = None
     ward_id: Optional[int] = None
+    station_id: Optional[int] = None
     is_occupied: bool = False
     is_active: bool = True

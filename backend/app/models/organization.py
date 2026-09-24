@@ -47,6 +47,7 @@ class Station(Base):
 
     department: Mapped["Department"] = relationship(back_populates="stations")
     wards: Mapped[list["Ward"]] = relationship(back_populates="station")
+    rooms: Mapped[list["Room"]] = relationship(back_populates="station")
 
 
 class StationDoctor(Base):
@@ -69,7 +70,8 @@ class Ward(Base):
     name: Mapped[str] = mapped_column(String(100), nullable=False) # e.g., "ICU", "General-A"
     ward_no: Mapped[str | None] = mapped_column(String(50), nullable=True)
     department_id: Mapped[int] = mapped_column(ForeignKey("departments.id"))
-    # org-hierarchy v2 — ward now lives under a station (nullable for back-compat/backfill)
+    # org-hierarchy v2 — ward lives under a station. Nullable only for legacy rows —
+    # the admin API requires it on create/update.
     station_id: Mapped[int | None] = mapped_column(ForeignKey("stations.id"), nullable=True, index=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, server_default="true")
 
@@ -102,6 +104,10 @@ class Room(Base):
     department_id: Mapped[Optional[int]] = mapped_column(ForeignKey("departments.id"), nullable=True, index=True)
     # ward-level room: ward_id is set (legacy / back-compat)
     ward_id: Mapped[Optional[int]] = mapped_column(ForeignKey("wards.id"), nullable=True, index=True)
+    # Every room sits under a nursing station (ward-level rooms inherit their ward's station).
+    # Nullable only for legacy rows — the admin API requires it on create/update.
+    station_id: Mapped[Optional[int]] = mapped_column(ForeignKey("stations.id"), nullable=True, index=True)
 
     ward: Mapped[Optional["Ward"]] = relationship(back_populates="rooms")
     department: Mapped[Optional["Department"]] = relationship("Department")
+    station: Mapped[Optional["Station"]] = relationship(back_populates="rooms")
