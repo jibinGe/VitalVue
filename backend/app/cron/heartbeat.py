@@ -2,7 +2,7 @@ import json
 import asyncio
 from datetime import datetime, timedelta
 from argparse import Namespace
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, func, or_
 from app.services.push import send_critical_push, staff_tokens_for_patient
 from app.models.api_log import ApiLog
 from app.core.config import settings
@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db, get_redis
 from app.models.user import Patient, User
-from app.models.organization import Ward, Room
+from app.models.organization import Ward, Room, Bed
 from app.models.vitals import Vitals
 from app.models.clinical import Alert
 from app.services.analytics import calculate_risks
@@ -24,18 +24,29 @@ async def monitor_device_heartbeats():
     async for db in get_db():
         redis = await get_redis()
         
-        # 1. Fetch active client registration layout
+        # 1. Fetch every placed, monitored patient — in a bed (bed → ward) or a room
+        # (ward-level or dept-level). Outer joins so bed-based and dept-room patients are swept too.
         stmt = (
-            select(Patient, User.created_at, Ward.id, Ward.name, Room.room_number, User.phone_number)
-            .join(Room, Patient.room_id == Room.id)
-            .join(Ward, Room.ward_id == Ward.id)
+            select(
+                Patient, User.created_at, Ward.id, Ward.name,
+                func.coalesce(Room.room_number, Bed.bed_no), User.phone_number,
+            )
+            .outerjoin(Bed, Patient.bed_id == Bed.id)
+            .outerjoin(Room, Patient.room_id == Room.id)
+            .outerjoin(Ward, Ward.id == func.coalesce(Bed.ward_id, Room.ward_id))
             # --- RIGOROUS OPERATIONAL BOUNDS CHECK ---
+            .where(or_(Patient.bed_id.isnot(None), Patient.room_id.isnot(None)))
             .where(Patient.is_monitoring_paused == False)
             .where(Patient.is_discharged == False)
             .where(Patient.archive_status == "active")
         )
         result = await db.execute(stmt)
         active_patients = result.all()
+
+        # Redis locks, pub/sub and pushes run only AFTER the alerts are committed. Setting the
+        # dead-state lock first meant a failed commit left the patient locked "offline" with no
+        # alert row — later sweeps then skipped them for good.
+        post_commit = []
         
         for row in active_patients:
             patient, user_created_at, ward_id, ward_name, room_number, phone_number = row
@@ -112,25 +123,14 @@ async def monitor_device_heartbeats():
                     alert_meta["id"] = new_alert.id
                     alert_meta["alert_id"] = new_alert.id
                     
-                    # Set network lock state to block duplicates and show correct view indicators
-                    await redis.set(dead_lock_key, "offline")
-                    await redis.setex(f"alert_lock:{patient.id}:Network", 300, "active")
-                    
                     # E. Sanitize nested datetime variables for clean JSON serialization
                     serializable_vitals = {**zero_vitals_dict, **calculated_data}
-                    serializable_vitals["created_at"] = timestamp_str 
-                    
-                    alert_channel = f"patient:{patient.id}:alerts"
-                    stream_channel = f"patient:{patient.id}:stream"
-                    
-                    await redis.publish(alert_channel, json.dumps(alert_meta))
+                    serializable_vitals["created_at"] = timestamp_str
 
                     # Plan D (RUN-024): push the device-offline alert to the patient's staff.
                     _push_tokens = await staff_tokens_for_patient(db, patient.id)
-                    if _push_tokens:
-                        asyncio.create_task(asyncio.to_thread(send_critical_push, _push_tokens, alert_meta))
 
-                    await redis.publish(stream_channel, json.dumps({
+                    post_commit.append((patient.id, dead_lock_key, alert_meta, _push_tokens, {
                         "patient_id": patient.id,
                         "vitals": serializable_vitals,
                         "ward_name": ward_name,
@@ -139,13 +139,24 @@ async def monitor_device_heartbeats():
                     }))
 
         # API-log retention (RUN-024): purge entries older than the configured window (default 48h).
+        # Savepoint: a failed purge must not abort the transaction and roll back the alerts above.
         try:
             cutoff = datetime.utcnow() - timedelta(hours=settings.API_LOG_RETENTION_HOURS)
-            await db.execute(delete(ApiLog).where(ApiLog.created_at < cutoff))
+            async with db.begin_nested():
+                await db.execute(delete(ApiLog).where(ApiLog.created_at < cutoff))
         except Exception as e:
             print(f"api_log purge error: {e}")
 
         await db.commit()
+
+        for patient_id, dead_lock_key, alert_meta, push_tokens, stream_payload in post_commit:
+            # Set network lock state to block duplicates and show correct view indicators
+            await redis.set(dead_lock_key, "offline")
+            await redis.setex(f"alert_lock:{patient_id}:Network", 300, "active")
+            await redis.publish(f"patient:{patient_id}:alerts", json.dumps(alert_meta))
+            if push_tokens:
+                asyncio.create_task(asyncio.to_thread(send_critical_push, push_tokens, alert_meta))
+            await redis.publish(f"patient:{patient_id}:stream", json.dumps(stream_payload))
         
 
 
