@@ -45,6 +45,7 @@ import HeartRateLive from "../../../components/charts/HeartRateLive";
 import Movement from "../../../components/animation/overview/movement";
 import ArcProgress from "../../../components/arc-progress";
 import AlertsTimeline from "@/components/dashboard/AlertsTimeline";
+import BaselinePanel from "@/components/dashboard/overview/BaselinePanel";
 import PatientProfileTab from "@/components/dashboard/overview/PatientProfileTab";
 import MedicalInfoTab from "@/components/dashboard/overview/MedicalInfoTab";
 import ReportsTab from "@/components/dashboard/overview/ReportsTab";
@@ -1015,6 +1016,9 @@ export default function Overview() {
             Flag for Doctor Review
           </button>
         </div>
+
+        {/* --- Personal Baseline (Baseline Engine v1, shadow mode) --- */}
+        <BaselinePanel patientId={parsedUserId} />
 
         {/* --- Alerts Timeline Section --- */}
         <AlertsTimeline patientId={parsedUserId} />

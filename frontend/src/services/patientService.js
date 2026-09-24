@@ -284,6 +284,25 @@ export const patientService = {
   },
 
   /**
+   * Baseline Engine v1 (shadow mode): personal baseline, learning progress and the latest
+   * Vital Parameter Object per vital.
+   * GET /api/v1/patients/{patient_id}/baseline
+   */
+  async getPatientBaseline(patientId) {
+    try {
+      const response = await apiClient.get(`/api/v1/patients/${patientId}/baseline`);
+      return { success: true, data: response.data, message: "Success" };
+    } catch (error) {
+      console.error('Error fetching patient baseline:', error);
+      return {
+        success: false,
+        data: null,
+        message: error.message || "Failed to fetch patient baseline",
+      };
+    }
+  },
+
+  /**
    * Get patient history timeline
    */
   async getPatientHistory(patientId, params = {}) {

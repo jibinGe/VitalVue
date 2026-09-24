@@ -510,6 +510,61 @@ async def get_assigned_patient_by_user_id(
         "is_monitoring_paused": p.is_monitoring_paused
     }
 
+@router.get("/{patient_id}/baseline")
+async def get_patient_baseline(
+    patient_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Baseline Engine v1 (shadow mode): current baseline mode, learning progress, the latest
+    Vital Parameter Object per vital and the recent 10-minute observations. Read-only — alerts
+    do not use these values yet."""
+    from app.models.baseline import PatientBaseline, VitalObservation
+    from app.services.baseline.population import LEARNING_OBSERVATIONS
+
+    patient = await db.get(Patient, patient_id)
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    if current_user.role == UserRole.PATIENT and current_user.id != patient_id:
+        raise HTTPException(status_code=403, detail="Not authorized to view this patient")
+    if not await can_view_patient(db, current_user, patient):
+        raise HTTPException(status_code=403, detail="Not authorized to view this patient")
+
+    baseline = (await db.execute(
+        select(PatientBaseline).where(PatientBaseline.patient_id == patient_id)
+        .order_by(PatientBaseline.version.desc()).limit(1)
+    )).scalar_one_or_none()
+    if baseline is None:
+        return {"patient_id": patient_id, "mode": None, "version": None,
+                "learning": {"stable": 0, "required": LEARNING_OBSERVATIONS},
+                "confidence": 0.0, "vpo": {}, "observations": []}
+
+    recent = (await db.execute(
+        select(VitalObservation)
+        .where(VitalObservation.patient_id == patient_id,
+               VitalObservation.window_start >= baseline.episode_start)
+        .order_by(VitalObservation.window_start.desc()).limit(12)
+    )).scalars().all()
+
+    return {
+        "patient_id": patient_id,
+        "mode": baseline.mode,
+        "version": baseline.version,
+        "episode_start": baseline.episode_start.isoformat(),
+        "learning": {"stable": baseline.n_stable, "required": LEARNING_OBSERVATIONS},
+        "confidence": baseline.confidence,
+        "baseline": baseline.stats,
+        "window_start": recent[0].window_start.isoformat() if recent else None,
+        "vpo": recent[0].vpo if recent else {},
+        "observations": [
+            {"window_start": o.window_start.isoformat(), "sample_count": o.sample_count,
+             "hr": o.hr, "spo2": o.spo2, "sbp": o.sbp, "dbp": o.dbp, "map": o.map, "hrv": o.hrv,
+             "stress": o.stress, "signal_quality": o.signal_quality, "activity_state": o.activity_state,
+             "is_stable": o.is_stable, "reject_reason": o.reject_reason}
+            for o in reversed(recent)
+        ],
+    }
+
 @router.get("/history/{patient_id}")
 async def get_patient_vitals_history(
     patient_id: int,

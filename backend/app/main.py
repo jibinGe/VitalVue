@@ -24,15 +24,33 @@ async def heartbeat_cron_worker():
         # Sleep for 60 seconds before executing the sweep loop again
         await asyncio.sleep(60)
 
+async def baseline_cron_worker():
+    """Baseline Engine v1 (shadow mode). Its own task, session and error handling so a slow or
+    failing cycle can never delay the device-offline heartbeat sweep. Wakes every 60 seconds;
+    only does work once a 10-minute window has closed."""
+    from app.database import SessionLocal, get_redis
+    from app.services.baseline.job import run_baseline_cycle
+
+    print("[CRON] Baseline engine background worker started.")
+    while True:
+        try:
+            async with SessionLocal() as db:
+                await run_baseline_cycle(db, await get_redis())
+        except Exception as e:
+            print(f"[CRON ERROR] Exception caught in baseline worker: {e}")
+        await asyncio.sleep(60)
+
 # 1. Lifespan context for startup/shutdown tasks
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup: Logic to run when server starts (e.g. verify Redis/DB connection)
     print("Vitalvue Backend starting up...")
     cron_task = asyncio.create_task(heartbeat_cron_worker())
+    baseline_task = asyncio.create_task(baseline_cron_worker())
     yield
     # Shutdown: Logic to run when server stops
     cron_task.cancel()
+    baseline_task.cancel()
     print("Vitalvue Backend shutting down...")
 
 app = FastAPI(
