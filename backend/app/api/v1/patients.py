@@ -27,6 +27,7 @@ import secrets
 import string
 import math
 from app.services.analytics import get_vital_statuses
+from app.services.access import clinician_patient_filter, can_view_patient
 from app.core.security import get_password_hash
 import uuid
 
@@ -65,8 +66,10 @@ async def admit(body: PatientAdmit, db: AsyncSession = Depends(get_db), me=Depen
             raise HTTPException(status_code=409, detail="Room already occupied")
         if not getattr(room, "is_active", True):
             raise HTTPException(status_code=409, detail="Room is disabled")
-        ward = await db.get(Ward, room.ward_id)
-        dept = await db.get(Department, ward.department_id) if ward is not None else None
+        # Dept-level rooms have no ward — fall back to the room's own department.
+        ward = await db.get(Ward, room.ward_id) if room.ward_id is not None else None
+        dept_id = ward.department_id if ward is not None else room.department_id
+        dept = await db.get(Department, dept_id) if dept_id is not None else None
         room.is_occupied = True
 
     # Organization is derived from the asset's physical chain (asset→ward→department→org)
@@ -348,10 +351,10 @@ async def get_assigned_patients(
     query = query.where(Patient.archive_status == "active")
 
     # 3. Role-Based Data Partitioning Filters
-    if current_user.role == UserRole.NURSE:
-        query = query.where(Patient.nurse_id == current_user.id)
-    elif current_user.role == UserRole.DOCTOR:
-        query = query.where(Patient.doctor_id == current_user.id)
+    # Doctors/nurses: directly assigned patients + patients under their nursing stations
+    clinician_scope = await clinician_patient_filter(db, current_user)
+    if clinician_scope is not None:
+        query = query.where(clinician_scope)
     elif current_user.role in [UserRole.ORG_ADMIN, UserRole.MASTER_ADMIN]:
         query = query.where(User.organization_id == current_user.organization_id)
     else:
@@ -449,10 +452,10 @@ async def get_assigned_patient_by_user_id(
     else:
         query = query.where(Patient.user_id == user_id)
 
-    if current_user.role == UserRole.NURSE:
-        query = query.where(Patient.nurse_id == current_user.id)
-    elif current_user.role == UserRole.DOCTOR:
-        query = query.where(Patient.doctor_id == current_user.id)
+    # Doctors/nurses: directly assigned patients + patients under their nursing stations
+    clinician_scope = await clinician_patient_filter(db, current_user)
+    if clinician_scope is not None:
+        query = query.where(clinician_scope)
     elif current_user.role in [UserRole.ORG_ADMIN, UserRole.MASTER_ADMIN]:
         query = query.where(User.organization_id == current_user.organization_id)
     else:
@@ -524,7 +527,7 @@ async def get_patient_vitals_history(
         raise HTTPException(status_code=404, detail="Patient not found")
     
     # RBAC: Verify assignment
-    if current_user.role == UserRole.NURSE and patient.nurse_id != current_user.id:
+    if current_user.role == UserRole.NURSE and not await can_view_patient(db, current_user, patient):
         raise HTTPException(status_code=403, detail="Not authorized to view this patient")
 
     # 2. Time-Bucketing Logic
@@ -805,7 +808,7 @@ async def get_dynamic_metric_history(
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
     
-    if current_user.role == UserRole.NURSE and patient.nurse_id != current_user.id:
+    if current_user.role == UserRole.NURSE and not await can_view_patient(db, current_user, patient):
         raise HTTPException(status_code=403, detail="Unauthorized access to this patient")
 
     # 3. Dynamic Aggregation Logic
@@ -1106,10 +1109,10 @@ async def get_notifications(
     """
     # 1. Fetch patients assigned to the current user based on role partitions
     patient_query = select(Patient.id)
-    if current_user.role == UserRole.NURSE:
-        patient_query = patient_query.where(Patient.nurse_id == current_user.id)
-    elif current_user.role == UserRole.DOCTOR:
-        patient_query = patient_query.where(Patient.doctor_id == current_user.id)
+    # Doctors/nurses: directly assigned patients + patients under their nursing stations
+    clinician_scope = await clinician_patient_filter(db, current_user)
+    if clinician_scope is not None:
+        patient_query = patient_query.where(clinician_scope)
     elif current_user.role in [UserRole.ORG_ADMIN, UserRole.MASTER_ADMIN]:
         patient_query = patient_query.join(User, Patient.user_id == User.id).where(
             User.organization_id == current_user.organization_id
@@ -1162,7 +1165,7 @@ async def get_notifications(
         select(Alert, Patient.full_name, Patient.room_id, Resolver.full_name)
         .join(Patient, Alert.patient_id == Patient.id)
         .outerjoin(Resolver, Alert.resolved_by == Resolver.id)
-        .where(Alert.patient_id.in_(patient_ids))
+        .where(*base_filters)
         .order_by(Alert.created_at.desc())
     )
     
@@ -1593,10 +1596,10 @@ async def get_patient_lifecycle_registry(
         )
 
     # 3. Apply Multi-Tenant Organizational Role Security Boundaries
-    if current_user.role == UserRole.NURSE:
-        stmt = stmt.where(Patient.nurse_id == current_user.id)
-    elif current_user.role == UserRole.DOCTOR:
-        stmt = stmt.where(Patient.doctor_id == current_user.id)
+    # Doctors/nurses: directly assigned patients + patients under their nursing stations
+    clinician_scope = await clinician_patient_filter(db, current_user)
+    if clinician_scope is not None:
+        stmt = stmt.where(clinician_scope)
     elif current_user.role in [UserRole.ORG_ADMIN, UserRole.MASTER_ADMIN]:
         stmt = stmt.where(User.organization_id == current_user.organization_id)
     else:
