@@ -8,7 +8,8 @@ from typing import Optional, Sequence
 
 from app.services.baseline import stats as st
 from app.services.baseline.population import (
-    ACTIVE_MIN_MOVEMENT, LEARNING_OBSERVATIONS, RESTING_MAX_MOVEMENT, STATUS_BANDS, STATUS_LEVEL, VITALS,
+    ACTIVE_MIN_MOVEMENT, LEARNING_OBSERVATIONS, RAPID_WORSENING_PENALTY, RESTING_MAX_MOVEMENT, SCORE_PENALTY,
+    STATUS_BANDS, STATUS_LEVEL, VITALS,
 )
 from app.services.baseline.trend import classify_trend, persistence
 
@@ -74,6 +75,7 @@ def build_observation(rows: Sequence[dict]) -> Optional[dict]:
         "map": st.median(maps),
         "spo2": st.median(_positive(r.get("spo2") for r in good)),
         "stress": st.median(_positive(r.get("stress_level") for r in good)),
+        "temp": st.median(_positive(r.get("temp") for r in good)),
         "movement": movement_median,
         "activity_state": activity,
         "signal_quality": "poor" if stuck else signal_quality,
@@ -180,15 +182,26 @@ def compute_vpo(obs: dict, mode: str, baseline_stats: dict, history: Sequence[di
     return result
 
 
-def is_stable(obs: dict, vpo: dict, mode: str, alert_in_window: bool) -> tuple[bool, Optional[str]]:
+def health_score(vpo: dict) -> Optional[int]:
+    """0–100 from the per-vital statuses. None when no vital has a personal baseline yet."""
+    scored = [p for p in vpo.values() if p.get("baseline") is not None]
+    if not scored:
+        return None
+    penalty = sum(SCORE_PENALTY.get(p["status"], 0) for p in vpo.values())
+    penalty += RAPID_WORSENING_PENALTY * sum(1 for p in vpo.values() if p.get("trend") == "Rapid worsening")
+    return max(0, 100 - penalty)
+
+
+def is_stable(obs: dict, vpo: dict, mode: str) -> tuple[bool, Optional[str]]:
     """May this observation enter the baseline buffer? (the spec's contribution filter + freeze
-    logic). Deteriorating windows are kept out so the baseline can't drift towards them."""
+    logic). Deteriorating windows are kept out so the baseline can't drift towards them.
+
+    Judged only on the window's own readings — independent of the fixed-threshold alert system,
+    so single-reading spikes that fire an alert don't stop the baseline from learning."""
     if obs.get("signal_quality") != "good":
         return False, "stuck_sensor" if obs.get("stuck_sensor") else "poor_signal"
     if obs.get("activity_state") == "active":
         return False, "motion"
-    if alert_in_window:
-        return False, "alert_active"
     # Population mode can't judge "deterioration" against the patient's own normal yet
     # (HR 55 may be normal for them), so only a critical value freezes it.
     freeze_level = STATUS_LEVEL["Critical"] if mode == "population" else STATUS_LEVEL["Moderate deviation"]

@@ -148,21 +148,20 @@ def test_deteriorating_window_is_frozen_out():
     stats, _ = build_baseline_stats([_obs(hr=h) for h in SPEC_HR])
     for hr in (110, 112, 115):
         vpo = compute_vpo(_obs(hr=hr), "personal", stats, [], learning_confidence=1.0)
-        assert is_stable(_obs(hr=hr), vpo, "personal", alert_in_window=False) == (False, "deterioration")
+        assert is_stable(_obs(hr=hr), vpo, "personal") == (False, "deterioration")
 
 
-def test_alert_motion_and_signal_block_the_buffer():
+def test_motion_and_signal_block_the_buffer():
     vpo = compute_vpo(_obs(), "population", {}, [], learning_confidence=0.0)
-    assert is_stable(_obs(), vpo, "population", alert_in_window=True) == (False, "alert_active")
-    assert is_stable(_obs(activity_state="active"), vpo, "population", False) == (False, "motion")
-    assert is_stable(_obs(signal_quality="fair"), vpo, "population", False) == (False, "poor_signal")
-    assert is_stable(_obs(), vpo, "population", False) == (True, None)
+    assert is_stable(_obs(activity_state="active"), vpo, "population") == (False, "motion")
+    assert is_stable(_obs(signal_quality="fair"), vpo, "population") == (False, "poor_signal")
+    assert is_stable(_obs(), vpo, "population") == (True, None)
 
 
 def test_population_mode_does_not_freeze_on_low_normal_hr():
     # HR 55 may be this patient's normal: only a critical value freezes during learning.
     vpo = compute_vpo(_obs(hr=55), "population", {}, [], learning_confidence=0.5)
-    assert is_stable(_obs(hr=55), vpo, "population", False) == (True, None)
+    assert is_stable(_obs(hr=55), vpo, "population") == (True, None)
 
 
 def test_baseline_confidence_grows_with_readings():
@@ -176,3 +175,87 @@ def test_baseline_confidence_grows_with_readings():
 def test_latest_closed_window():
     assert latest_closed_window(datetime(2026, 9, 24, 17, 27, 30)) == datetime(2026, 9, 24, 17, 10)
     assert latest_closed_window(datetime(2026, 9, 24, 17, 30, 0)) == datetime(2026, 9, 24, 17, 20)
+
+
+# --- health score, temperature, timeline (Baseline tab) ---
+
+from datetime import timedelta
+from app.services.baseline.engine import health_score
+from app.services.baseline.timeline import build_timeline, score_band, usual_bands
+
+
+def _vpo(**statuses):
+    """{vital: status} → minimal VPO dicts with a baseline so they count for the score."""
+    return {v: {"status": s, "baseline": 1, "trend": "Stable"} for v, s in statuses.items()}
+
+
+def test_health_score_penalties():
+    assert health_score(_vpo(hr="Normal", spo2="Normal")) == 100
+    assert health_score(_vpo(hr="Severe deviation", spo2="Moderate deviation", hrv="Mild deviation")) == 63
+    rapid = _vpo(hr="Moderate deviation")
+    rapid["hr"]["trend"] = "Rapid worsening"
+    assert health_score(rapid) == 83
+    assert health_score(_vpo(hr="Critical", spo2="Critical", sbp="Critical")) == 0
+
+
+def test_health_score_none_while_learning():
+    assert health_score({"hr": {"status": "Normal", "baseline": None, "trend": "Stable"}}) is None
+
+
+def test_score_bands():
+    assert score_band(85) == "Within baseline"
+    assert score_band(70) == "Deviating"
+    assert score_band(55) == "Significant change"
+
+
+def test_skin_temp_is_captured_and_has_no_population_range():
+    obs = build_observation([_raw() | {"temp": 33.9}, _raw() | {"temp": 34.1}])
+    assert obs["temp"] == 34.0
+    assert classify_status("temp", 33.9, None)[0] == "Normal"
+
+
+def test_usual_band_is_baseline_plus_minus_two_spreads():
+    bands = usual_bands("personal", {"hr": {"median": 82, "mad": 1}})
+    assert bands["hr"] == {"kind": "personal", "center": 82, "low": 76.0, "high": 88.0}   # spread = floor 3
+    assert bands["spo2"]["kind"] == "population" and bands["spo2"]["low"] == 94
+
+
+def _timeline_obs(start, statuses_per_window):
+    out = []
+    for i, st_hr in enumerate(statuses_per_window):
+        out.append({"window_start": start + timedelta(minutes=10 * i), "hr": 80 + i, "spo2": 97.0,
+                    "vpo": {"hr": {"status": st_hr, "baseline": 80, "trend": "Stable"},
+                            "spo2": {"status": "Normal", "baseline": 97, "trend": "Stable"}},
+                    "is_stable": st_hr == "Normal", "reject_reason": None if st_hr == "Normal" else "deterioration"})
+    return out
+
+
+def test_timeline_marker_and_recovery():
+    now = datetime(2026, 9, 25, 12, 0)
+    statuses = ["Normal"] * 6 + ["Severe deviation", "Critical", "Severe deviation"] + ["Normal"] * 3
+    t = build_timeline(_timeline_obs(now - timedelta(hours=2), statuses), "6h", now,
+                       {"stable": 12, "required": 12}, "personal")
+    assert len(t["markers"]) == 1
+    assert t["markers"][0]["score"] == 65                      # the Critical window (100 − 35)
+    assert t["markers"][0]["changes"][0]["vital"] == "hr"
+    types = [i["type"] for i in t["insights"]]
+    assert "drop" in types and "recovery" in types and "kept_out" in types
+    assert next(i for i in t["insights"] if i["type"] == "recovery")["state"] == "recovered"
+    assert t["usual_score"] == 100
+
+
+def test_hourly_buckets_keep_the_worst():
+    now = datetime(2026, 9, 25, 12, 0)
+    statuses = ["Normal", "Normal", "Critical", "Normal", "Normal", "Normal"]
+    t = build_timeline(_timeline_obs(datetime(2026, 9, 25, 9, 0), statuses), "3d", now,
+                       {"stable": 12, "required": 12}, "personal")
+    assert len(t["points"]) == 1
+    assert t["points"][0]["score"] == 65 and t["points"][0]["status"]["hr"] == "Critical"
+    assert t["points"][0]["windows"] == 6 and t["points"][0]["used"] == 5
+
+
+def test_timeline_learning_insight():
+    now = datetime(2026, 9, 25, 12, 0)
+    t = build_timeline([], "24h", now, {"stable": 3, "required": 12}, "population")
+    assert t["insights"][0] == {"type": "learning", "stable": 3, "required": 12}
+    assert any(i["type"] == "no_data" for i in t["insights"])

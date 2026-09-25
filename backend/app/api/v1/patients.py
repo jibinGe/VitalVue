@@ -513,6 +513,7 @@ async def get_assigned_patient_by_user_id(
 @router.get("/{patient_id}/baseline")
 async def get_patient_baseline(
     patient_id: int,
+    limit: int = Query(36, ge=1, le=144, description="10-minute observations to return (36 = 6 hours)"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -521,6 +522,7 @@ async def get_patient_baseline(
     do not use these values yet."""
     from app.models.baseline import PatientBaseline, VitalObservation
     from app.services.baseline.population import LEARNING_OBSERVATIONS
+    from app.services.baseline.timeline import usual_bands
 
     patient = await db.get(Patient, patient_id)
     if not patient:
@@ -543,8 +545,10 @@ async def get_patient_baseline(
         select(VitalObservation)
         .where(VitalObservation.patient_id == patient_id,
                VitalObservation.window_start >= baseline.episode_start)
-        .order_by(VitalObservation.window_start.desc()).limit(12)
+        .order_by(VitalObservation.window_start.desc()).limit(limit)
     )).scalars().all()
+
+    bands = usual_bands(baseline.mode, baseline.stats)
 
     return {
         "patient_id": patient_id,
@@ -554,15 +558,73 @@ async def get_patient_baseline(
         "learning": {"stable": baseline.n_stable, "required": LEARNING_OBSERVATIONS},
         "confidence": baseline.confidence,
         "baseline": baseline.stats,
+        "bands": bands,
         "window_start": recent[0].window_start.isoformat() if recent else None,
         "vpo": recent[0].vpo if recent else {},
         "observations": [
             {"window_start": o.window_start.isoformat(), "sample_count": o.sample_count,
              "hr": o.hr, "spo2": o.spo2, "sbp": o.sbp, "dbp": o.dbp, "map": o.map, "hrv": o.hrv,
-             "stress": o.stress, "signal_quality": o.signal_quality, "activity_state": o.activity_state,
-             "is_stable": o.is_stable, "reject_reason": o.reject_reason}
+             "stress": o.stress, "temp": o.temp, "signal_quality": o.signal_quality, "activity_state": o.activity_state,
+             "is_stable": o.is_stable, "reject_reason": o.reject_reason,
+             "status": {v: p.get("status") for v, p in (o.vpo or {}).items()}}
             for o in reversed(recent)
         ],
+    }
+
+@router.get("/{patient_id}/baseline/timeline")
+async def get_patient_baseline_timeline(
+    patient_id: int,
+    range: str = Query("24h", pattern="^(6h|12h|24h|3d|7d)$", description="6h, 12h, 24h (10-min points) or 3d, 7d (hourly)"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Baseline tab (shadow mode): health score and vitals against the personal baseline over a
+    time range, deterioration markers, the interval table data and rule-based insights."""
+    from app.models.baseline import PatientBaseline, VitalObservation
+    from app.services.baseline.population import LEARNING_OBSERVATIONS, VITALS
+    from app.services.baseline.timeline import RANGES, build_timeline, usual_bands
+
+    patient = await db.get(Patient, patient_id)
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    if current_user.role == UserRole.PATIENT and current_user.id != patient_id:
+        raise HTTPException(status_code=403, detail="Not authorized to view this patient")
+    if not await can_view_patient(db, current_user, patient):
+        raise HTTPException(status_code=403, detail="Not authorized to view this patient")
+
+    now = datetime.utcnow()
+    hours = RANGES[range][0]
+    baseline = (await db.execute(
+        select(PatientBaseline).where(PatientBaseline.patient_id == patient_id)
+        .order_by(PatientBaseline.version.desc()).limit(1)
+    )).scalar_one_or_none()
+    # Across episodes on purpose: a 7-day view should include earlier admissions' data.
+    rows = (await db.execute(
+        select(VitalObservation)
+        .where(VitalObservation.patient_id == patient_id,
+               VitalObservation.window_start >= now - timedelta(hours=hours))
+        .order_by(VitalObservation.window_start)
+    )).scalars().all()
+    observations = [
+        {"window_start": o.window_start, **{v: getattr(o, v) for v in VITALS},
+         "vpo": o.vpo or {}, "is_stable": o.is_stable, "reject_reason": o.reject_reason}
+        for o in rows
+    ]
+    learning = {"stable": baseline.n_stable if baseline else 0, "required": LEARNING_OBSERVATIONS}
+    timeline = build_timeline(observations, range, now, learning, baseline.mode if baseline else None)
+
+    return {
+        "patient_id": patient_id,
+        "mode": baseline.mode if baseline else None,
+        "version": baseline.version if baseline else None,
+        "learning": learning,
+        "confidence": baseline.confidence if baseline else 0.0,
+        "baseline": (baseline.stats or {}) if baseline else {},
+        "bands": usual_bands(baseline.mode if baseline else None, baseline.stats if baseline else {}),
+        "vitals": {v: {"label": c["label"], "unit": c["unit"],
+                       "populationRange": {"low": c["low"], "high": c["high"]}} for v, c in VITALS.items()},
+        "vpo": rows[-1].vpo if rows else {},
+        **timeline,
     }
 
 @router.get("/history/{patient_id}")

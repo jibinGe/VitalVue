@@ -33,6 +33,7 @@ class VitalObservation(Base):
     map: Mapped[Optional[float]] = mapped_column(Float, nullable=True)   # (SBP + 2·DBP) / 3
     spo2: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     stress: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    temp: Mapped[Optional[float]] = mapped_column(Float, nullable=True)     # skin temperature, °C
     movement: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
 
     activity_state: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)  # resting / light / active

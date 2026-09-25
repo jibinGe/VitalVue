@@ -42,4 +42,19 @@ VITALS = {
                "critical_low": None, "critical_high": None},
     "stress": {"label": "Stress",      "unit": "",     "low": None, "high": None, "bad": "up", "mad_floor": 5,
                "critical_low": None, "critical_high": None},
+    # The band measures SKIN temperature (~33–35 °C), not core, so there is no population
+    # range: it is judged only against the patient's own baseline.
+    "temp":   {"label": "Skin temp",   "unit": "°C",   "low": None, "high": None, "bad": "both", "mad_floor": 0.3,
+               "critical_low": None, "critical_high": None},
 }
+
+# ── Health score (0–100) ─────────────────────────────────────────────────────────
+# 100 minus a penalty per vital by status, and an extra penalty per vital that is rapidly
+# worsening; floored at 0. Only computed once a personal baseline exists.
+SCORE_PENALTY = {"Mild deviation": 5, "Moderate deviation": 12, "Severe deviation": 20, "Critical": 35}
+RAPID_WORSENING_PENALTY = 5
+# Score bands shown on screen.
+SCORE_WITHIN_BASELINE = 80      # ≥ 80  "Within baseline"
+SCORE_SIGNIFICANT = 60          # < 60  "Significant change"; 60–79 "Deviating"
+# A run of windows below this score is a deterioration episode (one marker at its lowest point).
+DETERIORATION_SCORE = 70

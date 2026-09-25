@@ -11,7 +11,6 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.models.baseline import PatientBaseline, VitalObservation
-from app.models.clinical import Alert
 from app.models.user import Patient
 from app.models.vitals import Vitals
 from app.services.baseline.engine import build_baseline_stats, build_observation, compute_vpo, is_stable
@@ -24,9 +23,8 @@ log = logging.getLogger(__name__)
 WINDOW = timedelta(minutes=WINDOW_MINUTES)
 MAX_CATCH_UP_WINDOWS = 6            # after downtime, back-fill at most the last hour
 TREND_HISTORY = 4                   # previous observations fed to trend detection
-DEVICE_ALERT_TYPES = ("Connectivity", "Band Status")
 RAW_COLUMNS = (Vitals.heart_rate, Vitals.spo2, Vitals.bp_systolic, Vitals.bp_diastolic, Vitals.hrv_score,
-               Vitals.stress_level, Vitals.movement, Vitals.is_connected, Vitals.is_removed)
+               Vitals.stress_level, Vitals.movement, Vitals.temp, Vitals.is_connected, Vitals.is_removed)
 
 
 def latest_closed_window(now: datetime) -> datetime:
@@ -116,12 +114,7 @@ async def process_window(db, patient_id: int, window_start: datetime):
 
     vpo = compute_vpo(obs, baseline.mode, baseline.stats or {}, history, learning_confidence)
 
-    alert_in_window = (await db.execute(
-        select(func.count(Alert.id))
-        .where(Alert.patient_id == patient_id, Alert.vital_type.not_in(DEVICE_ALERT_TYPES),
-               Alert.created_at >= window_start - WINDOW, Alert.created_at < window_end)
-    )).scalar() > 0
-    stable, reason = is_stable(obs, vpo, baseline.mode, alert_in_window)
+    stable, reason = is_stable(obs, vpo, baseline.mode)
 
     inserted = (await db.execute(
         pg_insert(VitalObservation).values(
@@ -192,8 +185,13 @@ async def run_baseline_cycle(db, redis, now: datetime | None = None) -> int:
                 payload = await process_window(db, patient_id, ws) or payload
             await db.commit()
         except Exception:
-            await db.rollback()
             log.exception("baseline cycle failed for patient %s", patient_id)
+            try:
+                await db.rollback()
+            except Exception:
+                # The connection itself is gone (network drop / shutdown): stop this cycle;
+                # the worker opens a fresh session next time and redoes the window.
+                return stored
             continue
 
         if payload:

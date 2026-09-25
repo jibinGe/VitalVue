@@ -51,6 +51,8 @@ async def lifespan(app: FastAPI):
     # Shutdown: Logic to run when server stops
     cron_task.cancel()
     baseline_task.cancel()
+    # Wait for both to stop so a cancelled cycle releases its DB connection before shutdown.
+    await asyncio.gather(cron_task, baseline_task, return_exceptions=True)
     print("Vitalvue Backend shutting down...")
 
 app = FastAPI(
