@@ -79,20 +79,23 @@ export default function QuickAddModal() {
     return () => { cancelled = true; };
   }, [orgId]);
 
-  // Load stations whenever deptId changes
+  // Load every nursing station of the selected hospital (a ward/room may sit under any
+  // station of its hospital — not only one from its own department)
   useEffect(() => {
-    if (!deptId) {
+    if (!orgId || departments.length === 0) {
       setStations([]);
       return;
     }
     let cancelled = false;
-    adminService.listStations({ department_id: Number(deptId) }).then((res) => {
+    const deptIds = new Set(departments.map((d) => d.id));
+    adminService.listStations().then((res) => {
       if (!cancelled && res.success) {
-        setStations(Array.isArray(res.data) ? res.data : res.data?.items ?? []);
+        const all = Array.isArray(res.data) ? res.data : res.data?.items ?? [];
+        setStations(all.filter((s) => deptIds.has(s.department_id)));
       }
     });
     return () => { cancelled = true; };
-  }, [deptId]);
+  }, [orgId, departments]);
 
   // Load wards whenever deptId or stationId changes
   useEffect(() => {
@@ -139,12 +142,13 @@ export default function QuickAddModal() {
         });
       } else if (type === 'ward') {
         if (!deptId) throw new Error('Please select a department.');
+        if (!stationId) throw new Error('Please select a nursing station.');
         if (!formData.name?.trim()) throw new Error('Ward name is required.');
         res = await adminService.createWard({
           name: formData.name.trim(),
           ward_no: formData.ward_no?.trim() || null,
           department_id: Number(deptId),
-          station_id: stationId ? Number(stationId) : null,
+          station_id: Number(stationId),
         });
       } else if (type === 'bed') {
         if (!wardId) throw new Error('Please select a ward.');
@@ -155,10 +159,12 @@ export default function QuickAddModal() {
         });
       } else if (type === 'room') {
         if (!deptId) throw new Error('Please select a department.');
+        if (!stationId) throw new Error('Please select a nursing station.');
         if (!formData.room_number?.trim()) throw new Error('Room number is required.');
         res = await adminService.createRoom({
           room_number: formData.room_number.trim(),
           department_id: Number(deptId),
+          station_id: Number(stationId),
         });
       } else if (type === 'doctor') {
         if (!orgId) throw new Error('Please select a hospital.');
@@ -304,7 +310,6 @@ export default function QuickAddModal() {
                       disabled={!orgId}
                       onChange={(e) => {
                         setDeptId(e.target.value);
-                        setStationId('');
                         setWardId('');
                       }}
                       className="w-full px-3 py-2 bg-[#252528] border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-[#CCA166]/50 disabled:opacity-40"
@@ -319,20 +324,23 @@ export default function QuickAddModal() {
                   </div>
                 )}
 
-                {/* Nursing Station Dropdown (for Ward) */}
-                {type === 'ward' && (
+                {/* Nursing Station Dropdown (every Ward and Room sits under a station) */}
+                {['ward', 'room'].includes(type) && (
                   <div>
-                    <label className="text-xs text-white/60 mb-1 block">Nursing Station (Optional)</label>
+                    <label className="text-xs text-white/60 mb-1 block">Nursing Station *</label>
                     <select
                       value={stationId}
-                      disabled={!deptId}
+                      disabled={!orgId}
                       onChange={(e) => setStationId(e.target.value)}
                       className="w-full px-3 py-2 bg-[#252528] border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-[#CCA166]/50 disabled:opacity-40"
                     >
-                      <option value="" className="bg-[#252528] text-white">None / Unassigned</option>
-                      {stations.map((s) => (
+                      <option value="" className="bg-[#252528] text-white">
+                        {!orgId ? 'Select hospital first' : stations.some((s) => s.is_active !== false) ? 'Select Nursing Station...' : 'No stations in this hospital — create one first'}
+                      </option>
+                      {stations.filter((s) => s.is_active !== false).map((s) => (
                         <option key={s.id} value={s.id} className="bg-[#252528] text-white">
                           {s.name} {s.station_no ? `(${s.station_no})` : ''}
+                          {departments.find((d) => d.id === s.department_id) ? ` — ${departments.find((d) => d.id === s.department_id).name}` : ''}
                         </option>
                       ))}
                     </select>

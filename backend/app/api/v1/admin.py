@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy import select, inspect as sa_inspect
+from sqlalchemy import select, update as sa_update, inspect as sa_inspect
 from app.database import get_db
 from app.api.deps import allow_admins
 from app.models.organization import Organization, Department, Station, Ward, Bed, Room, StationDoctor, StationNurse
@@ -21,6 +21,39 @@ async def _assert_department_in_org(department_id, organization_id, db: AsyncSes
     dept = await db.get(Department, department_id)
     if not dept or dept.organization_id != organization_id:
         raise HTTPException(status_code=422, detail="That department does not belong to this doctor's hospital")
+
+
+async def _assert_station_in_org(station_id, department_id, db: AsyncSession) -> None:
+    """Every ward/room sits under a nursing station. Any station of the same hospital may be
+    picked (the ward/room's department is independent) — reject missing or cross-hospital picks."""
+    if station_id is None:
+        raise HTTPException(status_code=422, detail="A nursing station is required")
+    station = await db.get(Station, station_id)
+    if not station:
+        raise HTTPException(status_code=422, detail="Nursing station not found")
+    if department_id is not None:
+        dept = await db.get(Department, department_id)
+        station_dept = await db.get(Department, station.department_id)
+        if not dept or not station_dept or dept.organization_id != station_dept.organization_id:
+            raise HTTPException(status_code=422, detail="That nursing station does not belong to this hospital")
+
+
+async def _resolve_room_station(room, db: AsyncSession) -> None:
+    """Fill/validate a room's station_id. Ward-level rooms inherit (and must match) their
+    ward's station; dept-level rooms must name a station in their hospital."""
+    department_id = room.department_id
+    if room.ward_id is not None:
+        ward = await db.get(Ward, room.ward_id)
+        if not ward:
+            raise HTTPException(status_code=422, detail="Ward not found")
+        if ward.station_id is None:
+            raise HTTPException(status_code=422, detail="That ward has no nursing station — assign one to the ward first")
+        if room.station_id is None:
+            room.station_id = ward.station_id
+        elif room.station_id != ward.station_id:
+            raise HTTPException(status_code=422, detail="A ward-level room must use its ward's nursing station")
+        department_id = ward.department_id
+    await _assert_station_in_org(room.station_id, department_id, db)
 
 
 @router.post("/organizations", status_code=201, dependencies=[Depends(allow_admins)])
@@ -52,6 +85,7 @@ async def create_station(body: StationCreate, db: AsyncSession = Depends(get_db)
 
 @router.post("/wards", status_code=201, dependencies=[Depends(allow_admins)])
 async def create_ward(body: WardCreate, db: AsyncSession = Depends(get_db)):
+    await _assert_station_in_org(body.station_id, body.department_id, db)
     obj = Ward(**body.model_dump())
     db.add(obj)
     await db.commit()
@@ -99,8 +133,10 @@ async def create_beds_batch(body: BedBatchCreate, db: AsyncSession = Depends(get
 async def create_room(body: RoomCreate, db: AsyncSession = Depends(get_db)):
     """Create a dept-level room (department_id) or ward-level room (ward_id).
     Exactly one parent must be provided — enforced by the RoomCreate schema validator.
+    Every room sits under a nursing station (ward-level rooms inherit their ward's).
     """
     obj = Room(**body.model_dump(), is_occupied=False)
+    await _resolve_room_station(obj, db)
     db.add(obj)
     await db.commit()
     await db.refresh(obj)
@@ -207,7 +243,7 @@ _EDITABLE = {
     "stations":      {"name", "station_no", "department_id"},
     "wards":         {"name", "ward_no", "department_id", "station_id"},
     "beds":          {"bed_no", "ward_id"},
-    "rooms":         {"room_number", "ward_id", "department_id", "is_occupied"},
+    "rooms":         {"room_number", "ward_id", "department_id", "station_id", "is_occupied"},
     "doctors":       {"full_name", "phone_number", "specialization", "is_on_call", "department_id", "organization_id", "doctor_type"},
     "nurses":        {"full_name", "phone_number", "license_no", "organization_id", "nurse_type"},
 }
@@ -299,6 +335,16 @@ async def update_entity(entity: str, obj_id: int, body: dict, db: AsyncSession =
         setattr(obj, k, v)
     if entity == "doctors":
         await _assert_department_in_org(obj.department_id, obj.organization_id, db)
+    elif entity == "wards":
+        await _assert_station_in_org(obj.station_id, obj.department_id, db)
+        # Ward-level rooms follow their ward's station.
+        await db.execute(
+            sa_update(Room).where(Room.ward_id == obj.id).values(station_id=obj.station_id)
+        )
+    elif entity == "rooms":
+        if "ward_id" in applied and "station_id" not in applied and obj.ward_id is not None:
+            obj.station_id = None  # moved to another ward → inherit that ward's station
+        await _resolve_room_station(obj, db)
     try:
         await db.commit()
         await db.refresh(obj)

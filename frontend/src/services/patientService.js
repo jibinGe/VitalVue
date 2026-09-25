@@ -284,6 +284,41 @@ export const patientService = {
   },
 
   /**
+   * Baseline Engine v1 (shadow mode): personal baseline, learning progress and the latest
+   * Vital Parameter Object per vital.
+   * GET /api/v1/patients/{patient_id}/baseline
+   */
+  async getPatientBaseline(patientId, params = {}) {
+    try {
+      // params.limit = number of 10-minute windows (36 = 6 h, max 144 = 24 h)
+      const response = await apiClient.get(`/api/v1/patients/${patientId}/baseline`, { params });
+      return { success: true, data: response.data, message: "Success" };
+    } catch (error) {
+      console.error('Error fetching patient baseline:', error);
+      return {
+        success: false,
+        data: null,
+        message: error.message || "Failed to fetch patient baseline",
+      };
+    }
+  },
+
+  /**
+   * Baseline tab: health score + vitals vs personal baseline over a range
+   * (6h | 12h | 24h at 10-min points, 3d | 7d hourly), markers and insights.
+   * GET /api/v1/patients/{patient_id}/baseline/timeline?range=
+   */
+  async getPatientBaselineTimeline(patientId, range = "24h") {
+    try {
+      const response = await apiClient.get(`/api/v1/patients/${patientId}/baseline/timeline`, { params: { range } });
+      return { success: true, data: response.data, message: "Success" };
+    } catch (error) {
+      console.error('Error fetching baseline timeline:', error);
+      return { success: false, data: null, message: error.message || "Failed to fetch baseline timeline" };
+    }
+  },
+
+  /**
    * Get patient history timeline
    */
   async getPatientHistory(patientId, params = {}) {

@@ -27,6 +27,7 @@ import secrets
 import string
 import math
 from app.services.analytics import get_vital_statuses
+from app.services.access import clinician_patient_filter, can_view_patient
 from app.core.security import get_password_hash
 import uuid
 
@@ -65,8 +66,10 @@ async def admit(body: PatientAdmit, db: AsyncSession = Depends(get_db), me=Depen
             raise HTTPException(status_code=409, detail="Room already occupied")
         if not getattr(room, "is_active", True):
             raise HTTPException(status_code=409, detail="Room is disabled")
-        ward = await db.get(Ward, room.ward_id)
-        dept = await db.get(Department, ward.department_id) if ward is not None else None
+        # Dept-level rooms have no ward — fall back to the room's own department.
+        ward = await db.get(Ward, room.ward_id) if room.ward_id is not None else None
+        dept_id = ward.department_id if ward is not None else room.department_id
+        dept = await db.get(Department, dept_id) if dept_id is not None else None
         room.is_occupied = True
 
     # Organization is derived from the asset's physical chain (asset→ward→department→org)
@@ -348,10 +351,10 @@ async def get_assigned_patients(
     query = query.where(Patient.archive_status == "active")
 
     # 3. Role-Based Data Partitioning Filters
-    if current_user.role == UserRole.NURSE:
-        query = query.where(Patient.nurse_id == current_user.id)
-    elif current_user.role == UserRole.DOCTOR:
-        query = query.where(Patient.doctor_id == current_user.id)
+    # Doctors/nurses: directly assigned patients + patients under their nursing stations
+    clinician_scope = await clinician_patient_filter(db, current_user)
+    if clinician_scope is not None:
+        query = query.where(clinician_scope)
     elif current_user.role in [UserRole.ORG_ADMIN, UserRole.MASTER_ADMIN]:
         query = query.where(User.organization_id == current_user.organization_id)
     else:
@@ -449,10 +452,10 @@ async def get_assigned_patient_by_user_id(
     else:
         query = query.where(Patient.user_id == user_id)
 
-    if current_user.role == UserRole.NURSE:
-        query = query.where(Patient.nurse_id == current_user.id)
-    elif current_user.role == UserRole.DOCTOR:
-        query = query.where(Patient.doctor_id == current_user.id)
+    # Doctors/nurses: directly assigned patients + patients under their nursing stations
+    clinician_scope = await clinician_patient_filter(db, current_user)
+    if clinician_scope is not None:
+        query = query.where(clinician_scope)
     elif current_user.role in [UserRole.ORG_ADMIN, UserRole.MASTER_ADMIN]:
         query = query.where(User.organization_id == current_user.organization_id)
     else:
@@ -507,6 +510,123 @@ async def get_assigned_patient_by_user_id(
         "is_monitoring_paused": p.is_monitoring_paused
     }
 
+@router.get("/{patient_id}/baseline")
+async def get_patient_baseline(
+    patient_id: int,
+    limit: int = Query(36, ge=1, le=144, description="10-minute observations to return (36 = 6 hours)"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Baseline Engine v1 (shadow mode): current baseline mode, learning progress, the latest
+    Vital Parameter Object per vital and the recent 10-minute observations. Read-only — alerts
+    do not use these values yet."""
+    from app.models.baseline import PatientBaseline, VitalObservation
+    from app.services.baseline.population import LEARNING_OBSERVATIONS
+    from app.services.baseline.timeline import usual_bands
+
+    patient = await db.get(Patient, patient_id)
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    if current_user.role == UserRole.PATIENT and current_user.id != patient_id:
+        raise HTTPException(status_code=403, detail="Not authorized to view this patient")
+    if not await can_view_patient(db, current_user, patient):
+        raise HTTPException(status_code=403, detail="Not authorized to view this patient")
+
+    baseline = (await db.execute(
+        select(PatientBaseline).where(PatientBaseline.patient_id == patient_id)
+        .order_by(PatientBaseline.version.desc()).limit(1)
+    )).scalar_one_or_none()
+    if baseline is None:
+        return {"patient_id": patient_id, "mode": None, "version": None,
+                "learning": {"stable": 0, "required": LEARNING_OBSERVATIONS},
+                "confidence": 0.0, "vpo": {}, "observations": []}
+
+    recent = (await db.execute(
+        select(VitalObservation)
+        .where(VitalObservation.patient_id == patient_id,
+               VitalObservation.window_start >= baseline.episode_start)
+        .order_by(VitalObservation.window_start.desc()).limit(limit)
+    )).scalars().all()
+
+    bands = usual_bands(baseline.mode, baseline.stats)
+
+    return {
+        "patient_id": patient_id,
+        "mode": baseline.mode,
+        "version": baseline.version,
+        "episode_start": baseline.episode_start.isoformat(),
+        "learning": {"stable": baseline.n_stable, "required": LEARNING_OBSERVATIONS},
+        "confidence": baseline.confidence,
+        "baseline": baseline.stats,
+        "bands": bands,
+        "window_start": recent[0].window_start.isoformat() if recent else None,
+        "vpo": recent[0].vpo if recent else {},
+        "observations": [
+            {"window_start": o.window_start.isoformat(), "sample_count": o.sample_count,
+             "hr": o.hr, "spo2": o.spo2, "sbp": o.sbp, "dbp": o.dbp, "map": o.map, "hrv": o.hrv,
+             "stress": o.stress, "temp": o.temp, "signal_quality": o.signal_quality, "activity_state": o.activity_state,
+             "is_stable": o.is_stable, "reject_reason": o.reject_reason,
+             "status": {v: p.get("status") for v, p in (o.vpo or {}).items()}}
+            for o in reversed(recent)
+        ],
+    }
+
+@router.get("/{patient_id}/baseline/timeline")
+async def get_patient_baseline_timeline(
+    patient_id: int,
+    range: str = Query("24h", pattern="^(6h|12h|24h|3d|7d)$", description="6h, 12h, 24h (10-min points) or 3d, 7d (hourly)"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Baseline tab (shadow mode): health score and vitals against the personal baseline over a
+    time range, deterioration markers, the interval table data and rule-based insights."""
+    from app.models.baseline import PatientBaseline, VitalObservation
+    from app.services.baseline.population import LEARNING_OBSERVATIONS, VITALS
+    from app.services.baseline.timeline import RANGES, build_timeline, usual_bands
+
+    patient = await db.get(Patient, patient_id)
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    if current_user.role == UserRole.PATIENT and current_user.id != patient_id:
+        raise HTTPException(status_code=403, detail="Not authorized to view this patient")
+    if not await can_view_patient(db, current_user, patient):
+        raise HTTPException(status_code=403, detail="Not authorized to view this patient")
+
+    now = datetime.utcnow()
+    hours = RANGES[range][0]
+    baseline = (await db.execute(
+        select(PatientBaseline).where(PatientBaseline.patient_id == patient_id)
+        .order_by(PatientBaseline.version.desc()).limit(1)
+    )).scalar_one_or_none()
+    # Across episodes on purpose: a 7-day view should include earlier admissions' data.
+    rows = (await db.execute(
+        select(VitalObservation)
+        .where(VitalObservation.patient_id == patient_id,
+               VitalObservation.window_start >= now - timedelta(hours=hours))
+        .order_by(VitalObservation.window_start)
+    )).scalars().all()
+    observations = [
+        {"window_start": o.window_start, **{v: getattr(o, v) for v in VITALS},
+         "vpo": o.vpo or {}, "is_stable": o.is_stable, "reject_reason": o.reject_reason}
+        for o in rows
+    ]
+    learning = {"stable": baseline.n_stable if baseline else 0, "required": LEARNING_OBSERVATIONS}
+    timeline = build_timeline(observations, range, now, learning, baseline.mode if baseline else None)
+
+    return {
+        "patient_id": patient_id,
+        "mode": baseline.mode if baseline else None,
+        "version": baseline.version if baseline else None,
+        "learning": learning,
+        "confidence": baseline.confidence if baseline else 0.0,
+        "baseline": (baseline.stats or {}) if baseline else {},
+        "bands": usual_bands(baseline.mode if baseline else None, baseline.stats if baseline else {}),
+        "vitals": {v: {"label": c["label"], "unit": c["unit"],
+                       "populationRange": {"low": c["low"], "high": c["high"]}} for v, c in VITALS.items()},
+        "vpo": rows[-1].vpo if rows else {},
+        **timeline,
+    }
+
 @router.get("/history/{patient_id}")
 async def get_patient_vitals_history(
     patient_id: int,
@@ -524,7 +644,7 @@ async def get_patient_vitals_history(
         raise HTTPException(status_code=404, detail="Patient not found")
     
     # RBAC: Verify assignment
-    if current_user.role == UserRole.NURSE and patient.nurse_id != current_user.id:
+    if current_user.role == UserRole.NURSE and not await can_view_patient(db, current_user, patient):
         raise HTTPException(status_code=403, detail="Not authorized to view this patient")
 
     # 2. Time-Bucketing Logic
@@ -805,7 +925,7 @@ async def get_dynamic_metric_history(
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
     
-    if current_user.role == UserRole.NURSE and patient.nurse_id != current_user.id:
+    if current_user.role == UserRole.NURSE and not await can_view_patient(db, current_user, patient):
         raise HTTPException(status_code=403, detail="Unauthorized access to this patient")
 
     # 3. Dynamic Aggregation Logic
@@ -1106,10 +1226,10 @@ async def get_notifications(
     """
     # 1. Fetch patients assigned to the current user based on role partitions
     patient_query = select(Patient.id)
-    if current_user.role == UserRole.NURSE:
-        patient_query = patient_query.where(Patient.nurse_id == current_user.id)
-    elif current_user.role == UserRole.DOCTOR:
-        patient_query = patient_query.where(Patient.doctor_id == current_user.id)
+    # Doctors/nurses: directly assigned patients + patients under their nursing stations
+    clinician_scope = await clinician_patient_filter(db, current_user)
+    if clinician_scope is not None:
+        patient_query = patient_query.where(clinician_scope)
     elif current_user.role in [UserRole.ORG_ADMIN, UserRole.MASTER_ADMIN]:
         patient_query = patient_query.join(User, Patient.user_id == User.id).where(
             User.organization_id == current_user.organization_id
@@ -1162,7 +1282,7 @@ async def get_notifications(
         select(Alert, Patient.full_name, Patient.room_id, Resolver.full_name)
         .join(Patient, Alert.patient_id == Patient.id)
         .outerjoin(Resolver, Alert.resolved_by == Resolver.id)
-        .where(Alert.patient_id.in_(patient_ids))
+        .where(*base_filters)
         .order_by(Alert.created_at.desc())
     )
     
@@ -1593,10 +1713,10 @@ async def get_patient_lifecycle_registry(
         )
 
     # 3. Apply Multi-Tenant Organizational Role Security Boundaries
-    if current_user.role == UserRole.NURSE:
-        stmt = stmt.where(Patient.nurse_id == current_user.id)
-    elif current_user.role == UserRole.DOCTOR:
-        stmt = stmt.where(Patient.doctor_id == current_user.id)
+    # Doctors/nurses: directly assigned patients + patients under their nursing stations
+    clinician_scope = await clinician_patient_filter(db, current_user)
+    if clinician_scope is not None:
+        stmt = stmt.where(clinician_scope)
     elif current_user.role in [UserRole.ORG_ADMIN, UserRole.MASTER_ADMIN]:
         stmt = stmt.where(User.organization_id == current_user.organization_id)
     else:

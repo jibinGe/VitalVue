@@ -173,9 +173,10 @@ export default function WardsPage() {
           hospital_name: orgName,
           department_name: dept?.name || '—',
           ward_name: ward?.name || (r.department_id ? 'Direct Dept Room' : '—'),
+          station_name: stationMap[r.station_id] || '—',
         };
       });
-  }, [rooms, wardMap, deptMap, orgMap, filterOrgId, filterDeptId, filterWardId]);
+  }, [rooms, wardMap, deptMap, orgMap, stationMap, filterOrgId, filterDeptId, filterWardId]);
 
   // ─── Table Columns ────────────────────────────────────────────────────────
   const WARD_COLUMNS = [
@@ -204,6 +205,7 @@ export default function WardsPage() {
     { key: 'hospital_name', label: 'Hospital' },
     { key: 'department_name', label: 'Department' },
     { key: 'ward_name', label: 'Ward / Scope' },
+    { key: 'station_name', label: 'Station' },
     { key: 'is_occupied', label: 'Occupancy', render: (v) => <StatusBadge status={v ? 'occupied' : 'available'} /> },
     { key: 'is_active', label: 'Status', render: (v) => <StatusBadge status={v} /> },
   ];
@@ -241,6 +243,7 @@ export default function WardsPage() {
         room_number: row.room_number || '',
         ward_id: row.ward_id || null,
         department_id: row.department_id || null,
+        station_id: row.station_id || '',
         is_occupied: row.is_occupied ?? false,
       });
     }
@@ -508,6 +511,22 @@ export default function WardsPage() {
                 onChange={(e) => setFormData((f) => ({ ...f, ward_no: e.target.value }))}
               />
             </FormField>
+            <FormField label="Nursing Station" required>
+              <select
+                value={formData.station_id || ''}
+                onChange={(e) => setFormData((f) => ({ ...f, station_id: e.target.value ? Number(e.target.value) : '' }))}
+                className="w-full px-3 py-2 bg-[#252528] border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-[#CCA166]/50"
+              >
+                <option value="">Select Nursing Station...</option>
+                {stations
+                  .filter((s) => deptMap[s.department_id]?.organization_id === deptMap[formData.department_id]?.organization_id && (s.is_active !== false || s.id === formData.station_id))
+                  .map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} {s.station_no ? `(${s.station_no})` : ''}
+                    </option>
+                  ))}
+              </select>
+            </FormField>
           </div>
         )}
 
@@ -531,7 +550,13 @@ export default function WardsPage() {
             <FormField label="Department">
               <select
                 value={formData.department_id || ''}
-                onChange={(e) => setFormData((f) => ({ ...f, department_id: e.target.value ? Number(e.target.value) : null }))}
+                onChange={(e) => {
+                  const department_id = e.target.value ? Number(e.target.value) : null;
+                  setFormData((f) => {
+                    const sameHospital = deptMap[department_id]?.organization_id === deptMap[f.department_id]?.organization_id;
+                    return { ...f, department_id, station_id: sameHospital ? f.station_id : '' };
+                  });
+                }}
                 className="w-full px-3 py-2 bg-[#252528] border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-[#CCA166]/50"
               >
                 <option value="">None / Unassigned</option>
@@ -542,6 +567,25 @@ export default function WardsPage() {
                 ))}
               </select>
             </FormField>
+            {/* Ward-level rooms inherit their ward's station; dept-level rooms pick one. */}
+            {!formData.ward_id && (
+              <FormField label="Nursing Station" required>
+                <select
+                  value={formData.station_id || ''}
+                  onChange={(e) => setFormData((f) => ({ ...f, station_id: e.target.value ? Number(e.target.value) : '' }))}
+                  className="w-full px-3 py-2 bg-[#252528] border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-[#CCA166]/50"
+                >
+                  <option value="">Select Nursing Station...</option>
+                  {stations
+                    .filter((s) => deptMap[s.department_id]?.organization_id === deptMap[formData.department_id]?.organization_id && (s.is_active !== false || s.id === formData.station_id))
+                    .map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} {s.station_no ? `(${s.station_no})` : ''}
+                      </option>
+                    ))}
+                </select>
+              </FormField>
+            )}
           </div>
         )}
       </EntityForm>

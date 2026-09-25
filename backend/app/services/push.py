@@ -42,16 +42,19 @@ def send_critical_push(tokens, alert: dict):
 
 
 async def staff_tokens_for_patient(db, patient_id):
-    """FCM tokens for the patient's assigned nurse + doctor ONLY (never the patient). Safe [] on any miss."""
+    """FCM tokens for the patient's clinical staff ONLY (never the patient): the assigned
+    nurse + doctor plus the duty doctors/nurses rostered on the patient's nursing station.
+    Safe [] on any miss."""
     try:
         from app.models.user import Patient
         from app.models.notification import DeviceToken
+        from app.services.access import staff_ids_for_patient
         from sqlalchemy import select
 
         patient = (await db.execute(select(Patient).where(Patient.id == patient_id))).scalar_one_or_none()
         if not patient:
             return []
-        staff_ids = [sid for sid in (patient.nurse_id, patient.doctor_id) if sid is not None]
+        staff_ids = await staff_ids_for_patient(db, patient)
         if not staff_ids:
             return []
         rows = await db.execute(select(DeviceToken.token).where(DeviceToken.user_id.in_(staff_ids)))

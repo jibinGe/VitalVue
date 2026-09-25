@@ -204,6 +204,7 @@ export default function OrganizationDetails() {
         room_number: item.room_number || '',
         ward_id: item.ward_id || null,
         department_id: item.department_id || null,
+        station_id: item.station_id || '',
         is_occupied: item.is_occupied ?? false,
       });
     }
@@ -1003,6 +1004,22 @@ export default function OrganizationDetails() {
                 onChange={(e) => setFormData((f) => ({ ...f, ward_no: e.target.value }))}
               />
             </FormField>
+            <FormField label="Nursing Station" required>
+              <select
+                value={formData.station_id || ''}
+                onChange={(e) => setFormData((f) => ({ ...f, station_id: e.target.value ? Number(e.target.value) : '' }))}
+                className="w-full px-3 py-2 bg-[#252528] border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-[#CCA166]/50"
+              >
+                <option value="">Select Nursing Station...</option>
+                {stations
+                  .filter((s) => s.is_active !== false || s.id === formData.station_id)
+                  .map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} {s.station_no ? `(${s.station_no})` : ''}
+                    </option>
+                  ))}
+              </select>
+            </FormField>
           </div>
         )}
 
@@ -1037,6 +1054,25 @@ export default function OrganizationDetails() {
                 ))}
               </select>
             </FormField>
+            {/* Ward-level rooms inherit their ward's station; dept-level rooms pick one. */}
+            {!formData.ward_id && (
+              <FormField label="Nursing Station" required>
+                <select
+                  value={formData.station_id || ''}
+                  onChange={(e) => setFormData((f) => ({ ...f, station_id: e.target.value ? Number(e.target.value) : '' }))}
+                  className="w-full px-3 py-2 bg-[#252528] border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-[#CCA166]/50"
+                >
+                  <option value="">Select Nursing Station...</option>
+                  {stations
+                    .filter((s) => s.is_active !== false || s.id === formData.station_id)
+                    .map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} {s.station_no ? `(${s.station_no})` : ''}
+                      </option>
+                    ))}
+                </select>
+              </FormField>
+            )}
           </div>
         )}
       </EntityForm>

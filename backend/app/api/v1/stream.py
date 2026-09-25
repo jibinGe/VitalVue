@@ -9,6 +9,7 @@ import json
 from app.database import get_db
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.user import UserRole, Patient
+from app.services.access import clinician_patient_filter
 
 router = APIRouter()
 
@@ -52,10 +53,10 @@ async def stream_assigned_patients(
 
     # 1. Identify which patients are assigned to this user
     query = select(Patient.id)
-    if current_user.role == UserRole.NURSE:
-        query = query.where(Patient.nurse_id == current_user.id)
-    elif current_user.role == UserRole.DOCTOR:
-        query = query.where(Patient.doctor_id == current_user.id)
+    # Doctors/nurses: directly assigned patients + patients under their nursing stations
+    clinician_scope = await clinician_patient_filter(db, current_user)
+    if clinician_scope is not None:
+        query = query.where(clinician_scope)
     elif current_user.role in [UserRole.ORG_ADMIN, UserRole.MASTER_ADMIN]:
         query = query.where(Patient.organization_id == current_user.organization_id)
     else:
