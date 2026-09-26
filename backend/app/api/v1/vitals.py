@@ -416,18 +416,20 @@ async def bulk_ingest_vitals(
         d_res = await db.execute(select(User).where(User.id.in_(doctor_ids)))
         doctors_map = {d.id: d for d in d_res.scalars().all()}
 
-    # 2. Batch Fetch Most Recent Failure Timestamps (for Stabilization Mute)
-    stab_stmt = (
-        select(Vitals.patient_id, Vitals.created_at)
-        .where(Vitals.patient_id.in_(patient_ids))
-        .where(or_(Vitals.is_connected == False, Vitals.is_removed == True))
-        .order_by(Vitals.patient_id, Vitals.created_at.desc())
-    )
-    stab_res = await db.execute(stab_stmt)
+    # 2. Most Recent Failure Timestamp per patient (for Stabilization Mute).
+    # One LIMIT 1 lookup per patient on the ix_vitals_patient_failures partial index — never
+    # read a patient's whole disconnect history (100k+ rows) just to find the newest one.
     last_failure_map = {}
-    for p_id, created_at in stab_res.all():
-        if p_id not in last_failure_map:
-            last_failure_map[p_id] = created_at
+    for p_id in patient_ids:
+        last_failure = (await db.execute(
+            select(Vitals.created_at)
+            .where(Vitals.patient_id == p_id)
+            .where(or_(Vitals.is_connected == False, Vitals.is_removed == True))
+            .order_by(Vitals.created_at.desc())
+            .limit(1)
+        )).scalar_one_or_none()
+        if last_failure is not None:
+            last_failure_map[p_id] = last_failure
 
     new_vitals_list = []
     processed_count = 0
