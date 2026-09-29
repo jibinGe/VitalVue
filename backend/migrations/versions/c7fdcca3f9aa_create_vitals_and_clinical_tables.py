@@ -68,6 +68,10 @@ def upgrade() -> None:
     sa.Column('movement', sa.Integer(), nullable=True),
     sa.Column('sleep_pattern', sa.String(), nullable=True),
     sa.Column('battery_percent', sa.Integer(), nullable=True),
+    # Added retroactively: the model and the hosted DB have had this column, but no migration
+    # created it, so a database built from migrations alone broke ingest. Existing databases are
+    # past this revision and unaffected; fresh ones now match production.
+    sa.Column('phone_battery', sa.Integer(), nullable=True),
     sa.Column('is_connected', sa.Boolean(), nullable=True),
     sa.Column('is_removed', sa.Boolean(), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=True),

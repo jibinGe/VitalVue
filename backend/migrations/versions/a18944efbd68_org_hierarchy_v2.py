@@ -33,6 +33,7 @@ def upgrade() -> None:
         sa.Column("department_id", sa.Integer(), sa.ForeignKey("departments.id"), nullable=False),
     )
     op.create_index("ix_stations_department_id", "stations", ["department_id"])
+    op.create_index("ix_stations_id", "stations", ["id"])   # retroactive: present on the hosted DB
 
     # --- ward gains station_id + ward_no ---
     op.add_column("wards", sa.Column("ward_no", sa.String(length=50), nullable=True))
@@ -48,6 +49,7 @@ def upgrade() -> None:
         sa.Column("is_occupied", sa.Boolean(), server_default=sa.false(), nullable=False),
     )
     op.create_index("ix_beds_ward_id", "beds", ["ward_id"])
+    op.create_index("ix_beds_id", "beds", ["id"])           # retroactive: present on the hosted DB
 
     # --- doctor.department_id ---
     op.add_column("doctors", sa.Column("department_id", sa.Integer(), sa.ForeignKey("departments.id"), nullable=True))
