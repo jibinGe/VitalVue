@@ -38,6 +38,8 @@ class Vitals(Base):
     phone_battery = Column(Integer, nullable=True)
     is_connected = Column(Boolean, default=True)
     is_removed = Column(Boolean, default=False)
+    # Where the reading came from: "ble" (band via mobile app) or "mqtt" (Veepoo 4G watch)
+    source = Column(String(10), server_default="ble", nullable=True)
     
     # --- Chronological Data ---
     created_at = Column(DateTime, default=datetime.utcnow, index=True)

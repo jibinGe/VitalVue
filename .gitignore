@@ -9,3 +9,7 @@ backend/deploy.sh
 backend/.venv
 backend/migrations/versions/__pycache__
 *.pyc
+/docs
+# Broker TLS certificates / private keys (mounted into EMQX, never committed)
+emqx/certs/*
+!emqx/certs/.gitkeep

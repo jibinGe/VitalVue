@@ -35,6 +35,22 @@ class Settings(BaseSettings):
     MSG91_AUTH_KEY: str
     MSG91_INTEGRATED_NUMBER : str
 
+    # --- Veepoo 4G watches (MQTT). All optional: without them the BLE system runs unchanged. ---
+    MQTT_HOST: str = "emqx"                 # broker as seen by the mqtt-worker
+    MQTT_PORT: int = 1883                   # internal plain port (Docker network only)
+    MQTT_TLS: bool = False
+    MQTT_WORKER_USER: str = "vitalvue-worker"
+    MQTT_WORKER_PASS: str = ""              # empty = worker login refused
+    MQTT_SHARED_GROUP: str = ""             # e.g. "vitalvue" → $share/vitalvue/… when running >1 worker
+    MQTT_PUBLIC_HOST: str = ""              # host/port given to watches at provisioning (TLS)
+    MQTT_PUBLIC_PORT: int = 8883
+    EMQX_HOOK_SECRET: str = ""              # shared secret for /internal/emqx/*; empty = deny all
+    MQTT_DEFAULT_TZ_MINUTES: int = 330      # time zone pushed to watches (IST = UTC+5:30)
+    MQTT_UPLOAD_GRACE_MIN: int = 5          # 4G patient counts as online for upload interval + grace
+    # Heartbeat + baseline background jobs. Set false in the API container when the separate
+    # scheduler service runs them, so they never run twice.
+    RUN_BACKGROUND_JOBS: bool = True
+
     # model_config = SettingsConfigDict(env_file=".env", extra="ignore", env_file_encoding='utf-8')
     model_config = SettingsConfigDict(extra="ignore")
 

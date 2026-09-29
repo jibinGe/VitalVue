@@ -7,10 +7,12 @@ from .vitals import Vitals
 from .clinical import Alert, Action, ClinicalNote
 from .account_deletion import AccountDeletionRequest
 from .baseline import VitalObservation, PatientBaseline
+from .device import Device, DeviceAssignment, MonitoringProfile, DeviceConfigState, MqttRawMessage, DeviceDataBlock
 
 __all__ = ["Base", "Organization","User",
            "Department", "Ward", "Room",
            "Vitals", "Alert", "Action", "ClinicalNote",
            "Patient", "Nurse", "Doctor",
            "OrgAdmin", "MasterAdmin",
-           "AccountDeletionRequest", "VitalObservation", "PatientBaseline"]
+           "AccountDeletionRequest", "VitalObservation", "PatientBaseline",
+           "Device", "DeviceAssignment", "MonitoringProfile", "DeviceConfigState", "MqttRawMessage", "DeviceDataBlock"]

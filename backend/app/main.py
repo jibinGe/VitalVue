@@ -4,7 +4,8 @@ from contextlib import asynccontextmanager
 import os
 import asyncio
 
-from app.api.v1 import auth, discovery, patients, vitals, stream, s3, admin, account
+from app.api.v1 import auth, discovery, patients, vitals, stream, s3, admin, account, devices, internal_emqx
+from app.core.config import settings
 from app.cron.heartbeat import monitor_device_heartbeats
 
 async def heartbeat_cron_worker():
@@ -45,14 +46,17 @@ async def baseline_cron_worker():
 async def lifespan(app: FastAPI):
     # Startup: Logic to run when server starts (e.g. verify Redis/DB connection)
     print("Vitalvue Backend starting up...")
-    cron_task = asyncio.create_task(heartbeat_cron_worker())
-    baseline_task = asyncio.create_task(baseline_cron_worker())
+    # Heartbeat + baseline jobs must run exactly once. With several API workers (or the separate
+    # `scheduler` service, see app/scheduler.py) set RUN_BACKGROUND_JOBS=false here.
+    tasks = []
+    if settings.RUN_BACKGROUND_JOBS:
+        tasks = [asyncio.create_task(heartbeat_cron_worker()), asyncio.create_task(baseline_cron_worker())]
     yield
     # Shutdown: Logic to run when server stops
-    cron_task.cancel()
-    baseline_task.cancel()
-    # Wait for both to stop so a cancelled cycle releases its DB connection before shutdown.
-    await asyncio.gather(cron_task, baseline_task, return_exceptions=True)
+    for task in tasks:
+        task.cancel()
+    # Wait for them to stop so a cancelled cycle releases its DB connection before shutdown.
+    await asyncio.gather(*tasks, return_exceptions=True)
     print("Vitalvue Backend shutting down...")
 
 app = FastAPI(
@@ -94,6 +98,9 @@ app.include_router(stream.router, prefix="/api/v1/stream", tags=["Stream"])
 app.include_router(s3.router, prefix="/api/v1/s3", tags=["S3"])
 app.include_router(admin.router, prefix="/api/v1/admin", tags=["Admin"])
 app.include_router(account.router, prefix="/api/v1/account", tags=["Account"])
+app.include_router(devices.router, prefix="/api/v1/devices", tags=["Devices (4G watches)"])
+# Broker hooks — internal only (nginx blocks /api/v1/internal/, and a shared secret is required)
+app.include_router(internal_emqx.router, prefix="/api/v1/internal/emqx", tags=["Internal"], include_in_schema=False)
 
 @app.get("/")
 async def root():

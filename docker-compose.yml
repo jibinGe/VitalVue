@@ -46,11 +46,81 @@ services:
     environment:
       - DATABASE_URL=postgresql://${DB_USER}:${DB_PASS}@db:5432/${DB_NAME}
       - REDIS_URL=redis://:${REDIS_PASS}@redis:6379/0
+      # Heartbeat + baseline jobs run once, in the `scheduler` service below.
+      - RUN_BACKGROUND_JOBS=false
     depends_on:
       db: { condition: service_healthy }
       redis: { condition: service_healthy }
     networks:
       - vitalvue_net
+
+  # Heartbeat (device offline) + baseline jobs — exactly one instance.
+  scheduler:
+    build: ./backend
+    container_name: vitalvue_scheduler
+    command: python -m app.scheduler
+    env_file: .env
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASS}@db:5432/${DB_NAME}
+      - REDIS_URL=redis://:${REDIS_PASS}@redis:6379/0
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    networks:
+      - vitalvue_net
+    restart: unless-stopped
+
+  # MQTT broker for Veepoo 4G watches. Watches connect on 8883 (TLS); 1883 stays inside the
+  # Docker network for the worker. The dashboard (18083) is bound to localhost only — use an
+  # SSH tunnel: ssh -L 18083:localhost:18083 ubuntu@<server>
+  emqx:
+    image: emqx/emqx:5.8.6
+    container_name: vitalvue_emqx
+    ports:
+      - "8883:8883"
+      - "127.0.0.1:18083:18083"
+    # Config overrides use EMQX_<PATH> (levels joined by "__", array items 1-based).
+    environment:
+      - EMQX_NODE__COOKIE=${EMQX_NODE_COOKIE}
+      - EMQX_DASHBOARD__DEFAULT_PASSWORD=${EMQX_DASHBOARD_PASS}
+      - 'EMQX_AUTHENTICATION__1__HEADERS={"content-type" = "application/json", "x-emqx-secret" = "${EMQX_HOOK_SECRET}"}'
+      - 'EMQX_AUTHORIZATION__SOURCES__1__HEADERS={"content-type" = "application/json", "x-emqx-secret" = "${EMQX_HOOK_SECRET}"}'
+      # TLS certificate for the broker host (for now vitalvue-api.genesysailabs.com, reusing its
+      # certbot certificate), copied into ./emqx/certs on the server BEFORE deploying. If the files
+      # are missing only EMQX fails to start — BLE and the API are unaffected.
+      - EMQX_LISTENERS__SSL__DEFAULT__SSL_OPTIONS__CERTFILE=/opt/emqx/etc/certs/vitalvue/fullchain.pem
+      - EMQX_LISTENERS__SSL__DEFAULT__SSL_OPTIONS__KEYFILE=/opt/emqx/etc/certs/vitalvue/privkey.pem
+    ulimits:
+      nofile: { soft: 65536, hard: 65536 }
+    volumes:
+      - emqx_data:/opt/emqx/data
+      - ./emqx/emqx.conf:/opt/emqx/etc/emqx.conf:ro
+      - ./emqx/certs:/opt/emqx/etc/certs/vitalvue:ro
+    depends_on:
+      - backend
+    networks:
+      - vitalvue_net
+    restart: unless-stopped
+
+  # The single process that receives watch traffic (never run inside the API: an MQTT
+  # subscription gets every message, so N API workers would store each reading N times).
+  mqtt-worker:
+    build: ./backend
+    container_name: vitalvue_mqtt_worker
+    command: python -m app.mqtt.worker
+    env_file: .env
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASS}@db:5432/${DB_NAME}
+      - REDIS_URL=redis://:${REDIS_PASS}@redis:6379/0
+      - MQTT_HOST=emqx
+      - MQTT_PORT=1883
+    depends_on:
+      - emqx
+      - db
+      - redis
+    networks:
+      - vitalvue_net
+    restart: unless-stopped
 
   # frontend:
   #   build: ./frontend
@@ -58,7 +128,11 @@ services:
   #   networks:
   #     - vitalvue_net
 
+  # Optional: on the EC2 server the host's own nginx serves vitalvue-api.genesysailabs.com
+  # (ports 80/443), so this container would only crash-loop there. Start it explicitly on a
+  # machine without a host nginx:  docker compose --profile docker-nginx up -d
   nginx:
+    profiles: ["docker-nginx"]
     image: nginx:alpine
     container_name: vitalvue_nginx
     ports:
@@ -81,3 +155,4 @@ networks:
 volumes:
   postgres_data:
   redis_data:
+  emqx_data:
