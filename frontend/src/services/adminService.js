@@ -25,6 +25,37 @@ const adminRequest = async (method, url, data = null, options = {}) => {
 };
 
 export const adminService = {
+  // ─── 4G watches (Veepoo, MQTT) ─────────────────────────────────────────────
+
+  async listDevices(params = {}) {
+    return adminRequest('get', '/api/v1/devices', null, { params });
+  },
+
+  /** Returns { device, credentials } — the password is shown only once. */
+  async registerDevice(data) {
+    return adminRequest('post', '/api/v1/devices', data);
+  },
+
+  async resetDevicePassword(id) {
+    return adminRequest('post', `/api/v1/devices/${id}/reset-password`);
+  },
+
+  async setDeviceStatus(id, isActive) {
+    return adminRequest('patch', `/api/v1/devices/${id}/status`, { is_active: isActive });
+  },
+
+  async unassignDevice(id) {
+    return adminRequest('post', `/api/v1/devices/${id}/unassign`);
+  },
+
+  async getMonitoringDefaults() {
+    return adminRequest('get', '/api/v1/devices/monitoring/defaults');
+  },
+
+  async setMonitoringDefaults(data) {
+    return adminRequest('put', '/api/v1/devices/monitoring/defaults', data);
+  },
+
   // ─── Auth ──────────────────────────────────────────────────────────────────
 
   /**

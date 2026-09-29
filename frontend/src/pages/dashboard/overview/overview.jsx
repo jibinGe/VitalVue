@@ -46,6 +46,7 @@ import Movement from "../../../components/animation/overview/movement";
 import ArcProgress from "../../../components/arc-progress";
 import AlertsTimeline from "@/components/dashboard/AlertsTimeline";
 import BaselineTab from "@/components/dashboard/overview/BaselineTab";
+import WatchMonitoringTab from "@/components/dashboard/overview/WatchMonitoringTab";
 import PatientProfileTab from "@/components/dashboard/overview/PatientProfileTab";
 import MedicalInfoTab from "@/components/dashboard/overview/MedicalInfoTab";
 import ReportsTab from "@/components/dashboard/overview/ReportsTab";
@@ -684,6 +685,7 @@ export default function Overview() {
           {[
             { key: "vitals",        label: "Vitals Overview" },
             { key: "baseline",      label: "Baseline" },
+            { key: "watch",         label: "4G Watch" },
             ...(isManagement ? [
               { key: "profile",       label: "Patient Profile" },
               { key: "medical",       label: "Medical Info" },
@@ -734,6 +736,11 @@ export default function Overview() {
         {/* ── Baseline Tab (Baseline Engine v1, shadow mode) ── */}
         {activePageTab === "baseline" && (
           <BaselineTab patientId={parsedUserId} />
+        )}
+
+        {/* ── 4G Watch & measurement schedule ── */}
+        {activePageTab === "watch" && (
+          <WatchMonitoringTab patientId={parsedUserId} />
         )}
 
         {/* ── Vitals Overview Tab ── */}

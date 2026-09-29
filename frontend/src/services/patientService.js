@@ -318,6 +318,48 @@ export const patientService = {
     }
   },
 
+  // ─── 4G watch & monitoring schedule ────────────────────────────────────────
+
+  async _call(method, url, data) {
+    try {
+      const response = (method === 'get' || method === 'delete')
+        ? await apiClient[method](url)
+        : await apiClient[method](url, data);
+      return { success: true, data: response.data };
+    } catch (error) {
+      return { success: false, message: error.response?.data?.detail || error.message || 'Request failed' };
+    }
+  },
+
+  /** Effective schedule (override or default), the default, and the linked watch. */
+  getPatientMonitoring(patientId) {
+    return this._call('get', `/api/v1/devices/patients/${patientId}/monitoring`);
+  },
+
+  setPatientMonitoring(patientId, schedule) {
+    return this._call('put', `/api/v1/devices/patients/${patientId}/monitoring`, schedule);
+  },
+
+  resetPatientMonitoring(patientId) {
+    return this._call('delete', `/api/v1/devices/patients/${patientId}/monitoring`);
+  },
+
+  setPatientLiveMode(patientId, on) {
+    return this._call('post', `/api/v1/devices/patients/${patientId}/live`, { on });
+  },
+
+  listAvailableDevices() {
+    return this._call('get', '/api/v1/devices/available');
+  },
+
+  assignDevice(deviceId, patientId) {
+    return this._call('post', `/api/v1/devices/${deviceId}/assign`, { patient_id: patientId });
+  },
+
+  unassignDevice(deviceId) {
+    return this._call('post', `/api/v1/devices/${deviceId}/unassign`);
+  },
+
   /**
    * Get patient history timeline
    */
@@ -749,28 +791,6 @@ export const patientService = {
       console.error('Error in getRespiratoryRateData:', error);
       return { success: false, data: [], message: error.message };
     }
-  },
-
-  /**
-   * Assign device to patient
-   */
-  async assignDevice(userId, deviceUid) {
-    return {
-      success: true,
-      data: null,
-      message: "Device assigned successfully",
-    };
-  },
-
-  /**
-   * Unassign device from patient
-   */
-  async unassignDevice(deviceUid) {
-    return {
-      success: true,
-      data: null,
-      message: "Device unassigned successfully",
-    };
   },
 
   /**

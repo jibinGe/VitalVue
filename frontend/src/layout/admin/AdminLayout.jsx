@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Building2, GitBranch, BedDouble,
   Users, Settings, LogOut, ChevronLeft, ChevronRight,
-  Activity, Shield, Menu, X, Radio, Plus, CheckCircle2, AlertCircle,
+  Activity, Shield, Menu, X, Radio, Plus, CheckCircle2, AlertCircle, Watch,
 } from 'lucide-react';
 import { useAdminAuth } from '../../contexts/AdminAuthContext';
 import { AdminProvider, useAdmin } from '../../contexts/AdminContext';
@@ -30,6 +30,7 @@ const NAV_GROUPS = [
     label: 'Care Team',
     items: [
       { to: '/admin/staff', icon: Users, label: 'Doctors & Nurses' },
+      { to: '/admin/devices', icon: Watch, label: '4G Watches' },
     ],
   },
   {

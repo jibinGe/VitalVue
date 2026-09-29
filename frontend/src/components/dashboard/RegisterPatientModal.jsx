@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Close2 } from "@/utilities/icons";
 import apiClient from "@/config/apiClient";
+import { patientService } from "@/services/patientService";
 
 // ─── Tiny helpers ───────────────────────────────────────────────────────────
 
@@ -105,6 +106,19 @@ export default function RegisterPatientModal({ isOpen, onClose, onSuccess }) {
   const [loadingWards, setLoadingWards] = useState(false);
   const [loadingBeds, setLoadingBeds] = useState(false);
   const [loadingRooms, setLoadingRooms] = useState(false);
+  // Optional Veepoo 4G watch to link right after admission (BLE bands keep working as before)
+  const [watches, setWatches] = useState([]);
+  const [watchId, setWatchId] = useState("");
+  const [watchLink, setWatchLink] = useState(null);   // { ok, text } after submit
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    let cancelled = false;
+    patientService.listAvailableDevices().then((r) => {
+      if (!cancelled) setWatches(r.success ? r.data : []);
+    });
+    return () => { cancelled = true; };
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen) {
@@ -267,6 +281,16 @@ export default function RegisterPatientModal({ isOpen, onClose, onSuccess }) {
       };
 
       const res = await apiClient.post("/api/v1/patients/admit", payload);
+      // Link the chosen 4G watch. The patient stays registered even if this fails;
+      // the watch can be linked later from the patient's 4G Watch tab.
+      if (watchId) {
+        const link = await patientService.assignDevice(parseInt(watchId, 10), res.data.id);
+        setWatchLink(link.success
+          ? { ok: true, text: "4G watch linked. Its schedule will be sent when it's online." }
+          : { ok: false, text: `Patient registered, but the watch couldn't be linked: ${link.message}. Link it from the patient's 4G Watch tab.` });
+      } else {
+        setWatchLink(null);
+      }
       setRegisteredPatient(res.data);
       setSubmitSuccess(true);
       onSuccess && onSuccess(res.data);
@@ -316,6 +340,9 @@ export default function RegisterPatientModal({ isOpen, onClose, onSuccess }) {
               <p className="text-xs text-white/30 mb-6">
                 Please note the Patient ID — the patient uses it with their PIN to log in.
               </p>
+              {watchLink && (
+                <p className={`text-xs mb-6 -mt-3 ${watchLink.ok ? "text-[#7FE39A]" : "text-[#FF9A9A]"}`}>{watchLink.text}</p>
+              )}
 
               <button
                 onClick={onClose}
@@ -569,6 +596,18 @@ export default function RegisterPatientModal({ isOpen, onClose, onSuccess }) {
                         </div>
                       )}
 
+                      {/* Optional 4G watch — linked right after admission */}
+                      {watches.length > 0 && (
+                        <FieldGroup label="4G watch (optional)">
+                          <select className={selectCls} value={watchId} onChange={(e) => setWatchId(e.target.value)}>
+                            <option value="">No 4G watch / using a BLE band</option>
+                            {watches.map((w) => (
+                              <option key={w.id} value={w.id}>{w.client_id}</option>
+                            ))}
+                          </select>
+                        </FieldGroup>
+                      )}
+
                       {/* Doctor / Nurse — always shown */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <FieldGroup label="Assign Doctor" error={errors.doctor_id}>
@@ -693,6 +732,9 @@ export default function RegisterPatientModal({ isOpen, onClose, onSuccess }) {
                         )}
                         {rooms.find(r => r.id == form.room_id) && (
                           <Row label="Room" value={rooms.find(r => r.id == form.room_id)?.room_number || `Room ${form.room_id}`} />
+                        )}
+                        {watchId && (
+                          <Row label="4G watch" value={watches.find(w => w.id == watchId)?.client_id} />
                         )}
                       </div>
                       {submitError && (
