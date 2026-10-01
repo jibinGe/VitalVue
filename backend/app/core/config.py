@@ -57,6 +57,11 @@ class Settings(BaseSettings):
     GATEWAY_FIRST_FRAME_S: int = 30         # a new connection must identify itself within this time
     WONLEX_SIGN_KEY: str = ""               # shared key for the encryptionCode signature
     WONLEX_SIGNATURE: str = "warn"          # off | warn (log mismatches) | enforce (drop them)
+
+    # Readable log of every device message and stored reading (app/devices/event_log.py).
+    # Shows vitals per patient ID: turn on for bring-up / debugging, not routine production.
+    LOG_DEVICE_EVENTS: bool = False
+    LOG_DEVICE_EVENTS_RAW_CHARS: int = 400  # longest raw frame printed in full
     # Heartbeat + baseline background jobs. Set false in the API container when the separate
     # scheduler service runs them, so they never run twice.
     RUN_BACKGROUND_JOBS: bool = True

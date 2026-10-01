@@ -16,6 +16,7 @@ from app.api.deps import get_current_user
 from app.services.alerts import send_critical_alert
 import asyncio
 from app.services.push import send_critical_push, staff_tokens_for_patient
+from app.devices import event_log
 from app.services.ingest import ingest_readings
 from sqlalchemy.orm import joinedload
 from datetime import datetime, timedelta
@@ -364,6 +365,10 @@ async def ingest_vitals(
     await redis.setex(f"patient_active:{payload.patient_id}", 65, "online")
 
     await db.commit()
+    event_log.reading("ble", payload.device_id, payload.patient_id, new_vitals.created_at,
+                      {k: getattr(new_vitals, k, None) for k in ("heart_rate", "spo2", "temp", "bp_systolic",
+                                                                 "bp_diastolic", "hrv_score", "is_connected", "is_removed")},
+                      new_vitals.news2_score, patient_status)
     return {"status": "success"}
 
 @router.post("/bulk-ingest")

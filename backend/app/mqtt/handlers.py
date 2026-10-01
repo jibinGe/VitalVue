@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.core.config import settings
+from app.devices import event_log
 from app.devices.core import raise_alarm
 from app.models.device import Device, DeviceConfigState, DeviceDataBlock, MqttRawMessage
 from app.mqtt import protocol as p
@@ -67,6 +68,8 @@ class Handlers:
                 db.add(MqttRawMessage(client_id=client_id, patient_id=patient_id, topic=topic, head=head,
                                       payload=payload, received_at=received_at, parse_status="unknown_device"))
                 await db.commit()
+                event_log.frame("IN", "mqtt", client_id, patient_id, name, payload, status="refused",
+                                note="not registered" if device is None else "disabled")
                 return
             handler = getattr(self, f"h_{name}", None)
             status = "parsed" if handler else "stored"      # no handler yet: kept for later (sleep, ECG…)
@@ -74,6 +77,8 @@ class Handlers:
                 device.last_seen_at = received_at
                 db.add(MqttRawMessage(client_id=client_id, patient_id=patient_id, topic=topic, head=head,
                                       payload=payload, received_at=received_at, parse_status=status))
+                event_log.frame("IN", "mqtt", client_id, patient_id, name, payload, status=status,
+                                note="Veepoo binary message; readings from it are logged as STORED blocks" if handler else "")
                 if handler:
                     await handler(db, device, payload)
                 await db.commit()
@@ -87,6 +92,7 @@ class Handlers:
             db.add(MqttRawMessage(client_id=client_id, patient_id=patient_id, topic=topic, head=head,
                                   payload=payload, received_at=received_at, parse_status="error", parse_error=error))
             await db.commit()
+        event_log.frame("IN", "mqtt", client_id, patient_id, name, payload, status="error", note=error or "")
 
     async def _content(self, device: Device, name: str, payload: bytes) -> Optional[bytes]:
         env = p.parse_envelope(payload)

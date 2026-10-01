@@ -16,6 +16,7 @@ from app.models.clinical import Alert
 from app.models.organization import Bed, Room, Ward
 from app.models.user import Patient, User
 from app.models.vitals import PatientCalibration, Vitals
+from app.devices import event_log
 from app.services.alerts import send_critical_alert
 from app.services.analytics import calculate_risks, check_baseline_deviations, get_patient_overall_status, get_vital_statuses
 from app.services.push import send_critical_push, staff_tokens_for_patient
@@ -253,6 +254,9 @@ async def ingest_readings(
                     else:
                         asyncio.create_task(send_critical_alert(**wa_kwargs))
                     await redis.setex(wa_lock_key, 900, "active")
+
+        event_log.reading(source, payload.device_id, payload.patient_id, reading_at, vital_dict,
+                          calculated_data.get("news2_score"), patient_status)
 
         # 4G watches send one vital per message: a 0 there means "not in this reading", so the
         # live stream carries null and the dashboards keep showing each vital's last value.

@@ -92,6 +92,20 @@ and created_at > date_trunc('day', now() at time zone 'utc') group by source;
 
 Restarting the gateway is safe: watches reconnect by themselves within a minute or two, and anything they couldn't send is resent (dedupe prevents duplicates).
 
+## Logging every device message (bring-up / debugging)
+
+Set `LOG_DEVICE_EVENTS=true` in the server `.env` and restart `backend`, `device-gateway` and `mqtt-worker`. Each message then appears in the container logs as a block: **IN** (from a watch: source, IMEI, patient ID, type, what it decoded to, what happened to it, raw frame), **OUT** (what we sent the watch), and **STORED** (each reading saved, from any source including the BLE app):
+
+```
+12:01:05 UTC ┌─ IN   BPW8    867956070000018  patient 34  HEART  → parsed
+│  Heart rate 79 bpm  (measured 2026-10-01 12:01:04 UTC)
+└─ raw  [CS*867956070000018*0013*HEART,1708356556,79]
+12:01:05 UTC ┌─ STORED BPW8    867956070000018  patient 34  2026-10-01 12:01:04 UTC
+└─ HR 79 · SpO₂ – · BP – · temp – · HRV – · NEWS2 0 · Stable
+```
+
+Watch it with `backend/ops/logs.sh --server gateway -f` (or `--grep <IMEI>`). Patients appear by ID only, never by name or phone, but vitals are still shown, so set it back to `false` when you're done. Long raw frames are cut at `LOG_DEVICE_EVENTS_RAW_CHARS` (default 400).
+
 ## Testing without real watches
 
 ```bash

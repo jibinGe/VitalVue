@@ -17,6 +17,7 @@ from app.core.config import settings
 from app.database import SessionLocal, get_redis
 from app.models.device import Device
 from app.mqtt import protocol as p
+from app.devices import event_log
 from app.mqtt.handlers import Handlers
 from app.services.monitoring import COMMAND_QUEUE
 
@@ -78,6 +79,9 @@ async def run() -> None:
             ) as client:
                 async def publish(topic: str, payload: bytes) -> None:
                     await client.publish(topic, payload, qos=0)
+                    parts = topic.split("/")             # server/{clientId}/v1/{name}
+                    event_log.frame("OUT", "mqtt", parts[1] if len(parts) > 3 else topic, None,
+                                    parts[-1], payload)
 
                 handlers = Handlers(SessionLocal, redis, publish)
                 await client.subscribe(_filter(p.device_topic_filter()), qos=0)

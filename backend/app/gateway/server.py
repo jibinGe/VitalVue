@@ -18,6 +18,7 @@ from typing import Optional
 from sqlalchemy import delete, select
 
 from app.core.config import settings
+from app.devices import event_log
 from app.devices import events as ev
 from app.devices.adapters import new_codec
 from app.devices.core import DeviceCore
@@ -61,6 +62,7 @@ class Session:
         async with self.lock:
             for chunk in chunks:
                 self.writer.write(chunk)
+                event_log.frame("OUT", self.dtype.source, self.imei or "?", None, event_log.out_name(chunk), chunk)
             await self.writer.drain()
 
     def close(self) -> None:
@@ -138,7 +140,8 @@ class Gateway:
     # ── frames ─────────────────────────────────────────────────────────────────────────
 
     async def _store_raw(self, imei: str, patient_id, name: str, frame: bytes, status: str,
-                         error: Optional[str] = None) -> None:
+                         error: Optional[str] = None, source: str = "") -> None:
+        event_log.frame("IN", source, imei, patient_id, name, frame, status=status, note=error or "")
         async with self.session_factory() as db:
             db.add(MqttRawMessage(client_id=imei[:64], patient_id=patient_id, transport="tcp", topic=name[:128],
                                   payload=frame, parse_status=status, parse_error=(error or None) and error[:255],
@@ -161,6 +164,8 @@ class Gateway:
                                           received_at=now))
                     await db.commit()
                     log.warning("refused %s %s from %s: %s", s.dtype.label, imei, s.peer, reason)
+                    event_log.frame("IN", s.dtype.source, imei, None, name, frame, status="refused",
+                                    note=f"{reason}; from {s.peer}")
                 return False
             other = self.sessions.get(imei)
             if other is not None and other is not s:
@@ -180,21 +185,25 @@ class Gateway:
         if dec.error or not dec.imei:
             if s.imei is None:
                 log.info("closing %s connection from %s: %s", s.dtype.label, s.peer, dec.error)
+                event_log.frame("IN", s.dtype.source, f"(from {s.peer})", None, dec.name, frame,
+                                status="closed", note=f"not a valid first frame: {dec.error}")
                 s.close()
             else:
-                await self._store_raw(s.imei, None, dec.name, frame, "error", dec.error)
+                await self._store_raw(s.imei, None, dec.name, frame, "error", dec.error, s.dtype.source)
             return
         if s.imei is None:
             if not await self._admit(s, dec.imei, dec.name, frame):
                 s.close()
                 return
         elif dec.imei != s.imei:
-            await self._store_raw(s.imei, None, dec.name, frame, "rejected", f"frame for another IMEI {dec.imei}")
+            await self._store_raw(s.imei, None, dec.name, frame, "rejected", f"frame for another IMEI {dec.imei}",
+                                  s.dtype.source)
             return
         # Wonlex encryptionCode: "warn" logs mismatches, "enforce" drops unsigned or wrongly signed frames.
         if dec.signature_ok is not True and s.dtype.key == "wonlex_4g" and settings.WONLEX_SIGN_KEY:
             if settings.WONLEX_SIGNATURE == "enforce":
-                await self._store_raw(s.imei, None, dec.name, frame, "rejected", "bad or missing encryptionCode")
+                await self._store_raw(s.imei, None, dec.name, frame, "rejected", "bad or missing encryptionCode",
+                                      s.dtype.source)
                 return
             if dec.signature_ok is False:
                 log.warning("%s: encryptionCode mismatch on %s (warn mode)", s.imei, dec.name)
@@ -224,6 +233,8 @@ class Gateway:
                 raw.parse_status = "duplicate" if out.duplicate else (
                     "stored" if all(isinstance(e, ev.Unhandled) for e in dec.events) else "parsed")
                 raw.parse_error = "; ".join(notes)[:255] or None
+                event_log.frame("IN", s.dtype.source, s.imei, device.patient_id, dec.name, frame, dec.events,
+                                status=raw.parse_status, note=raw.parse_error or "")
                 for e in dec.events:
                     if isinstance(e, ev.Wear):
                         s.worn = e.worn
@@ -239,7 +250,7 @@ class Gateway:
             except Exception as e:
                 log.exception("failed to handle %s from %s", dec.name, s.imei)
                 await db.rollback()
-                await self._store_raw(s.imei, device.patient_id, dec.name, frame, "error", str(e))
+                await self._store_raw(s.imei, device.patient_id, dec.name, frame, "error", str(e), s.dtype.source)
                 return
             if out.send_bind and s.dtype.key == "wonlex_4g":
                 await s.send(s.codec.encode(s.imei, ev.SetBound(device.patient_id is not None), now))
