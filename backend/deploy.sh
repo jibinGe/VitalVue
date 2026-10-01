@@ -57,8 +57,10 @@ ssh -i "$KEY_PATH" -o StrictHostKeyChecking=accept-new "$SERVER_USER@$SERVER_IP"
 
   echo "🔹 Applying database migrations (additive; retries once if the vitals lock times out)..."
   docker-compose up -d db redis
-  docker-compose run -T --rm --no-deps backend alembic upgrade head || { sleep 10; docker-compose run -T --rm --no-deps backend alembic upgrade head; }
-  docker-compose run -T --rm --no-deps backend alembic current
+  # This script arrives on stdin (heredoc), and docker-compose v1 'run' forwards stdin
+  # to the container even with -T, so </dev/null keeps it from eating the lines below.
+  docker-compose run -T --rm --no-deps backend alembic upgrade head </dev/null || { sleep 10; docker-compose run -T --rm --no-deps backend alembic upgrade head </dev/null; }
+  docker-compose run -T --rm --no-deps backend alembic current </dev/null
 
   # docker-compose 1.29 crashes when recreating a container on Docker Engine 25+
   # (KeyError: 'ContainerConfig'), so remove the app containers first and let
@@ -73,6 +75,9 @@ ssh -i "$KEY_PATH" -o StrictHostKeyChecking=accept-new "$SERVER_USER@$SERVER_IP"
 
   echo "🔹 Cleaning up dangling Docker elements to save space..."
   docker image prune -f
+
+  echo "🔹 Running containers:"
+  docker ps --filter name=vitalvue_ --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}'
 EOF
 
 echo "✅ Deployment completed successfully!"
