@@ -57,8 +57,8 @@ ssh -i "$KEY_PATH" -o StrictHostKeyChecking=accept-new "$SERVER_USER@$SERVER_IP"
 
   echo "🔹 Applying database migrations (additive; retries once if the vitals lock times out)..."
   docker-compose up -d db redis
-  docker-compose run --rm --no-deps backend alembic upgrade head || { sleep 10; docker-compose run --rm --no-deps backend alembic upgrade head; }
-  docker-compose run --rm --no-deps backend alembic current
+  docker-compose run -T --rm --no-deps backend alembic upgrade head || { sleep 10; docker-compose run -T --rm --no-deps backend alembic upgrade head; }
+  docker-compose run -T --rm --no-deps backend alembic current
 
   echo "🔹 Starting updated containers..."
   docker-compose up -d --remove-orphans
