@@ -66,7 +66,7 @@ ssh -i "$KEY_PATH" -o StrictHostKeyChecking=accept-new "$SERVER_USER@$SERVER_IP"
   # (KeyError: 'ContainerConfig'), so remove the app containers first and let
   # up -d create them fresh from the new image. db/redis/emqx are left running.
   echo "🔹 Starting updated containers..."
-  docker-compose rm -sf backend scheduler mqtt-worker
+  docker-compose rm -sf backend scheduler mqtt-worker device-gateway
   docker-compose up -d --remove-orphans
 
   # The Docker nginx is opt-in (profile "docker-nginx"): the host nginx serves

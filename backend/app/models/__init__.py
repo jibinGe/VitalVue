@@ -7,7 +7,7 @@ from .vitals import Vitals, VitalsArchive
 from .clinical import Alert, Action, ClinicalNote
 from .account_deletion import AccountDeletionRequest
 from .baseline import VitalObservation, PatientBaseline
-from .device import Device, DeviceAssignment, MonitoringProfile, DeviceConfigState, MqttRawMessage, DeviceDataBlock
+from .device import Device, DeviceAssignment, MonitoringProfile, DeviceConfigState, MqttRawMessage, DeviceDataBlock, DeviceMessageKey
 
 __all__ = ["Base", "Organization","User",
            "Department", "Ward", "Room",

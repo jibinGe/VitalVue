@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.security import verify_password
 from app.database import get_db
-from app.models.device import Device
+from app.models.device import DEVICE_4G, Device
 
 router = APIRouter()
 
@@ -60,7 +60,8 @@ async def emqx_auth(body: AuthIn, x_emqx_secret: str | None = Header(default=Non
     if not body.clientid or body.username != body.clientid:
         return DENY
     device = (await db.execute(select(Device).where(Device.client_id == body.clientid))).scalar_one_or_none()
-    if device is None or not device.is_active or not device.mqtt_password_hash:
+    # TCP watches (Wonlex, BPW8) have no MQTT login at all.
+    if device is None or not device.is_active or not device.mqtt_password_hash or device.type != DEVICE_4G:
         return DENY
     return ALLOW if verify_password(body.password, device.mqtt_password_hash) else DENY
 

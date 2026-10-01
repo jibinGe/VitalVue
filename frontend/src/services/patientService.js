@@ -344,6 +344,11 @@ export const patientService = {
     return this._call('delete', `/api/v1/devices/patients/${patientId}/monitoring`);
   },
 
+  /** Ask the watch to take one reading now (vital: hr | bp | spo2 | temp | hrv). */
+  measureNow(deviceId, vital) {
+    return this._call('post', `/api/v1/devices/${deviceId}/measure`, { vital });
+  },
+
   setPatientLiveMode(patientId, on) {
     return this._call('post', `/api/v1/devices/patients/${patientId}/live`, { on });
   },

@@ -1,11 +1,44 @@
 import React from "react";
 
-// Measurement schedule for Veepoo 4G watches — shared by the admin default and the
-// per-patient override. Intervals are minutes; null = that vital's auto-measurement is off.
+// Measurement schedule for 4G watches — shared by the admin defaults and the per-patient
+// override. Intervals are minutes; null = that vital's auto-measurement is off.
+//   deviceType  the linked watch's capabilities (GET /devices/types): adds an "On this watch"
+//               column showing what each vital will actually do there
+//   types       every watch type: shows that summary per type (for defaults)
 
-import { VITAL_ROWS, PRESETS, formatInterval } from "./schedule";
+import { VITAL_ROWS, PRESETS, formatInterval, vitalPlan } from "./schedule";
 
-export default function MonitoringScheduleForm({ value, onChange, disabled = false }) {
+const TONE = { ok: "text-white/70", warn: "text-[#FFBB33]", muted: "text-white/35" };
+
+function TypesSummary({ value, types }) {
+  return (
+    <div className="rounded-xl border border-white/5 overflow-x-auto w-0 min-w-full">
+      <table className="w-full text-xs">
+        <thead className="bg-white/[0.03] text-white/45">
+          <tr>
+            <th className="text-left font-medium px-3 py-2">What each watch type will do</th>
+            {types.map((t) => <th key={t.key} className="text-left font-medium px-3 py-2 whitespace-nowrap">{t.label}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {VITAL_ROWS.map((row) => (
+            <tr key={row.field} className="border-t border-white/5">
+              <td className="px-3 py-1.5 text-white/70 whitespace-nowrap">{row.label}</td>
+              {types.map((t) => {
+                const p = vitalPlan(t, row.vital, value?.[row.field]);
+                const short = { native: formatInterval(p.interval), requested: `${formatInterval(p.interval)} (server)`,
+                  clamped: `${formatInterval(p.interval)} (minimum)`, off: "Off", unavailable: "Not available" }[p.mode];
+                return <td key={t.key} className={`px-3 py-1.5 whitespace-nowrap ${TONE[p.tone]}`} title={p.text}>{short}</td>;
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+export default function MonitoringScheduleForm({ value, onChange, disabled = false, deviceType = null, types = null }) {
   const set = (field, v) => onChange({ ...value, [field]: v });
   const inputCls =
     "px-2.5 py-1.5 bg-[#252528] border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-[#CCA166]/60 disabled:opacity-50";
@@ -19,6 +52,7 @@ export default function MonitoringScheduleForm({ value, onChange, disabled = fal
               <th className="text-left font-medium px-3 py-2">Vital</th>
               <th className="text-left font-medium px-3 py-2">Measure</th>
               <th className="text-left font-medium px-3 py-2">Interval</th>
+              {deviceType && <th className="text-left font-medium px-3 py-2">On this watch</th>}
             </tr>
           </thead>
           <tbody>
@@ -30,7 +64,9 @@ export default function MonitoringScheduleForm({ value, onChange, disabled = fal
                 <tr key={row.field} className="border-t border-white/5">
                   <td className="px-3 py-2 text-white/85">
                     {row.label}
-                    {row.hint && <div className="text-[11px] text-white/35">{row.hint}</div>}
+                    {row.hint && (!deviceType || deviceType.key === "veepoo_4g") && (
+                      <div className="text-[11px] text-white/35">{row.hint}</div>
+                    )}
                   </td>
                   <td className="px-3 py-2">
                     <label className="inline-flex items-center gap-2 cursor-pointer">
@@ -70,6 +106,10 @@ export default function MonitoringScheduleForm({ value, onChange, disabled = fal
                       <span className="text-white/30 text-xs">—</span>
                     )}
                   </td>
+                  {deviceType && (() => {
+                    const p = vitalPlan(deviceType, row.vital, v);
+                    return <td className={`px-3 py-2 text-xs ${TONE[p.tone]}`}>{p.text}</td>;
+                  })()}
                 </tr>
               );
             })}
@@ -78,7 +118,7 @@ export default function MonitoringScheduleForm({ value, onChange, disabled = fal
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <label className="flex flex-col gap-1 text-xs text-white/55">
+        <label className={`flex flex-col gap-1 text-xs text-white/55 ${deviceType && !deviceType.upload_interval ? "hidden" : ""}`}>
           Upload to server every
           <div className="flex items-center gap-2">
             <input
@@ -107,10 +147,13 @@ export default function MonitoringScheduleForm({ value, onChange, disabled = fal
           />
         </label>
       </div>
+      {types && types.length > 0 && <TypesSummary value={value} types={types} />}
       <p className="text-[11px] text-white/35">
-        The watch summarises data in 5-minute blocks, so intervals under 5 minutes don't add detail.
-        Intervals are rounded up to the watch's own minimum step. Shorter intervals use more battery.
+        Shorter intervals use more battery. Each watch rounds intervals up to its own minimum (BPW8: 10 min);
+        where it can't measure that often by itself, the server asks it to measure instead. Veepoo watches
+        summarise data in 5-minute blocks, so intervals under 5 minutes don't add detail there.
         Leave the active window empty to measure all day.
+        {deviceType?.window_note ? ` ${deviceType.window_note}` : ""}
       </p>
     </div>
   );

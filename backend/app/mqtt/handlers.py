@@ -9,14 +9,12 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.core.config import settings
-from app.models.clinical import Alert
+from app.devices.core import raise_alarm
 from app.models.device import Device, DeviceConfigState, DeviceDataBlock, MqttRawMessage
-from app.models.user import Patient
 from app.mqtt import protocol as p
 from app.schemas.vitals import VitalIngestSchema
 from app.services.ingest import ingest_readings
 from app.services.monitoring import effective_profile, limits_from_records, profile_hash, to_auto_measure_records
-from app.services.push import send_critical_push, staff_tokens_for_patient
 
 log = logging.getLogger("mqtt.handlers")
 
@@ -26,11 +24,6 @@ MAX_CONFIG_ATTEMPTS = 3
 CONFIG_RETRY_AFTER = timedelta(minutes=2)
 AWAITING_LIMITS = "waiting for the watch to report its schedule limits"
 
-EVENT_ALERTS = {  # device_event_report → alert shown through the normal station routing
-    "fall": ("Fall", "Fall detected", "critical"),
-    "sos": ("SOS", "SOS pressed", "critical"),
-    "low_battery": ("Band Battery", "Battery low", "medium"),
-}
 
 
 def _reading(patient_id: int, device: Device, *, hr=0, spo2=0.0, sbp=0, dbp=0, temp=0.0,
@@ -248,24 +241,10 @@ class Handlers:
 
     async def h_device_event_report(self, db, device: Device, payload: bytes):
         ev = p.parse_device_event(payload)
-        kind = EVENT_ALERTS.get(ev["event"])
-        if kind is None or device.patient_id is None:
+        if device.patient_id is None:
             return
-        vital_type, text, severity = kind
-        patient = await db.get(Patient, device.patient_id)
-        alert = Alert(patient_id=device.patient_id, vital_type=vital_type, triggered_value=text, severity=severity)
-        db.add(alert)
-        await db.flush()
-        alert_data = {"id": alert.id, "alert_id": alert.id, "patient_id": device.patient_id,
-                      "vital_type": vital_type, "triggered_value": text, "severity": severity,
-                      "phone_number": patient.phone_number if patient else None,
-                      "timestamp": (ev["triggered_at"] or datetime.utcnow()).isoformat()}
-        await self.redis.publish(f"patient:{device.patient_id}:alerts", json.dumps(alert_data))
-        if severity == "critical":
-            tokens = await staff_tokens_for_patient(db, device.patient_id)
-            if tokens:
-                import asyncio
-                asyncio.create_task(asyncio.to_thread(send_critical_push, tokens, alert_data))
+        # Shared with the TCP watches: Alert row, live alert, push for critical ones.
+        await raise_alarm(db, self.redis, device.patient_id, ev["event"], ev["triggered_at"])
 
     # ── broker events ($SYS) ──────────────────────────────────────────────────────
 
@@ -304,6 +283,7 @@ class Handlers:
             rows = (await db.execute(
                 select(Device, DeviceConfigState).join(DeviceConfigState, DeviceConfigState.device_id == Device.id)
                 .where(Device.is_online.is_(True), Device.is_active.is_(True), Device.patient_id.isnot(None),
+                       Device.transport == "mqtt",                  # TCP watches belong to the device-gateway
                        DeviceConfigState.status.in_(("pending", "sent")))
             )).all()
             now = datetime.utcnow()

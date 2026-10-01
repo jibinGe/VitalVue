@@ -40,7 +40,7 @@ async def _command_loop(client: aiomqtt.Client, handlers: Handlers, redis) -> No
             cmd = json.loads(item[1])
             async with SessionLocal() as db:
                 device = await db.get(Device, cmd.get("device_id"))
-                if device is None:
+                if device is None or device.transport != "mqtt":
                     continue
                 if cmd["type"] == "apply_config" and device.is_online:
                     await handlers.apply_config(db, device, force=True)

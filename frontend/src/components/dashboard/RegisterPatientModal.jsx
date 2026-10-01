@@ -106,7 +106,7 @@ export default function RegisterPatientModal({ isOpen, onClose, onSuccess }) {
   const [loadingWards, setLoadingWards] = useState(false);
   const [loadingBeds, setLoadingBeds] = useState(false);
   const [loadingRooms, setLoadingRooms] = useState(false);
-  // Optional Veepoo 4G watch to link right after admission (BLE bands keep working as before)
+  // Optional 4G watch (Veepoo, Wonlex or BPW8) to link right after admission (BLE bands keep working as before)
   const [watches, setWatches] = useState([]);
   const [watchId, setWatchId] = useState("");
   const [watchLink, setWatchLink] = useState(null);   // { ok, text } after submit
@@ -602,7 +602,7 @@ export default function RegisterPatientModal({ isOpen, onClose, onSuccess }) {
                           <select className={selectCls} value={watchId} onChange={(e) => setWatchId(e.target.value)}>
                             <option value="">No 4G watch / using a BLE band</option>
                             {watches.map((w) => (
-                              <option key={w.id} value={w.id}>{w.client_id}</option>
+                              <option key={w.id} value={w.id}>{`${w.type_label || "4G watch"} · ${w.client_id}`}</option>
                             ))}
                           </select>
                         </FieldGroup>

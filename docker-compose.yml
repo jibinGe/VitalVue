@@ -122,6 +122,28 @@ services:
       - vitalvue_net
     restart: unless-stopped
 
+  # TCP server for the Wonlex and CLOC BPW8 4G watches (they don't use MQTT). Exactly one
+  # instance: it holds every watch's connection. Open 7700 (Wonlex) and 7701 (BPW8) in the
+  # security group. BPW8 watches are pointed at the server's IP by SMS, so that IP must never
+  # change (Elastic IP); Wonlex watches use a DNS-only host name (not CloudFront).
+  device-gateway:
+    build: ./backend
+    container_name: vitalvue_device_gateway
+    command: python -m app.gateway
+    env_file: .env
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASS}@db:5432/${DB_NAME}
+      - REDIS_URL=redis://:${REDIS_PASS}@redis:6379/0
+    ports:
+      - "7700:7700"
+      - "7701:7701"
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    networks:
+      - vitalvue_net
+    restart: unless-stopped
+
   # frontend:
   #   build: ./frontend
   #   container_name: vitalvue_frontend

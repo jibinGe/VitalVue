@@ -47,6 +47,16 @@ class Settings(BaseSettings):
     EMQX_HOOK_SECRET: str = ""              # shared secret for /internal/emqx/*; empty = deny all
     MQTT_DEFAULT_TZ_MINUTES: int = 330      # time zone pushed to watches (IST = UTC+5:30)
     MQTT_UPLOAD_GRACE_MIN: int = 5          # 4G patient counts as online for upload interval + grace
+
+    # --- TCP watches (Wonlex, CLOC BPW8) via the device-gateway. A port of 0 disables that type. ---
+    GATEWAY_WONLEX_PORT: int = 7700
+    GATEWAY_BPW8_PORT: int = 7701
+    GATEWAY_PUBLIC_HOST: str = ""           # host name given to Wonlex watches (DNS only, not CloudFront)
+    GATEWAY_PUBLIC_IP: str = ""             # fixed (Elastic) IP given to BPW8 watches by SMS
+    GATEWAY_IDLE_TIMEOUT_S: int = 600       # close a connection that sends nothing for this long
+    GATEWAY_FIRST_FRAME_S: int = 30         # a new connection must identify itself within this time
+    WONLEX_SIGN_KEY: str = ""               # shared key for the encryptionCode signature
+    WONLEX_SIGNATURE: str = "warn"          # off | warn (log mismatches) | enforce (drop them)
     # Heartbeat + baseline background jobs. Set false in the API container when the separate
     # scheduler service runs them, so they never run twice.
     RUN_BACKGROUND_JOBS: bool = True
