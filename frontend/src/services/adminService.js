@@ -67,6 +67,16 @@ export const adminService = {
     return adminRequest('delete', '/api/v1/devices/monitoring/defaults', null, { params: { organization_id: orgId } });
   },
 
+  /** Retire a watch (lost, broken, returned): disabled, unlinked, hidden; history kept. */
+  async archiveDevice(id, reason = null) {
+    return adminRequest('post', `/api/v1/devices/${id}/archive`, { reason });
+  },
+
+  /** Bring an archived watch back: active and unlinked. */
+  async restoreDevice(id) {
+    return adminRequest('post', `/api/v1/devices/${id}/restore`);
+  },
+
   /** TCP watches: locate | reboot | disconnect. */
   async deviceCommand(id, action) {
     return adminRequest('post', `/api/v1/devices/${id}/command`, { action });

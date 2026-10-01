@@ -33,7 +33,7 @@ All 4G watch screens (Veepoo, Wonlex and BPW8) are behind the frontend flag `wat
    WONLEX_SIGNATURE=warn                                     # warn → enforce once real frames verify
    # optional: GATEWAY_WONLEX_PORT / GATEWAY_BPW8_PORT (0 disables a type), GATEWAY_IDLE_TIMEOUT_S=600
    ```
-5. **Deploy** with `backend/deploy.sh`. It builds, runs `alembic upgrade head` (migrations `c3e5a7b9d1f3` and `e7a9c1b3d5f7`, both additive), and starts `device-gateway` with the other services. Take a `pg_dump` first.
+5. **Deploy** with `backend/deploy.sh`. It builds, runs `alembic upgrade head` (migrations `c3e5a7b9d1f3`, `e7a9c1b3d5f7` and `f8b0d2e4a6c8`, all additive), and starts `device-gateway` with the other services. Take a `pg_dump` first.
 6. **Check it's listening:** `docker logs vitalvue_device_gateway | head` should show `listening on port 7700` and `7701`.
 
 ## Onboarding a watch
@@ -49,6 +49,10 @@ All 4G watch screens (Veepoo, Wonlex and BPW8) are behind the frontend flag `wat
 2. Text the SMS shown (`BY,SSAR,<ip>,7701`) to the watch's SIM.
 3. It shows **Online** after it restarts and sends `VER`.
 4. Link it on the patient's tab. The schedule shows **Sent (this watch doesn't confirm settings)**. That's normal: BPW8 never acknowledges, and the gateway resends the schedule on every reconnect.
+
+## Retiring a watch (archive)
+
+A watch that's lost, broken or returned is **archived**, not deleted: deleting it would lose which patient wore it when. On Admin → 4G Watches, use the archive icon on its row (with an optional reason). It's unlinked, disconnected if online, disabled and hidden from the list and the bedside picker; its readings and link history stay. **Show archived** lists archived watches; **Restore** makes one active again (unlinked). Re-registering an archived IMEI is refused with a pointer to Restore.
 
 ## Schedules in one paragraph
 

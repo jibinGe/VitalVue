@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Watch, RefreshCw, Plus, Copy, KeyRound, Power, Unlink, MapPin, RotateCw } from "lucide-react";
+import { Watch, RefreshCw, Plus, Copy, KeyRound, Power, Unlink, MapPin, RotateCw, Archive, ArchiveRestore } from "lucide-react";
 import { adminService } from "../../services/adminService";
 import { useAdmin } from "../../contexts/AdminContext";
 import MonitoringScheduleForm from "../../components/monitoring/MonitoringScheduleForm";
@@ -90,6 +90,9 @@ function SetupBox({ setup, onClose }) {
 export default function DevicesPage() {
   const { organizations, selectedOrgId } = useAdmin();
   const [devices, setDevices] = useState([]);
+  const [archivedDevices, setArchivedDevices] = useState([]);
+  const [showArchived, setShowArchived] = useState(false);
+  const [archiving, setArchiving] = useState(null);       // { id, reason } while confirming
   const [types, setTypes] = useState([]);
   const [defaults, setDefaults] = useState(null);
   const [savedDefaults, setSavedDefaults] = useState(null);
@@ -107,9 +110,11 @@ export default function DevicesPage() {
     let cancelled = false;
     Promise.all([
       adminService.listDevices(), adminService.getMonitoringDefaults(selectedOrgId), adminService.getDeviceTypes(),
-    ]).then(([d, s, t]) => {
+      adminService.listDevices({ archived: true }),
+    ]).then(([d, s, t, a]) => {
       if (cancelled) return;
       if (d.success) setDevices(d.data);
+      if (a.success) setArchivedDevices(a.data);
       if (s.success) { setDefaults(s.data); setSavedDefaults(s.data); }
       if (t.success) setTypes(t.data);
       setLoading(false);
@@ -166,6 +171,18 @@ export default function DevicesPage() {
     if (res.success) {
       if (res.data?.credentials) setCreds(res.data.credentials);
       flash(okText);
+      load();
+    } else flash(res.message, false);
+  };
+
+  const confirmArchive = async () => {
+    const { id, reason } = archiving;
+    setBusy(true);
+    const res = await adminService.archiveDevice(id, reason.trim() || null);
+    setBusy(false);
+    setArchiving(null);
+    if (res.success) {
+      flash(`Watch ${res.data.client_id} archived. It's disconnected and hidden; find it under "Show archived".`);
       load();
     } else flash(res.message, false);
   };
@@ -277,8 +294,53 @@ export default function DevicesPage() {
 
       {/* List */}
       <section className="rounded-2xl bg-[#1C1C1F] border border-white/5 p-5">
-        <h2 className="text-base font-semibold text-white mb-3">Watches</h2>
-        {devices.length === 0 ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <h2 className="text-base font-semibold text-white">{showArchived ? "Archived watches" : "Watches"}</h2>
+          {(showArchived || archivedDevices.length > 0) && (
+            <button onClick={() => { setShowArchived((v) => !v); setArchiving(null); }}
+              className="inline-flex items-center gap-1.5 text-xs text-white/60 hover:text-white">
+              {showArchived ? <><Watch className="size-3.5" /> Back to watches in use</>
+                : <><Archive className="size-3.5" /> Show archived ({archivedDevices.length})</>}
+            </button>
+          )}
+        </div>
+        {showArchived ? (
+          archivedDevices.length === 0 ? (
+            <p className="text-sm text-white/40">No archived watches.</p>
+          ) : (
+            <div className="overflow-x-auto w-0 min-w-full">
+              <table className="w-full text-sm">
+                <thead className="text-xs text-white/45">
+                  <tr>
+                    {["Type", "ID", "Hospital", "Archived", "Reason", ""].map((h) => (
+                      <th key={h} className="text-left font-medium px-3 py-2 whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {archivedDevices.map((d) => (
+                    <tr key={d.id} className="border-t border-white/5 text-white/60 align-top">
+                      <td className="px-3 py-2 whitespace-nowrap">{d.type_label}</td>
+                      <td className="px-3 py-2 font-mono text-xs whitespace-nowrap">{d.client_id}</td>
+                      <td className="px-3 py-2 whitespace-nowrap">{orgName(d.organization_id)}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-xs">{when(d.archived_at)}</td>
+                      <td className="px-3 py-2 text-xs">{d.archive_reason || <span className="text-white/30">—</span>}</td>
+                      <td className="px-3 py-2">
+                        <div className="flex justify-end">
+                          <button onClick={() => act(() => adminService.restoreDevice(d.id), `Watch ${d.client_id} restored. It's active again and can be linked to a patient.`)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border border-[#CCA166]/50 text-[#E5C48B] hover:bg-[#CCA166]/10">
+                            <ArchiveRestore className="size-3.5" /> Restore
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p className="text-[11px] text-white/35 mt-2">Archived watches keep their history (readings and which patient wore them when). They can't connect or be linked until restored.</p>
+            </div>
+          )
+        ) : devices.length === 0 ? (
           <p className="text-sm text-white/40">{loading ? "Loading…" : "No watches registered yet."}</p>
         ) : (
           // w-0 + min-w-full: scroll inside the card instead of widening the admin layout
@@ -295,7 +357,8 @@ export default function DevicesPage() {
                 {devices.map((d) => {
                   const tcp = d.transport === "tcp";
                   return (
-                    <tr key={d.id} className="border-t border-white/5 text-white/80 align-top">
+                    <React.Fragment key={d.id}>
+                    <tr className="border-t border-white/5 text-white/80 align-top">
                       <td className="px-3 py-2 whitespace-nowrap">
                         {d.type_label}
                         {d.model && <div className="text-[11px] text-white/40">{d.model}</div>}
@@ -343,10 +406,34 @@ export default function DevicesPage() {
                           {d.patient_id && (
                             <button title="Unlink from patient" onClick={() => act(() => adminService.unassignDevice(d.id), "Watch unlinked.")} className={iconBtn}><Unlink className="size-4" /></button>
                           )}
+                          <button title="Archive (lost, broken or returned)" onClick={() => setArchiving({ id: d.id, reason: "" })}
+                            className="p-1.5 rounded-lg hover:bg-white/5 text-white/60 hover:text-[#FFBB33]"><Archive className="size-4" /></button>
                           <button title={d.is_active ? "Disable (disconnects it now)" : "Enable"} onClick={() => act(() => adminService.setDeviceStatus(d.id, !d.is_active), d.is_active ? "Watch disabled." : "Watch enabled.")} className={`p-1.5 rounded-lg hover:bg-white/5 ${d.is_active ? "text-white/60 hover:text-[#FF9A9A]" : "text-[#2CD155]"}`}><Power className="size-4" /></button>
                         </div>
                       </td>
                     </tr>
+                    {archiving?.id === d.id && (
+                      <tr className="bg-[rgba(255,187,51,0.06)]">
+                        <td colSpan={10} className="px-3 py-3">
+                          <div className="flex flex-wrap items-end gap-3">
+                            <div className="text-xs text-white/75 max-w-md">
+                              Archive <span className="font-mono">{d.client_id}</span>? It's disconnected, unlinked
+                              {d.patient_id ? ` from patient #${d.patient_id}` : ""} and hidden. Its history is kept, and you can restore it later.
+                            </div>
+                            <label className="flex flex-col gap-1 text-xs text-white/55">
+                              Reason (optional)
+                              <input id={`archive-reason-${d.id}`} value={archiving.reason} maxLength={200} placeholder="Lost, broken, returned…"
+                                onChange={(e) => setArchiving((a) => ({ ...a, reason: e.target.value }))}
+                                className="px-3 py-1.5 bg-[#252528] border border-white/10 rounded-lg text-sm text-white w-64 focus:outline-none focus:border-[#CCA166]/60" />
+                            </label>
+                            <button onClick={confirmArchive} disabled={busy}
+                              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#FFBB33] text-[#1A1A1C] disabled:opacity-40">Archive watch</button>
+                            <button onClick={() => setArchiving(null)} className="px-3 py-1.5 rounded-lg text-xs border border-white/10 text-white/60">Cancel</button>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    </React.Fragment>
                   );
                 })}
               </tbody>

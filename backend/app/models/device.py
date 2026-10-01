@@ -49,6 +49,11 @@ class Device(Base):
     duplicate_login_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    # Archived = retired from use (lost, broken, returned): disabled, unlinked and hidden from
+    # lists, but kept so its history (who wore it when, its readings) stays intact.
+    archived_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
+    archived_by: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
+    archive_reason: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
 
 
 class DeviceAssignment(Base):

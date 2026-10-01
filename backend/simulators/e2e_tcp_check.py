@@ -549,6 +549,45 @@ async def main() -> int:
         check(r.status_code == 200 and b2.closed.is_set() and not (await device_by_imei(B_IMEI)).is_online,
               "admin disables the BPW8: it's disconnected at once and shows offline")
 
+        # ── archive and restore ────────────────────────────────────────────────────
+        r = await api.call("POST", f"/{wdev_id}/assign", "e2e-doctor", json={"patient_id": pw_id})
+        r = await api.call("POST", f"/{wdev_id}/archive", "e2e-doctor", json={"reason": "lost"})
+        check(r.status_code == 403, "a doctor can't archive a watch")
+        r = await api.call("POST", f"/{wdev_id}/archive", "e2e-admin1", json={"reason": "Lost on ward 3"})
+        await asyncio.wait_for(w.closed.wait(), 7)
+        await settle()
+        check(r.status_code == 200 and r.json()["archived_at"] and r.json()["patient_id"] is None and w.closed.is_set(),
+              "admin archives the connected Wonlex: it's unlinked and disconnected at once")
+        async with SessionLocal() as db:
+            open_links = await count(db, DeviceAssignment, DeviceAssignment.device_id == wdev_id,
+                                     DeviceAssignment.unassigned_at.is_(None))
+            kept = await count(db, Vitals, Vitals.patient_id == pw_id, Vitals.source == "wonlex")
+        check(open_links == 0 and kept > 0, f"its link is closed and its {kept} readings are kept")
+        in_use = [d["client_id"] for d in (await api.call("GET", "", "e2e-admin1")).json()]
+        archived = (await api.call("GET", "", "e2e-admin1", params={"archived": "true"})).json()
+        avail = [d["client_id"] for d in (await api.call("GET", "/available", "e2e-doctor")).json()]
+        check(W_IMEI not in in_use and W_IMEI not in avail and [a["archive_reason"] for a in archived if a["client_id"] == W_IMEI] == ["Lost on ward 3"],
+              "archived watch is hidden from the list and the bedside picker, and listed under archived with its reason")
+        r = await api.call("PATCH", f"/{wdev_id}/status", "e2e-admin1", json={"is_active": True})
+        check(r.status_code == 409, "an archived watch can't simply be re-enabled")
+        r = await api.call("POST", f"/{wdev_id}/assign", "e2e-doctor", json={"patient_id": pw_id})
+        check(r.status_code == 404, "an archived watch can't be linked to a patient")
+        r = await api.call("POST", "", "e2e-admin1", json={"type": "wonlex_4g", "imei": W_IMEI})
+        check(r.status_code == 409 and "archived" in r.json()["detail"], "re-registering its IMEI points to Restore")
+        w2 = await Client(Wonlex(W_IMEI), wport).connect()
+        await w2.send(w2.watch.hello())
+        await asyncio.wait_for(w2.closed.wait(), 3)
+        check(w2.closed.is_set(), "an archived watch is refused when it reconnects")
+        r = await api.call("POST", f"/{wdev_id}/restore", "e2e-admin1")
+        in_use = [d["client_id"] for d in (await api.call("GET", "", "e2e-admin1")).json()]
+        check(r.status_code == 200 and r.json()["is_active"] and not r.json()["archived_at"] and W_IMEI in in_use,
+              "restore brings it back: active, unlinked, in the list again")
+        w = await Client(Wonlex(W_IMEI), wport).connect()
+        await w.send(w.watch.hello())
+        await settle()
+        check(w.got(lambda f: f.get("type") == "login" and f.get("bindStatus") == 0) and not w.closed.is_set(),
+              "the restored watch connects again (not linked yet)")
+
         await w.close()
         for c in (u, d, x, silent):
             await c.close()

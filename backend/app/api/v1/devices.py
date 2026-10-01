@@ -50,6 +50,7 @@ def _device_row(d: Device, state: Optional[DeviceConfigState] = None) -> dict:
         "battery_percent": d.battery_percent, "battery_state": d.battery_state,
         "is_online": d.is_online, "last_seen_at": d.last_seen_at, "last_connected_at": d.last_connected_at,
         "duplicate_login_at": d.duplicate_login_at, "is_active": d.is_active,
+        "archived_at": d.archived_at, "archive_reason": d.archive_reason,
         "config": {"status": state.status, "attempts": state.attempts, "last_sent_at": state.last_sent_at,
                    "applied_at": state.applied_at, "last_error": state.last_error,
                    "device_limits": state.device_limits or {}} if state else None,
@@ -117,7 +118,11 @@ async def register_device(body: DeviceIn, db: AsyncSession = Depends(get_db)):
         client_id = dtype.validate_id(raw or "")
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
-    if (await db.execute(select(Device).where(Device.client_id == client_id))).scalar_one_or_none():
+    existing = (await db.execute(select(Device).where(Device.client_id == client_id))).scalar_one_or_none()
+    if existing:
+        if existing.archived_at:
+            raise HTTPException(status_code=409, detail=f"This {dtype.id_label} belongs to an archived watch. "
+                                                        "Restore it from the archived watches instead.")
         raise HTTPException(status_code=409, detail=f"A watch with this {dtype.id_label} is already registered")
 
     if dtype.transport == "mqtt":
@@ -138,8 +143,10 @@ async def register_device(body: DeviceIn, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("", dependencies=[Depends(allow_admins)])
-async def list_devices(organization_id: Optional[int] = None, db: AsyncSession = Depends(get_db)):
-    stmt = select(Device, DeviceConfigState).outerjoin(DeviceConfigState, DeviceConfigState.device_id == Device.id)
+async def list_devices(organization_id: Optional[int] = None, archived: bool = False, db: AsyncSession = Depends(get_db)):
+    """Watches in use, or with archived=true the archived ones."""
+    stmt = (select(Device, DeviceConfigState).outerjoin(DeviceConfigState, DeviceConfigState.device_id == Device.id)
+            .where(Device.archived_at.isnot(None) if archived else Device.archived_at.is_(None)))
     if organization_id is not None:
         stmt = stmt.where(Device.organization_id == organization_id)
     rows = (await db.execute(stmt.order_by(Device.id))).all()
@@ -173,6 +180,8 @@ async def set_device_status(device_id: int, is_active: bool = Body(..., embed=Tr
     device = await db.get(Device, device_id)
     if not device:
         raise HTTPException(status_code=404, detail="Watch not found")
+    if is_active and device.archived_at:
+        raise HTTPException(status_code=409, detail="This watch is archived. Restore it first.")
     device.is_active = is_active    # an inactive watch is refused at its next login
     await db.commit()
     if not is_active and device.transport == "tcp":
@@ -187,7 +196,7 @@ async def available_devices(db: AsyncSession = Depends(get_db), user: User = Dep
     """Active 4G watches of the user's hospital that aren't worn by anyone (to link at the bedside)."""
     if user.role not in ADMIN_ROLES + (UserRole.DOCTOR, UserRole.NURSE):
         raise HTTPException(status_code=403, detail="Not authorized")
-    stmt = select(Device).where(Device.is_active.is_(True), Device.patient_id.is_(None))
+    stmt = select(Device).where(Device.is_active.is_(True), Device.patient_id.is_(None), Device.archived_at.is_(None))
     if user.role != UserRole.MASTER_ADMIN:
         stmt = stmt.where(Device.organization_id == user.organization_id)
     return [_device_row(d) for d in (await db.execute(stmt.order_by(Device.client_id))).scalars()]
@@ -198,7 +207,7 @@ async def assign_device(device_id: int, patient_id: int = Body(..., embed=True),
                         db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user),
                         redis=Depends(get_redis)):
     device = await db.get(Device, device_id)
-    if not device or not device.is_active:
+    if not device or not device.is_active or device.archived_at:
         raise HTTPException(status_code=404, detail="Watch not found")
     patient = await _patient_or_404(db, patient_id)
     await _require_patient_access(db, user, patient)
@@ -227,14 +236,53 @@ async def unassign_device(device_id: int, db: AsyncSession = Depends(get_db), us
         raise HTTPException(status_code=404, detail="Watch not found")
     if device.patient_id is not None:
         await _require_patient_access(db, user, await _patient_or_404(db, device.patient_id))
-    for row in (await db.execute(select(DeviceAssignment).where(
-            DeviceAssignment.device_id == device.id, DeviceAssignment.unassigned_at.is_(None)))).scalars():
-        row.unassigned_at = datetime.utcnow()
-    device.patient_id = None
+    await _close_assignment(db, device)
     await db.commit()
     if device.transport == "tcp":
         # The gateway stops its server-requested measurements and tells a Wonlex it's unbound.
         await send_command(redis, device, {"type": "apply_config"})
+    return _device_row(device)
+
+
+async def _close_assignment(db, device: Device) -> None:
+    """Unlink the watch from its patient, ending the open link-history row (caller commits)."""
+    for row in (await db.execute(select(DeviceAssignment).where(
+            DeviceAssignment.device_id == device.id, DeviceAssignment.unassigned_at.is_(None)))).scalars():
+        row.unassigned_at = datetime.utcnow()
+    device.patient_id = None
+
+
+# ── Archive (admin): retire a watch but keep its history ────────────────────────────
+
+@router.post("/{device_id}/archive")
+async def archive_device(device_id: int, reason: Optional[str] = Body(None, embed=True), db: AsyncSession = Depends(get_db),
+                         user: User = Depends(allow_admins), redis=Depends(get_redis)):
+    """Lost, broken or returned: disable, unlink and hide the watch. Its readings and link
+    history stay; Restore brings it back."""
+    device = await db.get(Device, device_id)
+    if not device:
+        raise HTTPException(status_code=404, detail="Watch not found")
+    if device.archived_at:
+        return _device_row(device)
+    await _close_assignment(db, device)
+    device.is_active, device.is_online = False, False
+    device.archived_at, device.archived_by = datetime.utcnow(), user.id
+    device.archive_reason = (reason or "").strip()[:200] or None
+    await db.commit()
+    if device.transport == "tcp":
+        await send_command(redis, device, {"type": "kick"})   # disconnect it now; it's refused from now on
+    return _device_row(device)
+
+
+@router.post("/{device_id}/restore", dependencies=[Depends(allow_admins)])
+async def restore_device(device_id: int, db: AsyncSession = Depends(get_db)):
+    """Back in use: active and unlinked, ready to link to a patient."""
+    device = await db.get(Device, device_id)
+    if not device:
+        raise HTTPException(status_code=404, detail="Watch not found")
+    device.archived_at = device.archived_by = device.archive_reason = None
+    device.is_active = True
+    await db.commit()
     return _device_row(device)
 
 
