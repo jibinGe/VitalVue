@@ -60,7 +60,11 @@ ssh -i "$KEY_PATH" -o StrictHostKeyChecking=accept-new "$SERVER_USER@$SERVER_IP"
   docker-compose run -T --rm --no-deps backend alembic upgrade head || { sleep 10; docker-compose run -T --rm --no-deps backend alembic upgrade head; }
   docker-compose run -T --rm --no-deps backend alembic current
 
+  # docker-compose 1.29 crashes when recreating a container on Docker Engine 25+
+  # (KeyError: 'ContainerConfig'), so remove the app containers first and let
+  # up -d create them fresh from the new image. db/redis/emqx are left running.
   echo "🔹 Starting updated containers..."
+  docker-compose rm -sf backend scheduler mqtt-worker
   docker-compose up -d --remove-orphans
 
   # The Docker nginx is opt-in (profile "docker-nginx"): the host nginx serves
