@@ -16,8 +16,13 @@ const CustomDot = (props) => {
 
 // Animation for .temp-wave-animated is defined globally in index.css
 const TempWave = React.memo(function TempWave({ className = "h-14", historyData = [] }) {
-  const chartData = historyData && historyData.length > 0
-      ? historyData.map(h => ({ desktop: typeof h.temp === 'number' ? h.temp : (typeof h.temperature === 'number' ? h.temperature : 37) }))
+  // Only measured points; a bucket without a reading isn't drawn as a made-up 37 °C.
+  const measured = (historyData || [])
+      .map(h => (typeof h.temp === 'number' ? h.temp : h.temperature))
+      .filter(v => typeof v === 'number' && v > 0)
+      .map(v => ({ desktop: v }));
+  const chartData = measured.length > 1 ? measured
+      : measured.length === 1 ? [measured[0], measured[0]]
       : [{ desktop: 37 }, { desktop: 37.2 }];
 
   return (

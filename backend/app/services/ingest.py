@@ -254,6 +254,14 @@ async def ingest_readings(
                         asyncio.create_task(send_critical_alert(**wa_kwargs))
                     await redis.setex(wa_lock_key, 900, "active")
 
+        # 4G watches send one vital per message: a 0 there means "not in this reading", so the
+        # live stream carries null and the dashboards keep showing each vital's last value.
+        # BLE readings are always complete and are streamed exactly as before.
+        if source != "ble" and payload.is_connected and not payload.is_removed:
+            for key in ("heart_rate", "spo2", "temp", "bp_systolic", "bp_diastolic", "hrv_score", "movement"):
+                if not serializable_vitals.get(key):
+                    serializable_vitals[key] = None
+
         # Stream telemetry to the dashboards' /stream subscriptions (restored; lost in 258c8b9)
         serializable_vitals["created_at"] = reading_at_str
         serializable_vitals["source"] = source

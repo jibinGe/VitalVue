@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
+import { latestMeasured } from "@/utilities/latestVitals";
 import { usePatients } from "@/hooks/usePatients";
 import { useDashboardStore } from "@/store/useDashboardStore";
 import PatientCard from "@/components/dashboard/PatientCard";
@@ -50,9 +51,7 @@ export default function TvDashboard() {
   // Exact same logic from home.jsx for determining cardData
   const cardData = useMemo(() => {
     return rawPatients.map((p) => {
-      const latestHistoryVitals = p.vitals_history && p.vitals_history.length > 0
-        ? p.vitals_history[p.vitals_history.length - 1]
-        : null;
+      const latestHistoryVitals = latestMeasured(p.vitals_history);   // each vital's newest measured value
 
       const live = liveVitals[p.id] || {};
       const isRemoved = live.is_removed === true;

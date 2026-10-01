@@ -10,6 +10,7 @@ import AddNotesModal from "@/components/ui/AddNotesModal";
 import BaselineDeviationModal from "@/components/ui/BaselineDeviationModal";
 import ConfirmationModal from "@/components/ui/ConfirmationModal";
 import { usePatientHistory } from "@/hooks/usePatientHistory";
+import { latestMeasured } from "@/utilities/latestVitals";
 import { useVitalsStream } from "@/hooks/useVitalsStream";
 import { usePatient } from "@/hooks/usePatient";
 import { useDashboardStore } from "@/store/useDashboardStore";
@@ -138,12 +139,8 @@ export default function Overview() {
     return base;
   }, [patientHistory, fallbackHistory, streamData]);
 
-  const latestVitals = useMemo(() => {
-    if (combinedHistory.length > 0) {
-      return combinedHistory[combinedHistory.length - 1];
-    }
-    return null;
-  }, [combinedHistory]);
+  // Each vital from the newest point that measured it (4G watches send one vital per message).
+  const latestVitals = useMemo(() => latestMeasured(combinedHistory), [combinedHistory]);
 
   const currentVitals = latestVitals;
   const patientData = patientDetails || currentVitals; // Map for legacy compatibility
