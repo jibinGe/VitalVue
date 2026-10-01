@@ -51,6 +51,15 @@ class Settings(BaseSettings):
     # scheduler service runs them, so they never run twice.
     RUN_BACKGROUND_JOBS: bool = True
 
+    # --- Vitals archiving (app.services.archive): discharged patients' raw readings move from
+    # `vitals` to `vitals_archive` (same database), and back on readmit. Runs with the jobs above.
+    ARCHIVE_ENABLED: bool = True
+    ARCHIVE_DAYS: str = "mon,thu"           # weekdays to run, comma-separated (mon..sun)
+    ARCHIVE_TIME: str = "02:00"             # time of day to run (HH:MM), in ARCHIVE_TZ_MINUTES
+    ARCHIVE_TZ_MINUTES: int = 330           # offset of ARCHIVE_TIME from UTC (IST = UTC+5:30)
+    ARCHIVE_AFTER_DAYS: int = 30            # only patients discharged at least this long ago
+    ARCHIVE_BATCH_SIZE: int = 20000         # rows moved per transaction
+
     # model_config = SettingsConfigDict(env_file=".env", extra="ignore", env_file_encoding='utf-8')
     model_config = SettingsConfigDict(extra="ignore")
 

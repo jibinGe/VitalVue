@@ -1,4 +1,4 @@
-"""scheduler: runs the heartbeat (device offline) and baseline background jobs exactly once.
+"""scheduler: runs the heartbeat (device offline), baseline and vitals archive background jobs exactly once.
 
 Start one instance (`python -m app.scheduler`) and set RUN_BACKGROUND_JOBS=false on the API,
 so scaling the API to several workers never duplicates these jobs.
@@ -6,11 +6,11 @@ so scaling the API to several workers never duplicates these jobs.
 import asyncio
 import signal
 
-from app.main import baseline_cron_worker, heartbeat_cron_worker
+from app.main import archive_cron_worker, baseline_cron_worker, heartbeat_cron_worker
 
 
 async def run() -> None:
-    await asyncio.gather(heartbeat_cron_worker(), baseline_cron_worker())
+    await asyncio.gather(heartbeat_cron_worker(), baseline_cron_worker(), archive_cron_worker())
 
 
 def main() -> None:

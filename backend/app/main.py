@@ -41,16 +41,56 @@ async def baseline_cron_worker():
             print(f"[CRON ERROR] Exception caught in baseline worker: {e}")
         await asyncio.sleep(60)
 
+async def archive_cron_worker():
+    """Vitals archiving on the ARCHIVE_DAYS / ARCHIVE_TIME schedule. Checks every 5 minutes
+    whether a scheduled run is due; the last run is kept in Redis, so a restart neither repeats
+    a run nor skips one that came due while the scheduler was down."""
+    from datetime import datetime
+    from app.database import get_redis
+    from app.services.archive import last_slot, parse_schedule, run_archive_cycle
+
+    if not settings.ARCHIVE_ENABLED:
+        return
+    try:
+        days, at = parse_schedule(settings.ARCHIVE_DAYS, settings.ARCHIVE_TIME)
+    except ValueError as e:
+        print(f"[CRON ERROR] Vitals archive worker not started: {e}")
+        return
+
+    print(f"[CRON] Vitals archive worker started ({settings.ARCHIVE_DAYS} at {settings.ARCHIVE_TIME}).")
+    while True:
+        try:
+            redis = await get_redis()
+            slot = last_slot(datetime.utcnow(), days, at, settings.ARCHIVE_TZ_MINUTES)
+            last = await redis.get("archive:last_slot")
+            if last is None:
+                # First start: wait for the next scheduled time rather than running on deploy.
+                await redis.set("archive:last_slot", slot.isoformat())
+            elif datetime.fromisoformat(last.decode() if isinstance(last, bytes) else last) < slot:
+                # The lock keeps a second scheduler (misconfigured RUN_BACKGROUND_JOBS) from running it too.
+                if await redis.set("archive:running", "1", nx=True, ex=6 * 3600):
+                    try:
+                        # Mark the slot done even if the cycle fails: it resumes cleanly next time,
+                        # and a persistent error shouldn't retry every 5 minutes.
+                        await redis.set("archive:last_slot", slot.isoformat())
+                        print(f"[CRON] Vitals archive: {await run_archive_cycle()}")
+                    finally:
+                        await redis.delete("archive:running")
+        except Exception as e:
+            print(f"[CRON ERROR] Exception caught in vitals archive worker: {e}")
+        await asyncio.sleep(300)
+
 # 1. Lifespan context for startup/shutdown tasks
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup: Logic to run when server starts (e.g. verify Redis/DB connection)
     print("Vitalvue Backend starting up...")
-    # Heartbeat + baseline jobs must run exactly once. With several API workers (or the separate
+    # Heartbeat, baseline and archive jobs must run exactly once. With several API workers (or the separate
     # `scheduler` service, see app/scheduler.py) set RUN_BACKGROUND_JOBS=false here.
     tasks = []
     if settings.RUN_BACKGROUND_JOBS:
-        tasks = [asyncio.create_task(heartbeat_cron_worker()), asyncio.create_task(baseline_cron_worker())]
+        tasks = [asyncio.create_task(heartbeat_cron_worker()), asyncio.create_task(baseline_cron_worker()),
+                 asyncio.create_task(archive_cron_worker())]
     yield
     # Shutdown: Logic to run when server stops
     for task in tasks:

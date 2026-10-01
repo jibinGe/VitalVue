@@ -28,6 +28,7 @@ import string
 import math
 from app.services.analytics import get_vital_statuses
 from app.services.access import clinician_patient_filter, can_view_patient
+from app.services.archive import restore_patient_vitals
 from app.core.security import get_password_hash
 import uuid
 
@@ -1475,6 +1476,7 @@ async def discharge_and_archive_patient(
 @router.post("/readmit", status_code=status.HTTP_200_OK)
 async def readmit_historical_patient(
     payload: PatientReadmitSchema,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     redis = Depends(get_redis),
     current_user: User = Depends(get_current_user)
@@ -1482,9 +1484,11 @@ async def readmit_historical_patient(
     """
     Reactivates an archived patient record directly in-place.
     Assigns department, ward, bed, room, assigned doctor, and resets monitoring lifecycle flags.
+    Readings moved to vitals_archive are moved back after the response.
     """
-    # 1. Fetch existing patient record
-    patient = await db.get(Patient, payload.archived_patient_id)
+    # 1. Fetch existing patient record. Row lock: waits for an in-flight archive batch of this
+    # patient, and stops the archive job from moving their readings once readmitted.
+    patient = await db.get(Patient, payload.archived_patient_id, with_for_update=True)
     if not patient:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, 
@@ -1580,6 +1584,9 @@ async def readmit_historical_patient(
     # 5. Commit all changes cleanly
     await db.commit()
     await db.refresh(patient)
+
+    # Bring archived readings back (no-op if none); the archive job retries if this fails.
+    background_tasks.add_task(restore_patient_vitals, patient.id)
     
     return {
         "status": "success",
