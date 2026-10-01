@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Close2 } from "@/utilities/icons";
 import apiClient from "@/config/apiClient";
 import { patientService } from "@/services/patientService";
+import { isFeatureEnabled } from "@/utilities/featureFlags";
 
 // ─── Tiny helpers ───────────────────────────────────────────────────────────
 
@@ -112,7 +113,7 @@ export default function RegisterPatientModal({ isOpen, onClose, onSuccess }) {
   const [watchLink, setWatchLink] = useState(null);   // { ok, text } after submit
 
   useEffect(() => {
-    if (!isOpen) return undefined;
+    if (!isOpen || !isFeatureEnabled("watches4g")) return undefined;   // picker hidden while the flag is off
     let cancelled = false;
     patientService.listAvailableDevices().then((r) => {
       if (!cancelled) setWatches(r.success ? r.data : []);

@@ -12,6 +12,14 @@ How to deploy the `device-gateway`, onboard a watch, check it's working, and fix
 
 Readings land in `vitals` with `source` = `wonlex` or `bpw8`. Values that don't feed NEWS2 go to `patient_metrics` (respiratory rate, glucose, lipids, uric acid, steps, kcal, ambient/surface temperature, raw RR intervals). Sleep goes to `sleep_sessions` (one row per watch per night), positions to `device_locations` (30 days). HRV for BPW8 is computed by us (RMSSD) from its RR intervals. Every frame is in `mqtt_raw_messages` with `transport = 'tcp'` for 30 days.
 
+## Feature flag (who sees the screens)
+
+All 4G watch screens (Veepoo, Wonlex and BPW8) are behind the frontend flag `watches4g`: the admin **4G Watches** page and menu item, the patient **4G Watch** tab (with Watch data), and the watch picker in patient registration.
+
+- **Off by default.** To turn it on in your browser, open any VitalVue page with `?ff=watches4g` (e.g. `https://vitalvue.genesysailabs.com/admin/devices?ff=watches4g`). It's remembered in that browser (`localStorage["vv.ff.watches4g"] = "1"`). `?ff=-watches4g` turns it off again.
+- **Make it public** for everyone: set `VITE_FF_WATCHES_4G=true` in the frontend build environment and redeploy the frontend.
+- The flag only hides the UI. The watch API keeps its normal role checks, and the backend services (gateway, mqtt-worker) run either way. The NEWS2 and "latest vitals" fixes are not behind the flag.
+
 ## One-time production setup
 
 1. **Fixed IP.** Attach an Elastic IP to the server. BPW8 watches are given the server's IP by SMS, so if it changes, every BPW8 has to be re-sent the SMS.

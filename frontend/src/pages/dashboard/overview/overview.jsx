@@ -11,6 +11,7 @@ import BaselineDeviationModal from "@/components/ui/BaselineDeviationModal";
 import ConfirmationModal from "@/components/ui/ConfirmationModal";
 import { usePatientHistory } from "@/hooks/usePatientHistory";
 import { latestMeasured } from "@/utilities/latestVitals";
+import { isFeatureEnabled } from "@/utilities/featureFlags";
 import { useVitalsStream } from "@/hooks/useVitalsStream";
 import { usePatient } from "@/hooks/usePatient";
 import { useDashboardStore } from "@/store/useDashboardStore";
@@ -682,7 +683,7 @@ export default function Overview() {
           {[
             { key: "vitals",        label: "Vitals Overview" },
             { key: "baseline",      label: "Baseline" },
-            { key: "watch",         label: "4G Watch" },
+            ...(isFeatureEnabled("watches4g") ? [{ key: "watch", label: "4G Watch" }] : []),
             ...(isManagement ? [
               { key: "profile",       label: "Patient Profile" },
               { key: "medical",       label: "Medical Info" },
@@ -736,7 +737,7 @@ export default function Overview() {
         )}
 
         {/* ── 4G Watch & measurement schedule ── */}
-        {activePageTab === "watch" && (
+        {activePageTab === "watch" && isFeatureEnabled("watches4g") && (
           <WatchMonitoringTab patientId={parsedUserId} />
         )}
 

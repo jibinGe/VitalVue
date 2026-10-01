@@ -20,6 +20,7 @@ import Layout from './layout/dashboard/layout'
 import AdminLogin from './pages/admin/login'
 import AdminLayout from './layout/admin/AdminLayout'
 import AdminProtectedRoute from './components/auth/AdminProtectedRoute'
+import FeatureGate from './components/common/FeatureGate'
 
 // Admin pages — lazy loaded
 const AdminDashboard = lazy(() => import('./pages/admin/dashboard'))
@@ -242,7 +243,11 @@ const router = createBrowserRouter([
       },
       {
         path: 'devices',
-        element: <Suspense fallback={<PageLoader />}><AdminDevices /></Suspense>,
+        element: (
+          <FeatureGate flag="watches4g" redirectTo="/admin/dashboard">
+            <Suspense fallback={<PageLoader />}><AdminDevices /></Suspense>
+          </FeatureGate>
+        ),
       },
       {
         path: 'settings',

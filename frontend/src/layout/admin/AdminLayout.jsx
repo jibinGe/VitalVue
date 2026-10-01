@@ -9,6 +9,7 @@ import {
 import { useAdminAuth } from '../../contexts/AdminAuthContext';
 import { AdminProvider, useAdmin } from '../../contexts/AdminContext';
 import QuickAddModal from '../../components/admin/QuickAddModal';
+import { isFeatureEnabled } from '../../utilities/featureFlags';
 
 const NAV_GROUPS = [
   {
@@ -30,7 +31,7 @@ const NAV_GROUPS = [
     label: 'Care Team',
     items: [
       { to: '/admin/staff', icon: Users, label: 'Doctors & Nurses' },
-      { to: '/admin/devices', icon: Watch, label: '4G Watches' },
+      { to: '/admin/devices', icon: Watch, label: '4G Watches', flag: 'watches4g' },
     ],
   },
   {
@@ -161,7 +162,7 @@ function AdminLayoutInner() {
               </AnimatePresence>
 
               <div className="space-y-1">
-                {group.items.map(({ to, icon: Icon, label }) => (
+                {group.items.filter((item) => !item.flag || isFeatureEnabled(item.flag)).map(({ to, icon: Icon, label }) => (
                   <NavLink
                     key={to}
                     to={to}
