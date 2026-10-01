@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 import os
 import asyncio
 
-from app.api.v1 import auth, discovery, patients, vitals, stream, s3, admin, account, devices, internal_emqx
+from app.api.v1 import auth, discovery, patients, vitals, stream, s3, admin, account, devices, internal_emqx, watch_data
 from app.core.config import settings
 from app.cron.heartbeat import monitor_device_heartbeats
 
@@ -139,6 +139,7 @@ app.include_router(s3.router, prefix="/api/v1/s3", tags=["S3"])
 app.include_router(admin.router, prefix="/api/v1/admin", tags=["Admin"])
 app.include_router(account.router, prefix="/api/v1/account", tags=["Account"])
 app.include_router(devices.router, prefix="/api/v1/devices", tags=["Devices (4G watches)"])
+app.include_router(watch_data.router, prefix="/api/v1/devices", tags=["Devices (4G watches)"])
 # Broker hooks — internal only (nginx blocks /api/v1/internal/, and a shared secret is required)
 app.include_router(internal_emqx.router, prefix="/api/v1/internal/emqx", tags=["Internal"], include_in_schema=False)
 

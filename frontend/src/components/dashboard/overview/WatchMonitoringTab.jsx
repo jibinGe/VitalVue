@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { patientService } from "@/services/patientService";
 import { useAuth } from "@/contexts/AuthContext";
 import MonitoringScheduleForm from "@/components/monitoring/MonitoringScheduleForm";
+import WatchDataPanel from "@/components/dashboard/overview/WatchDataPanel";
 import { scheduleSummary, VITAL_LABEL } from "@/components/monitoring/schedule";
 
 // 4G watch for one patient (Veepoo, Wonlex or BPW8): link a watch, see its status, take a
@@ -169,6 +170,9 @@ export default function WatchMonitoringTab({ patientId }) {
           </div>
         )}
       </section>
+
+      {/* Extra data: respiratory rate, glucose, steps, sleep, location */}
+      {device && <WatchDataPanel patientId={patientId} />}
 
       {/* Schedule */}
       <section className="rounded-[20px] bg-[#2f2f31] p-5 flex flex-col gap-4">

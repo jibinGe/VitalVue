@@ -87,6 +87,18 @@ class Alarm:
 
 
 @dataclass
+class Sleep:
+    """One night's sleep (a watch may re-send it as the night goes on; the latest wins)."""
+    start: Optional[datetime] = None
+    end: Optional[datetime] = None
+    deep_min: Optional[int] = None
+    light_min: Optional[int] = None
+    rem_min: Optional[int] = None
+    awake_min: Optional[int] = None
+    segments: list = field(default_factory=list)   # [{"start", "end", "minutes", "stage"}]
+
+
+@dataclass
 class Ack:
     """The watch confirmed one of our commands."""
     command: str

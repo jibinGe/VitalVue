@@ -8,6 +8,7 @@ from .clinical import Alert, Action, ClinicalNote
 from .account_deletion import AccountDeletionRequest
 from .baseline import VitalObservation, PatientBaseline
 from .device import Device, DeviceAssignment, MonitoringProfile, DeviceConfigState, MqttRawMessage, DeviceDataBlock, DeviceMessageKey
+from .watch_data import PatientMetric, SleepSession, DeviceLocation
 
 __all__ = ["Base", "Organization","User",
            "Department", "Ward", "Room",
@@ -15,4 +16,5 @@ __all__ = ["Base", "Organization","User",
            "Patient", "Nurse", "Doctor",
            "OrgAdmin", "MasterAdmin",
            "AccountDeletionRequest", "VitalObservation", "PatientBaseline",
-           "Device", "DeviceAssignment", "MonitoringProfile", "DeviceConfigState", "MqttRawMessage", "DeviceDataBlock"]
+           "Device", "DeviceAssignment", "MonitoringProfile", "DeviceConfigState", "MqttRawMessage", "DeviceDataBlock",
+           "DeviceMessageKey", "PatientMetric", "SleepSession", "DeviceLocation"]

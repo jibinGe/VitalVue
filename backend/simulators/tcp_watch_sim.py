@@ -9,7 +9,8 @@ Scenarios:
   sos      identify, one reading, then an SOS (and for Wonlex a fall)
   removed  identify, one reading, then "watch taken off"
   resend   identify, then the same upload twice (the server must store it once)
-Everything the server sends back is printed. The simulator answers measure-now requests
+With --extras the watch also sends its non-vital data once (respiratory rate, glucose or RR
+intervals, steps, sleep, a GPS position). Everything the server sends back is printed. The simulator answers measure-now requests
 with a reading, like a real watch.
 """
 import argparse
@@ -62,6 +63,18 @@ class Wonlex:
 
     def removed(self):
         return []                                    # the Wonlex protocol has no wear event
+
+    def extras(self):
+        """Respiratory rate, glucose, today's steps and last night's sleep."""
+        end = now_ms()
+        start = end - 7 * 3600 * 1000
+        segs = [{"startTime": start, "endTime": start + 90 * 60000, "duration": 90, "sleepType": "deepSleep"},
+                {"startTime": start + 90 * 60000, "endTime": start + 330 * 60000, "duration": 240, "sleepType": "lightSleep"},
+                {"startTime": start + 330 * 60000, "endTime": start + 400 * 60000, "duration": 70, "sleepType": "rem"},
+                {"startTime": start + 400 * 60000, "endTime": end, "duration": 20, "sleepType": "sober"}]
+        return [self._msg("upBreathe", data="16"), self._msg("upBS", data="6.1"),
+                self._msg("upTodayActivity", step=3200, exerciseTime=1800),
+                self._msg("upSleep", IsAccumulative=1, startTime=start, endTime=end, dateTime=segs)]
 
     def replies_to(self, frame: dict) -> list[bytes]:
         type_ = frame.get("type", "")
@@ -125,6 +138,13 @@ class Bpw8:
     def removed(self):
         return [self._f(f"WEAR,{int(time.time())},0")]
 
+    def extras(self):
+        """Respiratory rate, raw RR intervals, sleep summary and a GPS position."""
+        t = int(time.time())
+        rr = ",".join(str(800 + random.randint(-25, 25)) for _ in range(40))
+        return [self._f(f"BREATH,{t},17"), self._f(f"HRV_RRI,{t},{rr}"), self._f(f"SLEEP,{t},95,250"),
+                self._f(f"UD,3,{t},152,1N9.931200E76.267300@404!45!9231!2351!60@wifi0!04:6b:25:f1:0e:b1!-40")]
+
     def replies_to(self, frame: str) -> list[bytes]:
         content = frame[1:-1].split("*", 3)[-1]
         if content.startswith("STATUS,"):
@@ -174,6 +194,8 @@ async def run(args) -> None:
         for vital in ("hr", "spo2", "bp", "temp"):
             await send(watch.reading(vital))
             await asyncio.sleep(0.3)
+    if args.extras:
+        await send(watch.extras())
     if args.scenario == "sos":
         await send(watch.sos())
     elif args.scenario == "removed":
@@ -202,6 +224,8 @@ def main() -> None:
     ap.add_argument("--scenario", choices=("normal", "sos", "removed", "resend"), default="normal")
     ap.add_argument("--every", type=float, default=0, help="normal: keep sending every N seconds (0 = once)")
     ap.add_argument("--linger", type=float, default=3, help="seconds to stay connected at the end")
+    ap.add_argument("--extras", action="store_true",
+                    help="also send respiratory rate, glucose/RR intervals, steps, sleep and a GPS position once")
     args = ap.parse_args()
     args.port = args.port or (7700 if args.type == "wonlex" else 7701)
     asyncio.run(run(args))

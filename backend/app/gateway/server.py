@@ -24,6 +24,7 @@ from app.devices.core import DeviceCore
 from app.devices.registry import DeviceType, tcp_types
 from app.devices.schedule import outside_window, plan_for, requested_vitals
 from app.models.device import Device, DeviceConfigState, DeviceMessageKey, MqttRawMessage
+from app.models.watch_data import DeviceLocation
 from app.services.monitoring import GATEWAY_QUEUE, effective_profile, profile_hash
 
 log = logging.getLogger("gateway")
@@ -372,9 +373,12 @@ class Gateway:
                     await self.apply_config(db, s, device)
 
     async def purge_keys(self, keep_days: int = 30) -> None:
+        """Daily: dedupe keys and locations older than 30 days (the raw log is purged by the
+        mqtt-worker for both transports)."""
+        cutoff = datetime.utcnow() - timedelta(days=keep_days)
         async with self.session_factory() as db:
-            await db.execute(delete(DeviceMessageKey).where(
-                DeviceMessageKey.created_at < datetime.utcnow() - timedelta(days=keep_days)))
+            await db.execute(delete(DeviceMessageKey).where(DeviceMessageKey.created_at < cutoff))
+            await db.execute(delete(DeviceLocation).where(DeviceLocation.recorded_at < cutoff))
             await db.commit()
 
     async def periodic_loop(self) -> None:

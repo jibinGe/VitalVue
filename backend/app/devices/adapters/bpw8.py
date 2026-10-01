@@ -15,6 +15,7 @@ from typing import Optional
 
 from app.devices import events as ev
 from app.devices.adapters.base import Codec, Decoded, from_epoch, to_float, to_int
+from app.devices.hrv import rmssd
 from app.models.device import DEVICE_BPW8
 
 MAX_FRAME = 8 * 1024
@@ -152,7 +153,14 @@ class Bpw8Codec(Codec):
         elif cmd == "BREATH":
             events.append(ev.Metric("resp_rate", ts, value=to_float(n(1)), unit="/min"))
         elif cmd == "HRV_RRI":
-            events.append(ev.Metric("rri", ts, text=",".join(args[1:]), unit="ms"))
+            rr = [v for v in (to_float(a) for a in args[1:]) if v is not None]
+            events.append(ev.Metric("rri", ts, value=float(len(rr)), text=",".join(args[1:]), unit="ms"))
+            value = rmssd(rr)
+            if value is not None:                              # HRV computed by us (RMSSD)
+                events.append(ev.VitalSample(ts, hrv_ms=value))
+        elif cmd == "SLEEP":
+            # SLEEP,<time>,<deep>,<light>: a night's summary (CONFIRM units are minutes).
+            events.append(ev.Sleep(end=ts, deep_min=to_int(n(1)), light_min=to_int(n(2))))
         elif cmd == "WEAR":
             events.append(ev.Wear(worn=n(1) == "1", at=ts))
         elif cmd == "BATTERY":                                # level, charging (0/1), status
@@ -179,7 +187,7 @@ class Bpw8Codec(Codec):
         else:
             events.append(ev.Unhandled(cmd))
 
-        if any(isinstance(e, (ev.VitalSample, ev.Metric, ev.Alarm, ev.Location)) for e in events):
+        if any(isinstance(e, (ev.VitalSample, ev.Metric, ev.Alarm, ev.Location, ev.Sleep)) for e in events):
             dec.dedupe_key = hashlib.sha256(f"{cmd}|{argstr}".encode()).hexdigest()[:40]
         return dec
 

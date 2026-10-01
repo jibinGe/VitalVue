@@ -275,3 +275,45 @@ def test_plan_modes_for_bpw8_and_wonlex():
     assert wonlex["hr"] == {"mode": "native", "interval": 5}
     closed = outside_window(wonlex)
     assert closed["hr"] == {"mode": "off"} and closed["window"] == ("06:00", "22:00")
+
+
+# ── phase 5: sleep, HRV from RR intervals ───────────────────────────────────────────────
+
+def test_rmssd_and_artifact_filter():
+    from app.devices.hrv import clean_rr, rmssd
+    rr = [800, 810, 790, 805, 795, 800, 815, 790, 800, 810, 805]
+    diffs = [b - a for a, b in zip(rr, rr[1:])]
+    expected = round((sum(d * d for d in diffs) / len(diffs)) ** 0.5)
+    assert rmssd(rr) == expected
+    assert clean_rr([800, 1600, 810, 250, 2500, 805]) == [800, 810, 805]   # missed beat, noise dropped
+    assert rmssd([800, 810, 790]) is None                                   # too few intervals
+
+
+def test_bpw8_hrv_rri_gives_metric_and_hrv():
+    rr = "652,758,671,678,709,668,717,655,661,683,734,717,655,660,661,640,694,712,769,788,760,744"
+    _, d = bdecode(f"[CS*867956070000018*0174*HRV_RRI,1706674282,{rr}]")
+    metric = only(d.events, ev.Metric)
+    assert metric.kind == "rri" and metric.value == 22
+    hrv = only(d.events, ev.VitalSample).hrv_ms
+    assert 10 < hrv < 100
+
+
+def test_bpw8_sleep_summary():
+    _, d = bdecode("[CS*867956070000018*0016*SLEEP,1708614372,40,10]")
+    s = only(d.events, ev.Sleep)
+    assert (s.deep_min, s.light_min) == (40, 10) and s.end is not None
+    assert d.dedupe_key
+
+
+def test_wonlex_sleep_with_document_key_spellings():
+    _, d = wdecode({"type": "upSleep", "ident": 1, "imei": W_IMEI, "IsAccumulative": 1,
+                    "startTime": 1653228000000, "endTime": 1653271200000,
+                    "dateTime": [
+                        {"startTime": 1653228000000, "end time": 1653229800000, "duration": 30, "sleeptype": "deepSleep"},
+                        {"startTime": 1653229800000, "endTime": 1653233400000, "duration": 60, "sleepType": "lightSleep"},
+                        {"startTime": 1653233400000, "endTime": 1653234600000, "sleepType": "rem"},
+                        {"startTime": 1653234600000, "endTime": 1653235200000, "duration": 10, "sleepType": "sober"},
+                    ], "timestamp": 1653271200000})
+    s = only(d.events, ev.Sleep)
+    assert (s.deep_min, s.light_min, s.rem_min, s.awake_min) == (30, 60, 20, 10)   # rem from start/end
+    assert len(s.segments) == 4 and s.segments[0]["stage"] == "deep"

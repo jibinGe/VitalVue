@@ -11,6 +11,7 @@ from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 from typing import Optional
 
+from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.core.config import settings
@@ -20,6 +21,7 @@ from app.models.clinical import Alert
 from app.models.device import Device, DeviceMessageKey
 from app.models.organization import Bed, Room
 from app.models.user import Patient
+from app.models.watch_data import DeviceLocation, PatientMetric, SleepSession
 from app.schemas.vitals import VitalIngestSchema
 from app.services.ingest import ingest_readings
 from app.services.push import send_critical_push, staff_tokens_for_patient
@@ -39,9 +41,12 @@ PLAUSIBLE = {
     "heart_rate": (20, 250), "spo2": (50, 100), "bp_sys": (50, 260), "bp_dia": (20, 180),
     "skin_temp": (20.0, 45.0), "hrv_ms": (1, 400),
 }
+# Metrics outside these ranges are dropped the same way.
+PLAUSIBLE_METRICS = {"resp_rate": (4, 60), "glucose": (1.0, 40.0), "uric_acid": (50, 1500)}
+LOCATION_FALLBACK = timedelta(minutes=30)   # an SOS without a fix uses the last known position
 EARLIEST_CLOCK = datetime(2024, 1, 1)
 MAX_CLOCK_AHEAD = timedelta(minutes=10)
-DATA_EVENTS = (ev.VitalSample, ev.Metric, ev.Alarm, ev.Location, ev.Wear)
+DATA_EVENTS = (ev.VitalSample, ev.Metric, ev.Alarm, ev.Location, ev.Wear, ev.Sleep)
 
 
 @dataclass
@@ -53,6 +58,7 @@ class Outcome:
     rejected: list = field(default_factory=list)   # implausible values dropped
     clock_fallback: bool = False       # the watch's time was unusable; receive time used
     readings: int = 0
+    metrics: int = 0
 
 
 def clean_time(at: Optional[datetime], received: datetime) -> tuple[datetime, bool]:
@@ -136,9 +142,45 @@ def active_ttl() -> int:
     return int(settings.GATEWAY_IDLE_TIMEOUT_S + settings.MQTT_UPLOAD_GRACE_MIN * 60)
 
 
+def sleep_night(s: ev.Sleep, received: datetime):
+    """The local calendar date a night of sleep ended on (one row per watch per night)."""
+    end = s.end or s.start or received
+    return (end + timedelta(minutes=settings.MQTT_DEFAULT_TZ_MINUTES)).date()
+
+
 class DeviceCore:
     def __init__(self, redis):
         self.redis = redis
+
+    async def _last_location(self, db, device: Device, at: datetime) -> Optional[ev.Location]:
+        row = (await db.execute(
+            select(DeviceLocation).where(DeviceLocation.device_id == device.id, DeviceLocation.lat.isnot(None),
+                                         DeviceLocation.recorded_at >= at - LOCATION_FALLBACK)
+            .order_by(DeviceLocation.recorded_at.desc()).limit(1)
+        )).scalar_one_or_none()
+        if row is None:
+            return None
+        return ev.Location(row.recorded_at, lat=row.lat, lon=row.lon, source=row.source or "gps", reason="last_known")
+
+    async def _store_sleep(self, db, device: Device, patient_id: int, s: ev.Sleep, source: str, received: datetime):
+        stages = [s.deep_min, s.light_min, s.rem_min]
+        total = sum(v for v in stages if v) if any(v is not None for v in stages) else None
+        values = dict(patient_id=patient_id, device_id=device.id, night=sleep_night(s, received),
+                      start_at=s.start, end_at=s.end, deep_min=s.deep_min, light_min=s.light_min, rem_min=s.rem_min,
+                      awake_min=s.awake_min, total_min=total, segments=s.segments, source=source, updated_at=received)
+        update = {k: v for k, v in values.items() if k not in ("device_id", "night")}
+        await db.execute(pg_insert(SleepSession).values(**values).on_conflict_do_update(
+            constraint="uq_sleep_sessions_device_night", set_=update))
+
+    async def _store_steps(self, db, device: Device, patient_id: int, steps: int, at: datetime, source: str):
+        """Heartbeats repeat the day's step count; store it only when it changes."""
+        key = f"device_steps:{device.id}"
+        last = await self.redis.get(key)
+        if last is not None and int(last) == steps:
+            return
+        await self.redis.setex(key, 2 * 86400, str(steps))
+        db.add(PatientMetric(patient_id=patient_id, device_id=device.id, kind="steps", value=float(steps),
+                             unit="steps", source=source, measured_at=at))
 
     async def _seen_before(self, db, device: Device, key: str) -> bool:
         new = (await db.execute(
@@ -173,6 +215,8 @@ class DeviceCore:
                     device.battery_percent = e.battery
                 if e.charging is not None:
                     device.battery_state = "charging" if e.charging else "discharging"
+                if e.steps is not None and patient_id is not None and not out.duplicate:
+                    await self._store_steps(db, device, patient_id, e.steps, received_at, dtype.source)
             elif isinstance(e, ev.Battery):
                 if e.percent is not None:
                     device.battery_percent = e.percent
@@ -193,7 +237,27 @@ class DeviceCore:
                 times.append(at)
             elif isinstance(e, ev.Alarm) and patient_id is not None:
                 at, _ = clean_time(e.at, received_at)
-                await raise_alarm(db, self.redis, patient_id, e.kind, at, e.location)
+                location = e.location
+                if location is None or location.lat is None:
+                    location = await self._last_location(db, device, at) or location
+                await raise_alarm(db, self.redis, patient_id, e.kind, at, location)
+            elif isinstance(e, ev.Metric) and patient_id is not None:
+                lo_hi = PLAUSIBLE_METRICS.get(e.kind)
+                if lo_hi and e.value is not None and not (lo_hi[0] <= e.value <= lo_hi[1]):
+                    out.rejected.append(f"{e.kind}={e.value}")
+                    continue
+                at, fallback = clean_time(e.measured_at, received_at)
+                out.clock_fallback |= fallback
+                db.add(PatientMetric(patient_id=patient_id, device_id=device.id, kind=e.kind[:20], value=e.value,
+                                     value_text=(e.text or None) and e.text[:2000], unit=(e.unit or None) and e.unit[:12],
+                                     source=dtype.source, measured_at=at))
+                out.metrics += 1
+            elif isinstance(e, ev.Sleep) and patient_id is not None:
+                await self._store_sleep(db, device, patient_id, e, dtype.source, received_at)
+            elif isinstance(e, ev.Location):
+                at, _ = clean_time(e.at, received_at)
+                db.add(DeviceLocation(device_id=device.id, patient_id=patient_id, recorded_at=at, lat=e.lat, lon=e.lon,
+                                      source=e.source[:10], reason=e.reason[:12], raw=e.raw))
             elif isinstance(e, ev.ConfigRequest):
                 out.send_config = True
             elif isinstance(e, ev.BindStatusRequest):
@@ -202,7 +266,7 @@ class DeviceCore:
                 device.reported_config = {**(device.reported_config or {}), **e.configs}
             elif isinstance(e, ev.Ack):
                 out.acks.append(e)
-            # Metric, Location, Sleep, Unhandled: kept in the raw log (stored in phase 5).
+            # Unhandled: kept in the raw log only.
 
         if patient_id is not None:
             # Any frame from a linked watch keeps the patient online between measurements.

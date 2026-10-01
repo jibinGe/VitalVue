@@ -40,6 +40,7 @@ from app.models.device import (  # noqa: E402
 from app.models.organization import Organization  # noqa: E402
 from app.models.user import Doctor, MasterAdmin, OrgAdmin, Patient, User, UserRole  # noqa: E402
 from app.models.vitals import Vitals  # noqa: E402
+from app.models.watch_data import DeviceLocation, PatientMetric, SleepSession  # noqa: E402
 from simulators.tcp_watch_sim import Bpw8, Wonlex  # noqa: E402
 import app.services.ingest as ingest_module  # noqa: E402
 
@@ -136,6 +137,9 @@ async def cleanup(org_ids, user_ids, patient_ids, imeis):
         await db.execute(delete(DeviceMessageKey).where(DeviceMessageKey.device_id.in_(devs)))
         await db.execute(delete(DeviceConfigState).where(DeviceConfigState.device_id.in_(devs)))
         await db.execute(delete(DeviceAssignment).where(DeviceAssignment.device_id.in_(devs)))
+        await db.execute(delete(DeviceLocation).where(DeviceLocation.device_id.in_(devs)))
+        await db.execute(delete(PatientMetric).where(PatientMetric.patient_id.in_(patient_ids)))
+        await db.execute(delete(SleepSession).where(SleepSession.patient_id.in_(patient_ids)))
         await db.execute(delete(MqttRawMessage).where(MqttRawMessage.client_id.in_(imeis)))
         await db.execute(delete(Device).where(Device.id.in_(devs)))
         await db.execute(delete(MonitoringProfile).where(or_(MonitoringProfile.patient_id.in_(patient_ids),
@@ -279,6 +283,9 @@ async def main() -> int:
                   "BPW8 config state 'sent' (watch never confirms) with HR in server-requested mode")
         check((await device_by_imei(B_IMEI)).battery_percent == 86, "BPW8 battery from the heartbeat")
 
+        # BPW8 timestamps are whole seconds: an identical reading within the same second is a
+        # resend to dedupe, so let a second pass before the watch measures again.
+        await asyncio.sleep(1.1)
         session = gateway.sessions[B_IMEI]
         session.next_due = {v: datetime.utcnow() - timedelta(seconds=1) for v in session.next_due}
         await gateway.poll_requested()
@@ -309,14 +316,69 @@ async def main() -> int:
         async with SessionLocal() as db:
             removed = await count(db, Vitals, Vitals.patient_id == pb_id, Vitals.is_removed.is_(True))
             check(removed == 1, "WEAR 0 stores a 'watch removed' reading")
-            sos = await count(db, Alert, Alert.patient_id == pb_id, Alert.vital_type == "SOS")
-            check(sos == 1, "BPW8 SOS raises an alert")
+            sos_count = await count(db, Alert, Alert.patient_id == pb_id, Alert.vital_type == "SOS")
+            check(sos_count == 1, "BPW8 SOS raises an alert")
         removed_alerts = [m for m in WHATSAPP_SENT if m["patient_name"] == "E2E BPW8 Patient"
                           and m["hr_value"] == m["spo2_value"] == m["bp_value"] == "N/A"]
         check(len(removed_alerts) == 1,
               "watch removed makes the patient Critical: one WhatsApp to the doctor (recorded, not sent)")
         await b.send(b.watch.reading("hr"))                         # back on the wrist
         await settle()
+
+        # ── phase 5: extra data ──────────────────────────────────────────────────────
+        await w.send(w.watch.extras())
+        await b.send(b.watch.extras())
+        await b.send([b.watch._f(f"LK,{int(datetime.utcnow().timestamp())},1500,0,85")])   # steps 1200 → 1500
+        await b.send([b.watch._f(f"LK,{int(datetime.utcnow().timestamp()) + 1},1500,0,85")])  # unchanged: not stored
+        await b.send([b.watch._f(f"BREATH,{int(datetime.utcnow().timestamp())},99")])       # implausible
+        await settle(1.0)
+        async with SessionLocal() as db:
+            def metric(pid, kind):
+                return select(PatientMetric).where(PatientMetric.patient_id == pid, PatientMetric.kind == kind)
+            w_rr = (await db.execute(metric(pw_id, "resp_rate"))).scalars().all()
+            w_glu = (await db.execute(metric(pw_id, "glucose"))).scalars().all()
+            w_steps = (await db.execute(metric(pw_id, "steps"))).scalars().all()
+            check([m.value for m in w_rr] == [16] and [m.value for m in w_glu] == [6.1] and [m.value for m in w_steps] == [3200],
+                  "Wonlex respiratory rate, glucose and steps are stored as patient metrics")
+            b_rr = (await db.execute(metric(pb_id, "resp_rate"))).scalars().all()
+            check([m.value for m in b_rr] == [17], f"BPW8 BREATH 17 stored; BREATH 99 rejected as implausible ({[m.value for m in b_rr]})")
+            b_steps = (await db.execute(metric(pb_id, "steps"))).scalars().all()
+            check(sorted(m.value for m in b_steps) == [1200, 1500],
+                  f"BPW8 step count stored only when it changes ({sorted(m.value for m in b_steps)})")
+            hrv = (await db.execute(select(Vitals).where(Vitals.patient_id == pb_id, Vitals.hrv_score > 0))).scalars().all()
+            check(len(hrv) == 1 and 5 < hrv[0].hrv_score < 60,
+                  f"HRV is computed from the BPW8's RR intervals (RMSSD {hrv[0].hrv_score if hrv else None} ms)")
+            ws = (await db.execute(select(SleepSession).where(SleepSession.patient_id == pw_id))).scalars().all()
+            check(len(ws) == 1 and (ws[0].deep_min, ws[0].light_min, ws[0].rem_min, ws[0].awake_min, ws[0].total_min)
+                  == (90, 240, 70, 20, 400), "Wonlex sleep stored: deep 90, light 240, REM 70, awake 20 (total asleep 400 min)")
+            bs = (await db.execute(select(SleepSession).where(SleepSession.patient_id == pb_id))).scalars().all()
+            check(len(bs) == 1 and (bs[0].deep_min, bs[0].light_min) == (95, 250), "BPW8 sleep summary stored")
+            locs = (await db.execute(select(DeviceLocation).where(DeviceLocation.patient_id == pb_id,
+                                                                    DeviceLocation.reason == "scheduled"))).scalars().all()
+            check(any(l.lat == 9.9312 and l.lon == 76.2673 for l in locs), "BPW8 GPS position stored")
+        # the same night re-sent with more sleep replaces the row instead of adding one
+        await b.send([b.watch._f(f"SLEEP,{int(datetime.utcnow().timestamp()) + 5},100,260")])
+        await settle()
+        async with SessionLocal() as db:
+            bs = (await db.execute(select(SleepSession).where(SleepSession.patient_id == pb_id))).scalars().all()
+            check(len(bs) == 1 and (bs[0].deep_min, bs[0].light_min) == (100, 260),
+                  "a re-sent night updates the same sleep row")
+        # an SOS without a GPS fix uses the last known position
+        await b.send([b.watch._f("SOS")])
+        await settle()
+        async with SessionLocal() as db:
+            sos = (await db.execute(select(Alert).where(Alert.patient_id == pb_id, Alert.vital_type == "SOS")
+                                    .order_by(Alert.id.desc()))).scalars().first()
+            check(sos is not None and "near 9.93120, 76.26730" in sos.triggered_value,
+                  f"an SOS without GPS uses the last known position ({sos.triggered_value if sos else None})")
+        r = await api.call("GET", f"/patients/{pb_id}/watch-data", "e2e-doctor")
+        d = r.json() if r.status_code == 200 else {}
+        check(r.status_code == 200 and d["latest"]["resp_rate"]["value"] == 17 and d["latest"]["steps"]["value"] == 1500
+              and d["sleep"][0]["deep_min"] == 100 and d["location"]["lat"] == 9.9312
+              and len(d["series"]["steps"]) == 2,
+              "GET /patients/{id}/watch-data returns latest metrics, series, sleep and last location")
+        r = await api.call("GET", f"/patients/{pb_id}/watch-data", "e2e-admin2")
+        check(r.status_code == 403, "another hospital's admin can't read this patient's watch data")
 
         # get_message returns None for subscribe confirmations too, so drain for a fixed time.
         streamed = alerts_pub = 0

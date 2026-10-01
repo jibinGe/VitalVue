@@ -126,6 +126,33 @@ def _vital_or_metric(kind: str, value: Optional[str], at: Optional[datetime], tr
     return []
 
 
+SLEEP_STAGES = {"deepsleep": "deep", "lightsleep": "light", "rem": "rem", "sober": "awake", "awake": "awake"}
+
+
+def _sleep(fields: dict) -> ev.Sleep:
+    """upSleep: night start/end plus segments. The document names the segment list "dateTime"
+    and spells keys several ways ("end time" / "endTime", "sleeptype" / "sleepType")."""
+    raw = next((fields[k] for k in ("dateTime", "data", "segments", "sleepData") if isinstance(fields.get(k), list)), [])
+    segments, totals = [], {"deep": 0, "light": 0, "rem": 0, "awake": 0}
+    for seg in raw:
+        if not isinstance(seg, dict):
+            continue
+        stage = SLEEP_STAGES.get(str(seg.get("sleepType") or seg.get("sleeptype") or "").replace("_", "").lower())
+        start = from_epoch(seg.get("startTime"), "ms")
+        end = from_epoch(seg.get("endTime") or seg.get("end time") or seg.get("endtime"), "ms")
+        minutes = to_int(seg.get("duration"))
+        if minutes is None and start and end:
+            minutes = int((end - start).total_seconds() // 60)
+        if stage is None or minutes is None:
+            continue
+        totals[stage] += minutes
+        segments.append({"start": start.isoformat() if start else None, "end": end.isoformat() if end else None,
+                         "minutes": minutes, "stage": stage})
+    return ev.Sleep(start=from_epoch(fields.get("startTime"), "ms"), end=from_epoch(fields.get("endTime"), "ms"),
+                    deep_min=totals["deep"], light_min=totals["light"], rem_min=totals["rem"],
+                    awake_min=totals["awake"], segments=segments)
+
+
 def _location(fields: dict, at: Optional[datetime], reason: str) -> ev.Location:
     gps = fields.get("gps") if isinstance(fields.get("gps"), dict) else {}
     lat, lon = to_float(gps.get("lat")), to_float(gps.get("lon"))
@@ -223,6 +250,8 @@ class WonlexCodec(Codec):
             for i, value in enumerate(values):
                 t = from_epoch(times[i], "ms") if i < len(times) else at
                 events.extend(_vital_or_metric(kind, value, t, trigger))
+        elif name == "upSleep":
+            events.append(_sleep(fields))
         elif name == "upTodayActivity":
             events.append(ev.Metric("steps", at, value=to_float(fields.get("step")), unit="steps"))
         elif name == "upLocation":
@@ -249,7 +278,7 @@ class WonlexCodec(Codec):
         else:
             events.append(ev.Unhandled(name))
 
-        if any(isinstance(e, (ev.VitalSample, ev.Metric, ev.Alarm, ev.Location)) for e in events):
+        if any(isinstance(e, (ev.VitalSample, ev.Metric, ev.Alarm, ev.Location, ev.Sleep)) for e in events):
             content = {k: v for k, v in fields.items() if k not in ("ident", "encryptionCode", "ref")}
             dec.dedupe_key = hashlib.sha256(
                 json.dumps(content, sort_keys=True, default=str).encode()).hexdigest()[:40]

@@ -344,6 +344,11 @@ export const patientService = {
     return this._call('delete', `/api/v1/devices/patients/${patientId}/monitoring`);
   },
 
+  /** Extra watch data: latest metrics (respiratory rate, glucose, steps…), series, sleep, last location. */
+  getPatientWatchData(patientId, hours = 24) {
+    return this._call('get', `/api/v1/devices/patients/${patientId}/watch-data?hours=${hours}`);
+  },
+
   /** Ask the watch to take one reading now (vital: hr | bp | spo2 | temp | hrv). */
   measureNow(deviceId, vital) {
     return this._call('post', `/api/v1/devices/${deviceId}/measure`, { vital });

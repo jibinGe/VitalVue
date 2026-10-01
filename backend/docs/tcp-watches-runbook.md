@@ -10,7 +10,7 @@ How to deploy the `device-gateway`, onboard a watch, check it's working, and fix
 | `backend` | API: register / link watches, schedules, measure now. Sends commands to the gateway through the Redis list `gateway:commands`. |
 | `mqtt-worker` | Veepoo watches only. Ignores TCP watches. |
 
-Readings land in `vitals` with `source` = `wonlex` or `bpw8`. Every frame is in `mqtt_raw_messages` with `transport = 'tcp'` for 30 days.
+Readings land in `vitals` with `source` = `wonlex` or `bpw8`. Values that don't feed NEWS2 go to `patient_metrics` (respiratory rate, glucose, lipids, uric acid, steps, kcal, ambient/surface temperature, raw RR intervals). Sleep goes to `sleep_sessions` (one row per watch per night), positions to `device_locations` (30 days). HRV for BPW8 is computed by us (RMSSD) from its RR intervals. Every frame is in `mqtt_raw_messages` with `transport = 'tcp'` for 30 days.
 
 ## One-time production setup
 
@@ -25,7 +25,7 @@ Readings land in `vitals` with `source` = `wonlex` or `bpw8`. Every frame is in 
    WONLEX_SIGNATURE=warn                                     # warn → enforce once real frames verify
    # optional: GATEWAY_WONLEX_PORT / GATEWAY_BPW8_PORT (0 disables a type), GATEWAY_IDLE_TIMEOUT_S=600
    ```
-5. **Deploy** with `backend/deploy.sh`. It builds, runs `alembic upgrade head` (migration `c3e5a7b9d1f3`, additive), and starts `device-gateway` with the other services. Take a `pg_dump` first.
+5. **Deploy** with `backend/deploy.sh`. It builds, runs `alembic upgrade head` (migrations `c3e5a7b9d1f3` and `e7a9c1b3d5f7`, both additive), and starts `device-gateway` with the other services. Take a `pg_dump` first.
 6. **Check it's listening:** `docker logs vitalvue_device_gateway | head` should show `listening on port 7700` and `7701`.
 
 ## Onboarding a watch
@@ -75,6 +75,7 @@ and created_at > date_trunc('day', now() at time zone 'utc') group by source;
 | "Duplicate connection" warning | Two connections used the same IMEI | Normal once after a quick reconnect. If it repeats, the IMEI may be cloned or faked: disable the watch and investigate |
 | "Refused messages today" | `rejected` / `error` rows for the IMEI | Read `parse_error`. Signature mismatches: check `WONLEX_SIGN_KEY` with Wonlex before switching to `enforce` |
 | Patient flips to offline between readings | Watch heartbeats arriving? | The patient stays online while any frame arrives within `GATEWAY_IDLE_TIMEOUT_S` (+ grace). If the watch's heartbeat interval is longer, raise it |
+| No "Watch data" on the patient tab | Any `patient_metrics` / `sleep_sessions` rows for the patient? Raw `parse_error` like `implausible: resp_rate=…`? | The panel shows only what the watch sends. Wonlex sends sleep after the night ends (around the set wake time); implausible values are dropped on purpose |
 | Measure now does nothing | Watch online? A 429 means a request in the last 2 minutes | Wait, or check the watch is worn (server-requested measurements pause while it's off the wrist) |
 
 Restarting the gateway is safe: watches reconnect by themselves within a minute or two, and anything they couldn't send is resent (dedupe prevents duplicates).
