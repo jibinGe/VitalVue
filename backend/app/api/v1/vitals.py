@@ -16,6 +16,8 @@ from app.api.deps import get_current_user
 from app.services.alerts import send_critical_alert
 import asyncio
 from app.services.push import send_critical_push, staff_tokens_for_patient
+from app.devices import event_log
+from app.services.ingest import ingest_readings
 from sqlalchemy.orm import joinedload
 from datetime import datetime, timedelta
 from argparse import Namespace
@@ -363,6 +365,10 @@ async def ingest_vitals(
     await redis.setex(f"patient_active:{payload.patient_id}", 65, "online")
 
     await db.commit()
+    event_log.reading("ble", payload.device_id, payload.patient_id, new_vitals.created_at,
+                      {k: getattr(new_vitals, k, None) for k in ("heart_rate", "spo2", "temp", "bp_systolic",
+                                                                 "bp_diastolic", "hrv_score", "is_connected", "is_removed")},
+                      new_vitals.news2_score, patient_status)
     return {"status": "success"}
 
 @router.post("/bulk-ingest")
@@ -372,216 +378,8 @@ async def bulk_ingest_vitals(
     db: AsyncSession = Depends(get_db),
     redis = Depends(get_redis)
 ):
-    if not payloads:
-        return {"status": "success", "processed_count": 0}
-
-    patient_ids = list({p.patient_id for p in payloads})
-
-    # 1. Batch Fetch Patient Context
-    patient_res = await db.execute(
-        select(Patient).where(Patient.id.in_(patient_ids))
-    )
-    patients_map = {p.id: p for p in patient_res.scalars().all()}
-
-    # Batch Fetch Calibration Offsets
-    cal_res = await db.execute(
-        select(PatientCalibration).where(PatientCalibration.patient_id.in_(patient_ids))
-    )
-    cal_map = {c.patient_id: c for c in cal_res.scalars().all()}
-
-    # Batch Fetch Room and Bed Context
-    room_ids = [p.room_id for p in patients_map.values() if p.room_id]
-    bed_ids = [p.bed_id for p in patients_map.values() if p.bed_id]
-
-    rooms_map = {}
-    if room_ids:
-        r_res = await db.execute(select(Room).where(Room.id.in_(room_ids)))
-        rooms_map = {r.id: r for r in r_res.scalars().all()}
-
-    beds_map = {}
-    if bed_ids:
-        b_res = await db.execute(select(Bed).where(Bed.id.in_(bed_ids)))
-        beds_map = {b.id: b for b in b_res.scalars().all()}
-
-    ward_ids = [r.ward_id for r in rooms_map.values() if r.ward_id] + [b.ward_id for b in beds_map.values() if b.ward_id]
-    wards_map = {}
-    if ward_ids:
-        w_res = await db.execute(select(Ward).where(Ward.id.in_(ward_ids)))
-        wards_map = {w.id: w for w in w_res.scalars().all()}
-
-    # Batch Fetch Assigned Doctors for WhatsApp Alerts
-    doctor_ids = [p.doctor_id for p in patients_map.values() if p.doctor_id]
-    doctors_map = {}
-    if doctor_ids:
-        d_res = await db.execute(select(User).where(User.id.in_(doctor_ids)))
-        doctors_map = {d.id: d for d in d_res.scalars().all()}
-
-    # 2. Batch Fetch Most Recent Failure Timestamps (for Stabilization Mute)
-    stab_stmt = (
-        select(Vitals.patient_id, Vitals.created_at)
-        .where(Vitals.patient_id.in_(patient_ids))
-        .where(or_(Vitals.is_connected == False, Vitals.is_removed == True))
-        .order_by(Vitals.patient_id, Vitals.created_at.desc())
-    )
-    stab_res = await db.execute(stab_stmt)
-    last_failure_map = {}
-    for p_id, created_at in stab_res.all():
-        if p_id not in last_failure_map:
-            last_failure_map[p_id] = created_at
-
-    new_vitals_list = []
-    processed_count = 0
-    now = datetime.utcnow()
-    timestamp_str = now.isoformat()
-
-    # 3. Process Each Ingest Record
-    for payload in payloads:
-        patient = patients_map.get(payload.patient_id)
-        if not patient:
-            continue
-
-        ward_id, ward_name, room_number = None, None, None
-        if patient.room_id and patient.room_id in rooms_map:
-            room = rooms_map[patient.room_id]
-            room_number = room.room_number
-            ward = wards_map.get(room.ward_id)
-            if ward:
-                ward_id, ward_name = ward.id, ward.name
-        elif patient.bed_id and patient.bed_id in beds_map:
-            bed = beds_map[patient.bed_id]
-            room_number = bed.bed_no
-            ward = wards_map.get(bed.ward_id)
-            if ward:
-                ward_id, ward_name = ward.id, ward.name
-
-        cal = cal_map.get(patient.id)
-        vital_dict = payload.model_dump(
-            exclude={"heart_rate_status", "spo2_status", "bp_status", "temperature_status"}
-        )
-
-        # Hardware Safeguard: Zero out metrics if disconnected or removed
-        if not vital_dict.get("is_connected", True) or vital_dict.get("is_removed", False):
-            vital_dict.update({
-                "heart_rate": 0, "spo2": 0, "bp_systolic": 0,
-                "bp_diastolic": 0, "temp": 0.0, "movement": 0
-            })
-        else:
-            if cal:
-                vital_dict["temp"] = round(vital_dict["temp"] + (cal.temp_offset or 0.0), 1)
-                vital_dict["bp_systolic"] += (cal.systolic_offset or 0)
-                vital_dict["bp_diastolic"] += (cal.diastolic_offset or 0)
-
-        # Early Warning Score & Clinical Logic
-        vitals_obj = Namespace(**vital_dict)
-        calculated_data = calculate_risks(vitals_obj)
-
-        new_vitals = Vitals(**vital_dict, **calculated_data)
-        new_vitals_list.append(new_vitals)
-
-        # Disconnection Duration Check (> 10 mins)
-        disconn_key = f"disconnected_since:{payload.patient_id}"
-        disconnected_since = None
-        if not payload.is_connected:
-            disconn_str = await redis.get(disconn_key)
-            if not disconn_str:
-                await redis.set(disconn_key, timestamp_str)
-                disconnected_since = now
-            else:
-                disconnected_since = datetime.fromisoformat(
-                    disconn_str.decode() if isinstance(disconn_str, bytes) else disconn_str
-                )
-        else:
-            await redis.delete(disconn_key)
-
-        # Deviation and Alert Evaluation
-        last_failure_at = last_failure_map.get(payload.patient_id)
-        detected_alerts = check_baseline_deviations(
-            vitals=new_vitals,
-            user_created_at=patient.created_at,
-            ward_name=ward_name,
-            room_number=room_number,
-            phone_number=patient.phone_number,
-            last_failure_at=last_failure_at,
-            disconnected_since=disconnected_since
-        )
-
-        if detected_alerts:
-            for alert_data in detected_alerts:
-                v_type = alert_data["vital_type"]
-                lock_key = f"alert_lock:{payload.patient_id}:{v_type}"
-                is_locked = await redis.get(lock_key)
-
-                if not is_locked:
-                    new_alert = Alert(
-                        patient_id=payload.patient_id,
-                        ward_id=ward_id,
-                        vital_type=alert_data["vital_type"],
-                        triggered_value=alert_data["triggered_value"],
-                        severity=alert_data["severity"]
-                    )
-                    db.add(new_alert)
-                    await db.flush()
-
-                    alert_data["id"] = alert_data["alert_id"] = new_alert.id
-                    await redis.setex(lock_key, 300, "active")
-
-                    _push_tokens = await staff_tokens_for_patient(db, payload.patient_id)
-                    if _push_tokens:
-                        asyncio.create_task(asyncio.to_thread(send_critical_push, _push_tokens, alert_data))
-
-        # Reset Hardware Locks on Reconnect
-        await redis.delete(f"patient_dead_state:{payload.patient_id}")
-        await redis.delete(f"alert_lock:{payload.patient_id}:Network")
-        if payload.is_connected and not payload.is_removed:
-            await redis.delete(f"alert_lock:{payload.patient_id}:Connectivity")
-            await redis.delete(f"alert_lock:{payload.patient_id}:Band Status")
-
-        # Visual Status Mapping & Overall Triage
-        vital_statuses = get_vital_statuses(new_vitals)
-
-        patient_status = get_patient_overall_status(
-            new_vitals,
-            vital_statuses,
-            calculated_data,
-            disconnected_since=disconnected_since
-        )
-
-        # Trigger WhatsApp Alert via Background Tasks
-        if patient_status in ["Warning", "Critical"]:
-            wa_lock_key = f"whatsapp_alert_lock:{payload.patient_id}:{patient_status}"
-            is_wa_locked = await redis.get(wa_lock_key)
-
-            if not is_wa_locked:
-                doctor = doctors_map.get(patient.doctor_id)
-                if doctor and doctor.phone_number:
-                    location_string = f"{ward_name or 'N/A'} - Room {room_number or 'N/A'}"
-                    hr_val = str(int(float(new_vitals.heart_rate))) if new_vitals.heart_rate else "N/A"
-                    spo2_val = f"{float(new_vitals.spo2):.1f}%" if new_vitals.spo2 else "N/A"
-                    bp_val = f"{new_vitals.bp_systolic}/{new_vitals.bp_diastolic}" if (new_vitals.bp_systolic and new_vitals.bp_diastolic) else "N/A"
-
-                    background_tasks.add_task(
-                        send_critical_alert,
-                        doctor_phone=doctor.phone_number,
-                        patient_name=patient.full_name,
-                        location=location_string,
-                        hr_value=hr_val,
-                        spo2_value=spo2_val,
-                        bp_value=bp_val,
-                        patient_id=str(payload.patient_id)
-                    )
-                    await redis.setex(wa_lock_key, 900, "active")
-
-        # Maintain online heartbeat TTL in Redis
-        await redis.setex(f"patient_active:{payload.patient_id}", 65, "online")
-
-        processed_count += 1
-
-    # 4. Batch Commit Telemetry
-    if new_vitals_list:
-        db.add_all(new_vitals_list)
-        await db.commit()
-
-    return {"status": "success", "processed_count": processed_count}
+    # Shared pipeline (also used by the MQTT worker for 4G watches) — behaviour unchanged.
+    return await ingest_readings(db, redis, payloads, background_tasks)
 
 @router.post("/calibrate")
 async def calibrate_patient(

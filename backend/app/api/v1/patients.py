@@ -27,7 +27,9 @@ import secrets
 import string
 import math
 from app.services.analytics import get_vital_statuses
+from app.services.latest_vitals import latest_measured
 from app.services.access import clinician_patient_filter, can_view_patient
+from app.services.archive import restore_patient_vitals
 from app.core.security import get_password_hash
 import uuid
 
@@ -418,7 +420,7 @@ async def get_assigned_patients(
 
             # --- DYNAMIC TELEMETRY STATUS VALUES ---
             "news2_score": latest.news2_score if latest else 0,
-            "af_warning": latest.af_warning if latest else "Normal",
+            "af_warning": next((v.af_warning for v in latest_20_vitals if v.af_warning), "Normal"),
             "is_connected": latest.is_connected if latest else False,
             "is_removed": latest.is_removed if latest else False,
             "is_monitoring_paused": p.is_monitoring_paused
@@ -504,7 +506,7 @@ async def get_assigned_patient_by_user_id(
         "vitals_history": latest_20_with_statuses,
 
         "news2_score": latest.news2_score if latest else 0,
-        "af_warning": latest.af_warning if latest else "Normal",
+        "af_warning": next((v.af_warning for v in latest_20_vitals if v.af_warning), "Normal"),
         "is_connected": latest.is_connected if latest else False,
         "is_removed": latest.is_removed if latest else False,
         "is_monitoring_paused": p.is_monitoring_paused
@@ -754,10 +756,11 @@ async def get_patient_shared_overview(
         select(Vitals)
         .where(Vitals.patient_id == patient.id)
         .order_by(Vitals.created_at.desc())
-        .limit(1)
+        .limit(20)
     )
     vitals_result = await db.execute(vitals_query)
-    latest = vitals_result.scalars().first()
+    # Each vital from the newest row that measured it (4G watches send one vital per message).
+    latest = latest_measured(vitals_result.scalars().all())
     
     vitals_data = {}
     if latest:
@@ -1475,6 +1478,7 @@ async def discharge_and_archive_patient(
 @router.post("/readmit", status_code=status.HTTP_200_OK)
 async def readmit_historical_patient(
     payload: PatientReadmitSchema,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     redis = Depends(get_redis),
     current_user: User = Depends(get_current_user)
@@ -1482,9 +1486,11 @@ async def readmit_historical_patient(
     """
     Reactivates an archived patient record directly in-place.
     Assigns department, ward, bed, room, assigned doctor, and resets monitoring lifecycle flags.
+    Readings moved to vitals_archive are moved back after the response.
     """
-    # 1. Fetch existing patient record
-    patient = await db.get(Patient, payload.archived_patient_id)
+    # 1. Fetch existing patient record. Row lock: waits for an in-flight archive batch of this
+    # patient, and stops the archive job from moving their readings once readmitted.
+    patient = await db.get(Patient, payload.archived_patient_id, with_for_update=True)
     if not patient:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, 
@@ -1580,6 +1586,9 @@ async def readmit_historical_patient(
     # 5. Commit all changes cleanly
     await db.commit()
     await db.refresh(patient)
+
+    # Bring archived readings back (no-op if none); the archive job retries if this fails.
+    background_tasks.add_task(restore_patient_vitals, patient.id)
     
     return {
         "status": "success",

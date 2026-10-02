@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
+import { latestMeasured } from "@/utilities/latestVitals";
+import { useWatchStatus } from "@/hooks/useWatchStatus";
 import { Link, useNavigate } from "react-router-dom";
 import { Angle, Bp, Hart, Spo, Temp, Search, High, Brain, Face } from "@/utilities/icons";
 import Modal from "@/components/ui/modal";
@@ -274,12 +276,12 @@ export default function Home() {
     return "Stable";
   };
 
+  const watchStatus = useWatchStatus(rawPatients.map((p) => p.id));
+
   const cardData = useMemo(() => {
     return rawPatients.map((p) => {
       // Get the latest vitals from history (fallback)
-      const latestHistoryVitals = p.vitals_history && p.vitals_history.length > 0
-        ? p.vitals_history[p.vitals_history.length - 1]
-        : null;
+      const latestHistoryVitals = latestMeasured(p.vitals_history);   // each vital's newest measured value
 
       // Merge with live stream data if available
       const live = liveVitals[p.id] || {};
@@ -461,9 +463,10 @@ export default function Home() {
                       : (p.phone_battery ?? p.phoneBattery ?? null)))),
         isConnected: isConnected,
         isRemoved: isRemoved,
+        watch: watchStatus[p.id] || watchStatus[String(p.id)] || null,   // 4G watch status, if linked
       };
     });
-  }, [rawPatients, liveVitals, liveStatuses]);
+  }, [rawPatients, liveVitals, liveStatuses, watchStatus]);
 
   const filteredAndSortedCards = useMemo(() => {
     let result = [...cardData];

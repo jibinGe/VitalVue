@@ -4,7 +4,8 @@ from contextlib import asynccontextmanager
 import os
 import asyncio
 
-from app.api.v1 import auth, discovery, patients, vitals, stream, s3, admin, account
+from app.api.v1 import auth, discovery, patients, vitals, stream, s3, admin, account, devices, internal_emqx, watch_data
+from app.core.config import settings
 from app.cron.heartbeat import monitor_device_heartbeats
 
 async def heartbeat_cron_worker():
@@ -40,19 +41,62 @@ async def baseline_cron_worker():
             print(f"[CRON ERROR] Exception caught in baseline worker: {e}")
         await asyncio.sleep(60)
 
+async def archive_cron_worker():
+    """Vitals archiving on the ARCHIVE_DAYS / ARCHIVE_TIME schedule. Checks every 5 minutes
+    whether a scheduled run is due; the last run is kept in Redis, so a restart neither repeats
+    a run nor skips one that came due while the scheduler was down."""
+    from datetime import datetime
+    from app.database import get_redis
+    from app.services.archive import last_slot, parse_schedule, run_archive_cycle
+
+    if not settings.ARCHIVE_ENABLED:
+        return
+    try:
+        days, at = parse_schedule(settings.ARCHIVE_DAYS, settings.ARCHIVE_TIME)
+    except ValueError as e:
+        print(f"[CRON ERROR] Vitals archive worker not started: {e}")
+        return
+
+    print(f"[CRON] Vitals archive worker started ({settings.ARCHIVE_DAYS} at {settings.ARCHIVE_TIME}).")
+    while True:
+        try:
+            redis = await get_redis()
+            slot = last_slot(datetime.utcnow(), days, at, settings.ARCHIVE_TZ_MINUTES)
+            last = await redis.get("archive:last_slot")
+            if last is None:
+                # First start: wait for the next scheduled time rather than running on deploy.
+                await redis.set("archive:last_slot", slot.isoformat())
+            elif datetime.fromisoformat(last.decode() if isinstance(last, bytes) else last) < slot:
+                # The lock keeps a second scheduler (misconfigured RUN_BACKGROUND_JOBS) from running it too.
+                if await redis.set("archive:running", "1", nx=True, ex=6 * 3600):
+                    try:
+                        # Mark the slot done even if the cycle fails: it resumes cleanly next time,
+                        # and a persistent error shouldn't retry every 5 minutes.
+                        await redis.set("archive:last_slot", slot.isoformat())
+                        print(f"[CRON] Vitals archive: {await run_archive_cycle()}")
+                    finally:
+                        await redis.delete("archive:running")
+        except Exception as e:
+            print(f"[CRON ERROR] Exception caught in vitals archive worker: {e}")
+        await asyncio.sleep(300)
+
 # 1. Lifespan context for startup/shutdown tasks
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup: Logic to run when server starts (e.g. verify Redis/DB connection)
     print("Vitalvue Backend starting up...")
-    cron_task = asyncio.create_task(heartbeat_cron_worker())
-    baseline_task = asyncio.create_task(baseline_cron_worker())
+    # Heartbeat, baseline and archive jobs must run exactly once. With several API workers (or the separate
+    # `scheduler` service, see app/scheduler.py) set RUN_BACKGROUND_JOBS=false here.
+    tasks = []
+    if settings.RUN_BACKGROUND_JOBS:
+        tasks = [asyncio.create_task(heartbeat_cron_worker()), asyncio.create_task(baseline_cron_worker()),
+                 asyncio.create_task(archive_cron_worker())]
     yield
     # Shutdown: Logic to run when server stops
-    cron_task.cancel()
-    baseline_task.cancel()
-    # Wait for both to stop so a cancelled cycle releases its DB connection before shutdown.
-    await asyncio.gather(cron_task, baseline_task, return_exceptions=True)
+    for task in tasks:
+        task.cancel()
+    # Wait for them to stop so a cancelled cycle releases its DB connection before shutdown.
+    await asyncio.gather(*tasks, return_exceptions=True)
     print("Vitalvue Backend shutting down...")
 
 app = FastAPI(
@@ -94,6 +138,10 @@ app.include_router(stream.router, prefix="/api/v1/stream", tags=["Stream"])
 app.include_router(s3.router, prefix="/api/v1/s3", tags=["S3"])
 app.include_router(admin.router, prefix="/api/v1/admin", tags=["Admin"])
 app.include_router(account.router, prefix="/api/v1/account", tags=["Account"])
+app.include_router(devices.router, prefix="/api/v1/devices", tags=["Devices (4G watches)"])
+app.include_router(watch_data.router, prefix="/api/v1/devices", tags=["Devices (4G watches)"])
+# Broker hooks — internal only (nginx blocks /api/v1/internal/, and a shared secret is required)
+app.include_router(internal_emqx.router, prefix="/api/v1/internal/emqx", tags=["Internal"], include_in_schema=False)
 
 @app.get("/")
 async def root():

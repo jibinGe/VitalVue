@@ -25,6 +25,63 @@ const adminRequest = async (method, url, data = null, options = {}) => {
 };
 
 export const adminService = {
+  // ─── 4G watches (Veepoo over MQTT; Wonlex and BPW8 over TCP) ─────────────────
+
+  /** Every supported watch type and what it can do. */
+  async getDeviceTypes() {
+    return adminRequest('get', '/api/v1/devices/types');
+  },
+
+  async listDevices(params = {}) {
+    return adminRequest('get', '/api/v1/devices', null, { params });
+  },
+
+  /** Veepoo: { device, credentials } (password shown only once). Wonlex / BPW8: { device, setup }. */
+  async registerDevice(data) {
+    return adminRequest('post', '/api/v1/devices', data);
+  },
+
+  async resetDevicePassword(id) {
+    return adminRequest('post', `/api/v1/devices/${id}/reset-password`);
+  },
+
+  async setDeviceStatus(id, isActive) {
+    return adminRequest('patch', `/api/v1/devices/${id}/status`, { is_active: isActive });
+  },
+
+  async unassignDevice(id) {
+    return adminRequest('post', `/api/v1/devices/${id}/unassign`);
+  },
+
+  /** A hospital's default schedule (its own or the global one it inherits); global when orgId is empty. */
+  async getMonitoringDefaults(orgId = null) {
+    return adminRequest('get', '/api/v1/devices/monitoring/defaults', null, { params: orgId ? { organization_id: orgId } : {} });
+  },
+
+  async setMonitoringDefaults(data, orgId = null) {
+    return adminRequest('put', '/api/v1/devices/monitoring/defaults', data, { params: orgId ? { organization_id: orgId } : {} });
+  },
+
+  /** The hospital goes back to the global default. */
+  async resetMonitoringDefaults(orgId) {
+    return adminRequest('delete', '/api/v1/devices/monitoring/defaults', null, { params: { organization_id: orgId } });
+  },
+
+  /** Retire a watch (lost, broken, returned): disabled, unlinked, hidden; history kept. */
+  async archiveDevice(id, reason = null) {
+    return adminRequest('post', `/api/v1/devices/${id}/archive`, { reason });
+  },
+
+  /** Bring an archived watch back: active and unlinked. */
+  async restoreDevice(id) {
+    return adminRequest('post', `/api/v1/devices/${id}/restore`);
+  },
+
+  /** TCP watches: locate | reboot | disconnect. */
+  async deviceCommand(id, action) {
+    return adminRequest('post', `/api/v1/devices/${id}/command`, { action });
+  },
+
   // ─── Auth ──────────────────────────────────────────────────────────────────
 
   /**

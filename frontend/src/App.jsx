@@ -20,6 +20,7 @@ import Layout from './layout/dashboard/layout'
 import AdminLogin from './pages/admin/login'
 import AdminLayout from './layout/admin/AdminLayout'
 import AdminProtectedRoute from './components/auth/AdminProtectedRoute'
+import FeatureGate from './components/common/FeatureGate'
 
 // Admin pages — lazy loaded
 const AdminDashboard = lazy(() => import('./pages/admin/dashboard'))
@@ -30,6 +31,7 @@ const AdminWards = lazy(() => import('./pages/admin/wards'))
 const AdminStaff = lazy(() => import('./pages/admin/staff'))
 const AdminSettings = lazy(() => import('./pages/admin/settings'))
 const AdminNursingStations = lazy(() => import('./pages/admin/nursing-stations'))
+const AdminDevices = lazy(() => import('./pages/admin/devices'))
 
 // dashboard pages — lazy loaded for code splitting
 const HeartRate = lazy(() => import('./pages/dashboard/overview/heart-rate'))
@@ -238,6 +240,14 @@ const router = createBrowserRouter([
       {
         path: 'staff',
         element: <Suspense fallback={<PageLoader />}><AdminStaff /></Suspense>,
+      },
+      {
+        path: 'devices',
+        element: (
+          <FeatureGate flag="watches4g" redirectTo="/admin/dashboard">
+            <Suspense fallback={<PageLoader />}><AdminDevices /></Suspense>
+          </FeatureGate>
+        ),
       },
       {
         path: 'settings',

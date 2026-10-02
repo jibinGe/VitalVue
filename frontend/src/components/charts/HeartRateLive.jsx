@@ -10,8 +10,9 @@ const HeartRateLive = React.memo(function HeartRateLive({
   historyData = [] 
 }) {
     // Extract heart rate values, map to number
+    // Only measured points: a bucket without a reading (null) is a gap, not 0 bpm.
     let dataList = historyData && historyData.length > 0
-        ? historyData.map(h => typeof h.heart_rate === 'number' ? h.heart_rate : 0)
+        ? historyData.map(h => h.heart_rate).filter(v => typeof v === 'number' && v > 0)
         : Array(40).fill(0);
         
     // Reverse because history comes latest first? Wait, we want timeline from left to right (old to new)

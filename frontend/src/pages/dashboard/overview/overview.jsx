@@ -10,6 +10,8 @@ import AddNotesModal from "@/components/ui/AddNotesModal";
 import BaselineDeviationModal from "@/components/ui/BaselineDeviationModal";
 import ConfirmationModal from "@/components/ui/ConfirmationModal";
 import { usePatientHistory } from "@/hooks/usePatientHistory";
+import { latestMeasured } from "@/utilities/latestVitals";
+import { isFeatureEnabled } from "@/utilities/featureFlags";
 import { useVitalsStream } from "@/hooks/useVitalsStream";
 import { usePatient } from "@/hooks/usePatient";
 import { useDashboardStore } from "@/store/useDashboardStore";
@@ -46,6 +48,7 @@ import Movement from "../../../components/animation/overview/movement";
 import ArcProgress from "../../../components/arc-progress";
 import AlertsTimeline from "@/components/dashboard/AlertsTimeline";
 import BaselineTab from "@/components/dashboard/overview/BaselineTab";
+import WatchMonitoringTab from "@/components/dashboard/overview/WatchMonitoringTab";
 import PatientProfileTab from "@/components/dashboard/overview/PatientProfileTab";
 import MedicalInfoTab from "@/components/dashboard/overview/MedicalInfoTab";
 import ReportsTab from "@/components/dashboard/overview/ReportsTab";
@@ -137,12 +140,8 @@ export default function Overview() {
     return base;
   }, [patientHistory, fallbackHistory, streamData]);
 
-  const latestVitals = useMemo(() => {
-    if (combinedHistory.length > 0) {
-      return combinedHistory[combinedHistory.length - 1];
-    }
-    return null;
-  }, [combinedHistory]);
+  // Each vital from the newest point that measured it (4G watches send one vital per message).
+  const latestVitals = useMemo(() => latestMeasured(combinedHistory), [combinedHistory]);
 
   const currentVitals = latestVitals;
   const patientData = patientDetails || currentVitals; // Map for legacy compatibility
@@ -684,6 +683,7 @@ export default function Overview() {
           {[
             { key: "vitals",        label: "Vitals Overview" },
             { key: "baseline",      label: "Baseline" },
+            ...(isFeatureEnabled("watches4g") ? [{ key: "watch", label: "4G Watch" }] : []),
             ...(isManagement ? [
               { key: "profile",       label: "Patient Profile" },
               { key: "medical",       label: "Medical Info" },
@@ -734,6 +734,11 @@ export default function Overview() {
         {/* ── Baseline Tab (Baseline Engine v1, shadow mode) ── */}
         {activePageTab === "baseline" && (
           <BaselineTab patientId={parsedUserId} />
+        )}
+
+        {/* ── 4G Watch & measurement schedule ── */}
+        {activePageTab === "watch" && isFeatureEnabled("watches4g") && (
+          <WatchMonitoringTab patientId={parsedUserId} />
         )}
 
         {/* ── Vitals Overview Tab ── */}

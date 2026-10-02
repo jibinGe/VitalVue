@@ -115,6 +115,21 @@ const PatientCard = memo(({
         : null;
     const phoneBatteryColor = phoneBatteryValue !== null ? getBatteryColor(phoneBatteryValue) : "#9CA3AF";
 
+    // 4G watch patients: the watch talks to the server itself (no BLE band, no phone), so the
+    // device card shows the watch's own online state, battery and when it last sent data.
+    const watch = item.watch || null;
+    const watchOnline = !!watch?.is_online;
+    const watchBattery = watch?.battery_percent ?? null;
+    const watchBatteryColor = watchBattery !== null ? getBatteryColor(watchBattery) : "#9CA3AF";
+    const watchLastData = watch?.last_seen_at
+        ? new Date(String(watch.last_seen_at).endsWith("Z") ? watch.last_seen_at : `${watch.last_seen_at}Z`)
+        : null;
+    const watchLastDataText = watchLastData
+        ? (new Date().toDateString() === watchLastData.toDateString()
+            ? watchLastData.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
+            : watchLastData.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }))
+        : "--";
+
     return (
         <motion.div
             layout
@@ -331,9 +346,16 @@ const PatientCard = memo(({
                                                     <path d="M22 16H20" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
                                                 </svg>
                                             </div>
-                                            <span className={`${isTvMode ? 'text-xs' : 'text-lg'} text-white font-medium`}>Device</span>
+                                            <span className={`${isTvMode ? 'text-xs' : 'text-lg'} text-white font-medium`}>{watch ? (watch.type_label || '4G Watch') : 'Device'}</span>
                                         </div>
-                                        {/* WiFi status indicator — icon only, no extra row */}
+                                        {watch ? (
+                                            /* 4G badge instead of the WiFi icon: green online, grey offline */
+                                            <span title={watchOnline ? '4G watch online' : '4G watch offline'}
+                                                className={`font-lufga font-semibold ${isTvMode ? 'text-[9px]' : 'text-[10px]'} px-1.5 py-[1px] rounded border ${watchOnline ? 'text-[#4DE573] border-[#4DE573]/50' : 'text-white/40 border-white/20'}`}>
+                                                4G
+                                            </span>
+                                        ) : (
+                                        /* WiFi status indicator — icon only, no extra row */
                                         <div title={item.isConnected ? 'WiFi Connected' : 'WiFi — No Signal'} style={{ color: item.isConnected ? '#4DE573' : '#E54D4D' }}>
                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                 {item.isConnected ? (
@@ -354,7 +376,38 @@ const PatientCard = memo(({
                                                 )}
                                             </svg>
                                         </div>
+                                        )}
                                     </div>
+                                    {watch ? (
+                                    <div className={`flex flex-col ${isTvMode ? 'gap-1' : 'gap-1.5'} w-full`}>
+                                        <div className="flex items-center gap-1.5 w-full justify-between xl:justify-start">
+                                            <span className="font-lufga font-medium text-[13px] xl:text-[14px] text-white">Status</span>
+                                            <div title={`Last data ${watchLastDataText}`} className={`px-2 py-[2px] flex items-center justify-center font-lufga font-normal rounded-full ${isTvMode ? 'text-[10px]' : 'text-[11px] xl:text-[12px]'} whitespace-nowrap mt-0.5 gap-1 ${watchOnline ? 'text-[#4DE573] bg-[#4DE573]/10' : 'text-[#E54D4D] bg-[#E54D4D]/20'}`}>
+                                                <span className={`inline-block size-1.5 rounded-full ${watchOnline ? 'bg-[#4DE573]' : 'bg-[#E54D4D]'}`} />
+                                                {watchOnline ? 'Online' : 'Offline'}
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 w-full justify-between xl:justify-start">
+                                            <span className="font-lufga font-medium text-[13px] xl:text-[14px] text-white">Battery</span>
+                                            <div className={`bg-white/10 px-2 py-[2px] mt-0.5 flex items-center justify-center rounded-full ${isTvMode ? 'text-[10px]' : 'text-[11px] xl:text-[12px]'} font-lufga gap-1.5`}>
+                                                {watchBattery !== null ? (
+                                                    <>
+                                                        <BatteryIcon percent={watchBattery} color={watchBatteryColor} />
+                                                        <span style={{ color: watchBatteryColor }}>{watchBattery}%</span>
+                                                    </>
+                                                ) : (
+                                                    <span className="text-white/40">--</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 w-full justify-between xl:justify-start">
+                                            <span className="font-lufga font-medium text-[13px] xl:text-[14px] text-white whitespace-nowrap">Last data</span>
+                                            <div className={`bg-white/10 px-2 py-[2px] mt-0.5 flex items-center justify-center rounded-full ${isTvMode ? 'text-[10px]' : 'text-[11px] xl:text-[12px]'} font-lufga whitespace-nowrap ${watchOnline ? 'text-white/80' : 'text-white/50'}`}>
+                                                {watchLastDataText}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    ) : (
                                     <div className={`flex flex-col ${isTvMode ? 'gap-1' : 'gap-1.5'} w-full`}>
                                         <div className="flex items-center gap-1.5 w-full justify-between xl:justify-start">
                                             <span className="font-lufga font-medium text-[13px] xl:text-[14px] text-white flex items-center gap-1">
@@ -388,6 +441,7 @@ const PatientCard = memo(({
                                             </div>
                                         </div>
                                     </div>
+                                    )}
                                 </div>
                                 {!isTvMode && (
                                     <button className="bg-white/10 hover:bg-white/20 transition-all w-full h-6 absolute bottom-0 left-0 flex items-center justify-center border-t border-white/5" onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded); }}>

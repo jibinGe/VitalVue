@@ -24,3 +24,4 @@ boto3==1.42.80
 twilio==9.10.4
 firebase-admin==6.5.0      # FCM push (Plan D)
 pytest==8.2.0              # dev: unit tests
+aiomqtt==2.3.0               # MQTT client for the Veepoo 4G watch worker (pulls paho-mqtt 2.x)

@@ -1,5 +1,12 @@
 from datetime import datetime, timedelta
 
+
+def _measured(value) -> bool:
+    """0 (or None) means "not measured": 4G watches report one vital per message, and a sensor
+    drop arrives as 0. Unmeasured vitals must never score as if they were dangerously low."""
+    return value is not None and value > 0
+
+
 def calculate_risks(vitals):
     """
     Business logic for NEWS2 and clinical Risk Scores.
@@ -14,21 +21,25 @@ def calculate_risks(vitals):
         }
 
     news2 = 0
-    
+    hr_ok, spo2_ok, sbp_ok = _measured(vitals.heart_rate), _measured(vitals.spo2), _measured(vitals.bp_systolic)
+
     # --- NEWS2: Heart Rate ---
-    if vitals.heart_rate >= 131 or vitals.heart_rate <= 40: news2 += 3
-    elif vitals.heart_rate >= 111 or vitals.heart_rate <= 50: news2 += 2
-    elif vitals.heart_rate >= 91: news2 += 1
+    if hr_ok:
+        if vitals.heart_rate >= 131 or vitals.heart_rate <= 40: news2 += 3
+        elif vitals.heart_rate >= 111 or vitals.heart_rate <= 50: news2 += 2
+        elif vitals.heart_rate >= 91: news2 += 1
 
     # --- NEWS2: SpO2 ---
-    if vitals.spo2 <= 91: news2 += 3
-    elif vitals.spo2 <= 93: news2 += 2
-    elif vitals.spo2 <= 95: news2 += 1
+    if spo2_ok:
+        if vitals.spo2 <= 91: news2 += 3
+        elif vitals.spo2 <= 93: news2 += 2
+        elif vitals.spo2 <= 95: news2 += 1
 
     # --- NEWS2: Systolic BP ---
-    if vitals.bp_systolic <= 90 or vitals.bp_systolic >= 220: news2 += 3
-    elif vitals.bp_systolic <= 100: news2 += 2
-    elif vitals.bp_systolic <= 110: news2 += 1
+    if sbp_ok:
+        if vitals.bp_systolic <= 90 or vitals.bp_systolic >= 220: news2 += 3
+        elif vitals.bp_systolic <= 100: news2 += 2
+        elif vitals.bp_systolic <= 110: news2 += 1
 
     # --- Advanced Risk Logic ---
     stroke_risk = "Low"
@@ -44,7 +55,9 @@ def calculate_risks(vitals):
     return {
         "news2_score": news2,
         "stroke_risk": stroke_risk,
-        "af_warning": "Normal" if vitals.heart_rate < 120 else "Detected",
+        # No heart rate in this reading → no AF assessment (NULL), not "N/A": the dashboards
+        # show any non-"Normal" text as an irregular rhythm.
+        "af_warning": ("Normal" if vitals.heart_rate < 120 else "Detected") if hr_ok else None,
         "seizure_risk": seizure_risk
     }
 
@@ -130,10 +143,13 @@ def get_vital_statuses(vitals):
             "temperature_status": "Stable",
         }
     
+    # A vital that wasn't measured in this reading (0) shows as Stable, like the frontend default.
     statuses = {}
-    
+
     # Heart Rate Status
-    if vitals.heart_rate >= 131 or vitals.heart_rate <= 40:
+    if not _measured(vitals.heart_rate):
+        statuses["heart_rate_status"] = "Stable"
+    elif vitals.heart_rate >= 131 or vitals.heart_rate <= 40:
         statuses["heart_rate_status"] = "Critical"
     elif vitals.heart_rate >= 111 or vitals.heart_rate <= 50:
         statuses["heart_rate_status"] = "Warning"
@@ -141,7 +157,9 @@ def get_vital_statuses(vitals):
         statuses["heart_rate_status"] = "Stable"
         
     # SpO2 Status
-    if vitals.spo2 <= 91:
+    if not _measured(vitals.spo2):
+        statuses["spo2_status"] = "Stable"
+    elif vitals.spo2 <= 91:
         statuses["spo2_status"] = "Critical"
     elif vitals.spo2 <= 95:
         statuses["spo2_status"] = "Warning"
@@ -149,7 +167,9 @@ def get_vital_statuses(vitals):
         statuses["spo2_status"] = "Stable"
         
     # BP Status
-    if (vitals.bp_systolic <= 90 or vitals.bp_systolic >= 220) or \
+    if not (_measured(vitals.bp_systolic) and _measured(vitals.bp_diastolic)):
+        statuses["bp_status"] = "Stable"
+    elif (vitals.bp_systolic <= 90 or vitals.bp_systolic >= 220) or \
        (vitals.bp_diastolic <= 50 or vitals.bp_diastolic >= 120):
         statuses["bp_status"] = "Critical"
     elif (vitals.bp_systolic <= 110) or (vitals.bp_diastolic <= 60):
