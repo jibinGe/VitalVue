@@ -10,7 +10,7 @@ import secrets
 from datetime import datetime, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,7 +24,7 @@ from app.models.device import (
     DEVICE_4G, DEVICE_BPW8, Device, DeviceAssignment, DeviceConfigState, MonitoringProfile, MqttRawMessage,
 )
 from app.models.user import Patient, User, UserRole
-from app.services.access import can_view_patient
+from app.services.access import can_view_patient, clinician_patient_filter
 from app.services.monitoring import (
     COMMAND_QUEUE, default_for_hospital, effective_profile_level, get_default_profile, get_hospital_default,
     get_patient_override, mark_pending, notify_worker, profile_dict, send_command, validate_profile,
@@ -100,6 +100,32 @@ class DeviceIn(BaseModel):
     device_number: Optional[int] = None
     imei: Optional[str] = None            # Wonlex / BPW8 (client_id is accepted too)
     organization_id: Optional[int] = None
+
+
+@router.get("/watch-status")
+async def watch_status(patient_ids: str = Query("", description="comma-separated patient IDs"),
+                       db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+    """Live status of the 4G watch linked to each of these patients (only those that have one),
+    for the dashboard's device card. Polled; same visibility rule as the patient list."""
+    ids = [int(x) for x in patient_ids.split(",") if x.strip().isdigit()][:500]
+    if not ids or user.role == UserRole.PATIENT:
+        return {}
+    stmt = (select(Device).join(Patient, Patient.id == Device.patient_id)
+            .where(Device.patient_id.in_(ids), Device.archived_at.is_(None)))
+    clause = await clinician_patient_filter(db, user)
+    if clause is not None:
+        stmt = stmt.where(clause)
+    elif user.role != UserRole.MASTER_ADMIN:
+        stmt = stmt.where(Patient.organization_id == user.organization_id)
+    out = {}
+    for d in (await db.execute(stmt)).scalars():
+        dtype = TYPES.get(d.type)
+        out[str(d.patient_id)] = {
+            "device_id": d.id, "type": d.type, "type_label": dtype.label if dtype else d.type,
+            "client_id": d.client_id, "is_online": bool(d.is_online), "last_seen_at": d.last_seen_at,
+            "battery_percent": d.battery_percent, "battery_state": d.battery_state,
+        }
+    return out
 
 
 @router.get("/types")

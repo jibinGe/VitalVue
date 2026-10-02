@@ -349,6 +349,11 @@ export const patientService = {
     return this._call('get', `/api/v1/devices/patients/${patientId}/watch-data?hours=${hours}`);
   },
 
+  /** { [patientId]: { type_label, is_online, last_seen_at, battery_percent } } for those with a 4G watch. */
+  getWatchStatus(patientIds) {
+    return this._call('get', `/api/v1/devices/watch-status?patient_ids=${patientIds.join(',')}`);
+  },
+
   /** Ask the watch to take one reading now (vital: hr | bp | spo2 | temp | hrv). */
   measureNow(deviceId, vital) {
     return this._call('post', `/api/v1/devices/${deviceId}/measure`, { vital });

@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { latestMeasured } from "@/utilities/latestVitals";
+import { useWatchStatus } from "@/hooks/useWatchStatus";
 import { usePatients } from "@/hooks/usePatients";
 import { useDashboardStore } from "@/store/useDashboardStore";
 import PatientCard from "@/components/dashboard/PatientCard";
@@ -49,6 +50,8 @@ export default function TvDashboard() {
   }, []);
 
   // Exact same logic from home.jsx for determining cardData
+  const watchStatus = useWatchStatus(rawPatients.map((p) => p.id));
+
   const cardData = useMemo(() => {
     return rawPatients.map((p) => {
       const latestHistoryVitals = latestMeasured(p.vitals_history);   // each vital's newest measured value
@@ -170,9 +173,10 @@ export default function TvDashboard() {
                       : (p.phone_battery ?? p.phoneBattery ?? null)))),
         isConnected: isConnected,
         isRemoved: isRemoved,
+        watch: watchStatus[p.id] || watchStatus[String(p.id)] || null,   // 4G watch status, if linked
       };
     });
-  }, [rawPatients, liveVitals, liveStatuses]);
+  }, [rawPatients, liveVitals, liveStatuses, watchStatus]);
 
   // Priority ranking: Critical (1) > Warning (2) > Stable (3)
   const getStatusPriority = (status) => {

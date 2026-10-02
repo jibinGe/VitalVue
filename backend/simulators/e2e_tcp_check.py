@@ -282,6 +282,14 @@ async def main() -> int:
             check(state and state.status == "sent" and state.device_limits["plan"]["hr"]["mode"] == "requested",
                   "BPW8 config state 'sent' (watch never confirms) with HR in server-requested mode")
         check((await device_by_imei(B_IMEI)).battery_percent == 86, "BPW8 battery from the heartbeat")
+        r = await api.call("GET", "/watch-status", "e2e-doctor", params={"patient_ids": f"{pw_id},{pb_id},999999"})
+        st = r.json() if r.status_code == 200 else {}
+        check(r.status_code == 200 and st.get(str(pb_id), {}).get("type_label") == "CLOC BPW8"
+              and st[str(pb_id)]["is_online"] is True and st[str(pb_id)]["battery_percent"] == 86
+              and st.get(str(pw_id), {}).get("type_label") == "Wonlex 4G" and "999999" not in st,
+              "dashboard watch status: type, online and battery for each 4G patient")
+        r = await api.call("GET", "/watch-status", "e2e-admin2", params={"patient_ids": f"{pw_id},{pb_id}"})
+        check(r.status_code == 200 and r.json() == {}, "another hospital's admin sees no watch status")
 
         # BPW8 timestamps are whole seconds: an identical reading within the same second is a
         # resend to dedupe, so let a second pass before the watch measures again.
@@ -548,6 +556,8 @@ async def main() -> int:
         await settle()
         check(r.status_code == 200 and b2.closed.is_set() and not (await device_by_imei(B_IMEI)).is_online,
               "admin disables the BPW8: it's disconnected at once and shows offline")
+        r = await api.call("GET", "/watch-status", "e2e-doctor", params={"patient_ids": str(pb_id)})
+        check(r.json().get(str(pb_id), {}).get("is_online") is False, "dashboard watch status shows the BPW8 offline")
 
         # ── archive and restore ────────────────────────────────────────────────────
         r = await api.call("POST", f"/{wdev_id}/assign", "e2e-doctor", json={"patient_id": pw_id})
