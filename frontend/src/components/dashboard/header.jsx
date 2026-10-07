@@ -99,7 +99,7 @@ export default function Header() {
   ]
 
   return (
-    <div className='flex items-center flex-wrap gap-0 sticky top-0 left-0 z-10 w-full bg-[#27272B]'>
+    <div data-dashboard-header className='flex items-center flex-wrap gap-0 sticky top-0 left-0 z-10 w-full bg-[#27272B]'>
       <div className="max-w-(--left-sidebar-width) w-full p-4 md:p-5 border-r border-solid border-[#0F0F0F] flex gap-4 items-center justify-flex-start">
         <Logo />
         <h4 className='text-2xl text-white'>VitalVue</h4>

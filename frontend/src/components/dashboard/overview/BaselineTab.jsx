@@ -3,6 +3,7 @@ import {
   ComposedChart, Line, XAxis, YAxis, Tooltip, ReferenceArea, ReferenceLine, ReferenceDot,
   ResponsiveContainer, CartesianGrid,
 } from "recharts";
+import { Activity, Brain, Droplets, Gauge, Heart, HeartPulse, Thermometer } from "lucide-react";
 import { patientService } from "@/services/patientService";
 import { BaselineDetailModal } from "@/components/dashboard/overview/BaselineDetailModal";
 
@@ -21,14 +22,14 @@ const RANGES = [
 
 // Table / view rows. BP combines systolic + diastolic in one row.
 const ROWS = [
-  { key: "score", label: "Health Score" },
-  { key: "hr", label: "HR", unit: "bpm" },
-  { key: "hrv", label: "HRV", unit: "ms" },
-  { key: "spo2", label: "SpO₂", unit: "%" },
-  { key: "bp", label: "BP", unit: "mmHg" },
-  { key: "map", label: "MAP", unit: "mmHg" },
-  { key: "stress", label: "Stress" },
-  { key: "temp", label: "Skin temp", unit: "°C" },
+  { key: "score", label: "Health Score", Icon: Activity, iconColor: "#2CD155" },
+  { key: "hr", label: "HR", unit: "bpm", Icon: Heart, iconColor: "#FF6B8A" },
+  { key: "hrv", label: "HRV", unit: "ms", Icon: Activity, iconColor: "#3DDC97" },
+  { key: "spo2", label: "SpO₂", unit: "%", Icon: Droplets, iconColor: "#5BBEFF" },
+  { key: "bp", label: "BP", unit: "mmHg", Icon: HeartPulse, iconColor: "#F472B6" },
+  { key: "map", label: "MAP", unit: "mmHg", Icon: Gauge, iconColor: "#67E8F9" },
+  { key: "stress", label: "Stress", Icon: Brain, iconColor: "#FF8C42" },
+  { key: "temp", label: "Temp", unit: "°C", Icon: Thermometer, iconColor: "#FFBB33" },
 ];
 const VIEW_OPTIONS = [
   { key: "score", label: "Health Score" },
@@ -39,7 +40,7 @@ const VIEW_OPTIONS = [
   { key: "map", label: "MAP" },
   { key: "hrv", label: "HRV" },
   { key: "stress", label: "Stress" },
-  { key: "temp", label: "Skin temp" },
+  { key: "temp", label: "Temp" },
 ];
 
 // One data line; baseline dashed + neutral; markers red with a text callout (never colour alone).
@@ -383,9 +384,8 @@ export default function BaselineTab({ patientId }) {
           {RANGES.map((r) => (
             <button
               key={r.key} type="button" onClick={() => setRange(r.key)}
-              className={`px-4 py-2 rounded-xl text-sm border transition-colors ${
-                range === r.key ? "bg-[#CCA166] border-[#CCA166] text-[#1A1A1C] font-semibold" : "border-white/10 text-white/65 hover:text-white hover:border-white/25"
-              }`}
+              className={`px-4 py-2 rounded-xl text-sm border transition-colors ${range === r.key ? "bg-[#CCA166] border-[#CCA166] text-[#1A1A1C] font-semibold" : "border-white/10 text-white/65 hover:text-white hover:border-white/25"
+                }`}
             >
               {r.label}
             </button>
@@ -511,9 +511,10 @@ export default function BaselineTab({ patientId }) {
                           <button
                             type="button"
                             onClick={() => setView(row.key === "bp" ? "sbp" : row.key)}
-                            className={`hover:text-white ${view === row.key || (row.key === "bp" && ["sbp", "dbp"].includes(view)) ? "text-[#E5C48B]" : "text-white/70"}`}
+                            className={`inline-flex items-center gap-2 hover:text-white ${view === row.key || (row.key === "bp" && ["sbp", "dbp"].includes(view)) ? "text-[#E5C48B]" : "text-white/70"}`}
                           >
-                            {row.label}{row.unit ? <span className="text-white/35"> ({row.unit})</span> : null}
+                            <row.Icon className="size-3.5 shrink-0" style={{ color: row.iconColor }} strokeWidth={2} />
+                            <span>{row.label}{row.unit ? <span className="text-white/35"> ({row.unit})</span> : null}</span>
                           </button>
                         </th>
                         <td className="px-2 py-1.5 text-center rounded-md bg-white/[0.04] text-white/80 font-medium">
@@ -524,8 +525,11 @@ export default function BaselineTab({ patientId }) {
                           return (
                             <td
                               key={c.ts}
-                              className="px-2 py-1.5 text-center rounded-md text-white font-medium whitespace-nowrap"
-                              style={{ background: cell.style?.cell || "rgba(255,255,255,0.03)" }}
+                              className="px-2 py-1.5 text-center rounded-md font-medium whitespace-nowrap"
+                              style={{
+                                background: cell.style?.cell || "rgba(255,255,255,0.03)",
+                                color: cell.style?.color || "rgba(255,255,255,0.8)",
+                              }}
                               title={cell.style ? undefined : "No status"}
                             >
                               {cell.text}
@@ -538,10 +542,10 @@ export default function BaselineTab({ patientId }) {
                 </table>
               </div>
             )}
-            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3 text-[11px] text-white/45">
+            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3 text-[11px]">
               {Object.entries(STATUS_STYLE).map(([label, s]) => (
-                <span key={label} className="flex items-center gap-1.5">
-                  <span className="inline-block size-2.5 rounded-sm" style={{ background: s.color, opacity: 0.8 }} />
+                <span key={label} className="flex items-center gap-1.5" style={{ color: s.color }}>
+                  <span className="inline-block size-2.5 rounded-sm" style={{ background: s.color }} />
                   {label}
                 </span>
               ))}

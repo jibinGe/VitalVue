@@ -36,20 +36,16 @@ import StrokeRisk from "@/components/dashboard/overview/stroke-risk";
 import SeizureRisk from "@/components/dashboard/overview/seizure-risk";
 import { Link } from "react-router-dom";
 
-import SpO2Gauge from "@/components/animation/overview/spo2Gauge";
-import BPTrend from "@/components/animation/overview/BPTrend";
 import HrvScore from "@/components/animation/overview/hrv-score";
-import TempWave from "../../../components/animation/overview/tempWave";
 import SleepPattern from "@/components/animation/overview/sleep-pattern";
-import StressPatternChart from "@/components/dashboard/charts/stress-pattern-chart";
 import DoctorReview from "../../../components/dashboard/overview/doctor-review";
-import HeartRateLive from "../../../components/charts/HeartRateLive";
 import Movement from "../../../components/animation/overview/movement";
-import ArcProgress from "../../../components/arc-progress";
 import AlertsTimeline from "@/components/dashboard/AlertsTimeline";
 import BaselineTab from "@/components/dashboard/overview/BaselineTab";
+import OverviewSidebar from "@/components/dashboard/overview/OverviewSidebar";
 import WatchMonitoringTab from "@/components/dashboard/overview/WatchMonitoringTab";
 import PatientProfileTab from "@/components/dashboard/overview/PatientProfileTab";
+import PatientInfoTab from "@/components/dashboard/overview/PatientInfoTab";
 import MedicalInfoTab from "@/components/dashboard/overview/MedicalInfoTab";
 import ReportsTab from "@/components/dashboard/overview/ReportsTab";
 import PrescriptionsTab from "@/components/dashboard/overview/PrescriptionsTab";
@@ -71,8 +67,9 @@ export default function Overview() {
   const filter = ["Live", "1h", "24h"];
   const [filterTab, setFilterTab] = useState(filter[0]);
 
-  // Page-level tab: 'vitals' | 'profile'
+  // Sections on this page only: vitals, NEWS2, personal baseline, alerts, and the rest.
   const [activePageTab, setActivePageTab] = useState("vitals");
+  const [navCollapsed, setNavCollapsed] = useState(true);
 
   const parsedUserId = parseInt(userId, 10);
   const { data: patientHistory, isLoading: loading } = usePatientHistory(parsedUserId, filterTab);
@@ -133,6 +130,8 @@ export default function Overview() {
           hrv_score: streamData.hrv_score ?? lastPoint?.hrv_score ?? lastPoint?.hrv,
           movement: streamData.movement_index ?? streamData.movement ?? lastPoint?.movement,
           stress_level: streamData.stress_level ?? lastPoint?.stress_level,
+          respiratory_rate: streamData.respiratory_rate ?? streamData.resp_rate ?? lastPoint?.respiratory_rate ?? lastPoint?.resp_rate,
+          resp_rate: streamData.resp_rate ?? streamData.respiratory_rate ?? lastPoint?.resp_rate ?? lastPoint?.respiratory_rate,
         });
       }
     }
@@ -386,7 +385,7 @@ export default function Overview() {
     ),
     action:
       item.title === "NEWS2 Score"
-        ? () => set_news_score(true)
+        ? () => setActivePageTab("news2")
         : item.title === "AF Warning"
           ? () => set_ap_warning(true)
           : item.title === "Stroke Risk"
@@ -413,6 +412,7 @@ export default function Overview() {
       ? latestVitals.primary_vitals.blood_pressure.split('/')[1]
       : (latestVitals?.diastolic ?? latestVitals?.bp_diastolic);
     let tempVal = latestVitals?.primary_vitals?.temp ?? (latestVitals?.temperature ?? latestVitals?.temp);
+    let rrVal = latestVitals?.respiratory_rate ?? latestVitals?.resp_rate ?? latestVitals?.rr;
     let hrvVal = latestVitals?.advanced_metrics?.hrv_score ?? (latestVitals?.hrv_score ?? latestVitals?.hrv ?? currentVitals?.derived_metrics?.hrv);
     let movementVal = latestVitals?.advanced_metrics?.movement_index ?? (latestVitals?.movement ?? latestVitals?.movement_index);
     let sleepVal = latestVitals?.sleep_pattern;
@@ -424,6 +424,8 @@ export default function Overview() {
       if (streamData.bp_systolic !== undefined && streamData.bp_systolic !== null) sysVal = streamData.bp_systolic;
       if (streamData.bp_diastolic !== undefined && streamData.bp_diastolic !== null) diaVal = streamData.bp_diastolic;
       if (streamData.temp !== undefined && streamData.temp !== null) tempVal = streamData.temp;
+      if (streamData.respiratory_rate !== undefined && streamData.respiratory_rate !== null) rrVal = streamData.respiratory_rate;
+      else if (streamData.resp_rate !== undefined && streamData.resp_rate !== null) rrVal = streamData.resp_rate;
       if (streamData.hrv_score !== undefined && streamData.hrv_score !== null) hrvVal = streamData.hrv_score;
       if (streamData.movement_index !== undefined && streamData.movement_index !== null) movementVal = streamData.movement_index;
       if (streamData.stress_level !== undefined && streamData.stress_level !== null) stressVal = streamData.stress_level;
@@ -433,12 +435,18 @@ export default function Overview() {
     // Round values to remove decimals as requested
     if (hrVal !== undefined && hrVal !== null) hrVal = Math.round(Number(hrVal));
     if (spo2Val !== undefined && spo2Val !== null) spo2Val = Math.round(Number(spo2Val));
+    if (rrVal !== undefined && rrVal !== null) rrVal = Math.round(Number(rrVal));
     if (hrvVal !== undefined && hrvVal !== null) hrvVal = Math.round(Number(hrvVal));
     if (movementVal !== undefined && movementVal !== null) movementVal = Math.round(Number(movementVal));
     if (sysVal !== undefined && sysVal !== null) sysVal = Math.round(Number(sysVal));
     if (diaVal !== undefined && diaVal !== null) diaVal = Math.round(Number(diaVal));
 
-    const isAfHigh = apiAssessments?.af_warning && apiAssessments.af_warning !== "Normal" && apiAssessments.af_warning !== 0 && apiAssessments.af_warning !== false;
+    const news2Score = Number(
+      apiAssessments?.news2_score ?? apiAssessments?.news2?.score ?? patientData?.news2_score ?? currentVitals?.news2_score ?? 0
+    );
+    const news2Risk = news2Score >= 7 ? "High" : news2Score >= 5 ? "Medium" : "Low";
+    const news2Status = news2Risk === "High" ? "High" : news2Risk === "Medium" ? "Warning" : "Normal";
+    const news2Color = news2Risk === "High" ? "#E54D4D" : news2Risk === "Medium" ? "#FFBB33" : "#2CD155";
 
     const noGraphPlaceholder = <div className="flex items-center justify-center h-full  text-white/20 font-lufga italic">no graph</div>;
 
@@ -448,54 +456,76 @@ export default function Overview() {
 
     const isUnknownSleep = !sleepVal || sleepVal.toLowerCase() === "unknown" || sleepVal === "--";
 
+    const compactHalf = (props) => ({ ...props, isCompact: true });
+
     return [
+      // Three full-size slots, each split vertically into two compact vitals
       {
-        icon: <Hart />,
-        iconBg: "bg-green",
-        title: "Heart Rate",
-        value: hrVal ?? '--',
-        extension: "bpm",
-        img: (hrVal === 0 || !hrVal || !historyData || historyData.length === 0) ? noGraphPlaceholder : <HeartRateLive className="p-4 md:p-6" width={360} historyData={historyData} />,
-        path: `/dashboard/heart-rate/${userId || ""}`,
+        isPair: true,
+        left: compactHalf({
+          icon: <Hart className="size-4" />,
+          iconBg: "bg-green",
+          title: "HR",
+          value: hrVal ?? '--',
+          extension: "bpm",
+          path: `/dashboard/heart-rate/${userId || ""}`,
+        }),
+        right: compactHalf({
+          icon: <Spo className="size-4" />,
+          iconBg: "bg-purple",
+          title: "SpO2",
+          value: spo2Val ? `${spo2Val}%` : '--',
+          extension: "",
+          path: `/dashboard/spo/${userId || ""}`,
+        }),
       },
       {
-        icon: <Spo />,
-        iconBg: "bg-purple",
-        title: "SpO2",
-        value: spo2Val ? `${spo2Val}%` : '--',
-        extension: "",
-        img: (spo2Val === 0 || !spo2Val) ? noGraphPlaceholder : <SpO2Gauge value={spo2Val ?? 98} />,
-        path: `/dashboard/spo/${userId || ""}`,
+        isPair: true,
+        left: compactHalf({
+          icon: <Bp className="size-4" />,
+          iconBg: "bg-pink",
+          title: "BP",
+          value: bpDisplay,
+          extension: "mmHg",
+          path: `/dashboard/bp-trend/${userId || ""}`,
+        }),
+        right: compactHalf({
+          icon: <Bp className="size-4" />,
+          iconBg: "bg-aqua",
+          title: "RR",
+          value: rrVal ?? '--',
+          extension: "/min",
+          action: () => setActivePageTab("news2"),
+        }),
       },
       {
-        icon: <Bp />,
-        iconBg: "bg-pink",
-        title: "BP Trend",
-        value: bpDisplay,
-        extension: "mmHg",
-        img: (sysVal === 0 || sysVal === '0' || !sysVal || !historyData || historyData.length === 0) ? noGraphPlaceholder : <BPTrend historyData={historyData} />,
-        path: `/dashboard/bp-trend/${userId || ""}`,
+        isPair: true,
+        left: compactHalf({
+          icon: <Temp className="size-4" />,
+          iconBg: "bg-blue",
+          title: "Temp",
+          value: tempVal ? formatTemperature(tempVal) : '--',
+          extension: "°C",
+          path: `/dashboard/temperature/${userId || ""}`,
+        }),
+        right: compactHalf({
+          icon: <Brain className="size-4" />,
+          iconBg: "bg-deepBlue",
+          title: "Stress",
+          value: stressVal ?? '--',
+          extension: "",
+          path: `/dashboard/stress/${userId || ""}`,
+        }),
       },
-      /*
-      {
-        icon: <Temp />,
-        iconBg: "bg-blue",
-        title: "Skin Temperature",
-        value: tempVal ? formatTemperature(tempVal) : '--',
-        extension: "°C",
-        img: (tempVal === 0 || tempVal === '0' || !tempVal || !historyData || historyData.length === 0) ? noGraphPlaceholder : <TempWave historyData={historyData} />,
-        path: `/dashboard/temperature/${userId || ""}`,
-      },
-      */
       {
         isTriageDesign: true,
-        title: "AF Warning",
-        status: isAfHigh ? "High" : "Normal",
-        position: isAfHigh ? "High" : "Normal",
-        des: isAfHigh ? "Irregular Rhythm" : "Regular Rhythm",
-        color: isAfHigh ? "#E54D4D" : "#2CD155",
-        icon: <High />,
-        action: () => set_ap_warning(true),
+        title: "NEWS2",
+        status: news2Status,
+        position: Number.isFinite(news2Score) ? news2Score : '--',
+        des: `${news2Risk} Clinical Risk`,
+        color: news2Color,
+        icon: <Bp className="size-4.5" />,
+        action: () => setActivePageTab("news2"),
         progress: (
           <svg
             width="116"
@@ -508,13 +538,13 @@ export default function Overview() {
               cx="104"
               cy="104"
               r="102"
-              stroke={isAfHigh ? "#E54D4D" : "#2CD155"}
+              stroke={news2Color}
               strokeOpacity="0.08"
               strokeWidth="4"
             />
             <path
               d="M21.4803 44.0459C12.0189 57.0684 5.77386 72.1452 3.25579 88.0437C0.737717 103.942 2.01809 120.211 6.99223 135.52C11.9664 150.829 20.493 164.743 31.8751 176.125C43.2572 187.507 57.1714 196.034 72.4803 201.008C87.7891 205.982 104.058 207.262 119.956 204.744C135.855 202.226 150.932 195.981 163.954 186.52C176.977 177.058 187.575 164.649 194.883 150.307C202.19 135.965 206 120.097 206 104"
-              stroke={isAfHigh ? "#E54D4D" : "#2CD155"}
+              stroke={news2Color}
               strokeWidth="4"
               strokeLinecap="round"
             />
@@ -526,7 +556,7 @@ export default function Overview() {
               rx="10"
               fill="#2F2F31"
             />
-            <circle cx="22" cy="43" r="4" fill={isAfHigh ? "#E54D4D" : "#2CD155"} />
+            <circle cx="22" cy="43" r="4" fill={news2Color} />
           </svg>
         ),
       },
@@ -557,17 +587,8 @@ export default function Overview() {
         img: isUnknownSleep ? noGraphPlaceholder : <SleepPattern />,
         path: `/dashboard/sleep-pattern/${userId || ""}`,
       },
-      {
-        icon: <Brain />,
-        iconBg: "bg-deepBlue",
-        title: "Stress Level",
-        value: stressVal ?? '--',
-        extension: "",
-        img: (!historyData || historyData.length === 0) ? noGraphPlaceholder : <StressPatternChart historyData={historyData} />,
-        path: `/dashboard/stress/${userId || ""}`,
-      },
     ];
-  }, [combinedHistory, latestVitals, userId, apiAssessments, streamData, currentVitals]);
+  }, [combinedHistory, latestVitals, userId, apiAssessments, streamData, currentVitals, patientData]);
 
   const btn = [
     "Add Note",
@@ -589,6 +610,13 @@ export default function Overview() {
     }
   }, [news_scrore, ap_warning, stroke_risk, seizure_risk, flag_doctor_review]);
 
+  // Keep the header and sidebar still. Only the overview content pane scrolls.
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.add("overflow-hidden");
+    return () => root.classList.remove("overflow-hidden");
+  }, []);
+
   const isPageLoading = (loading && !patientDetails) || (patientDetailsLoading && !patientDetails);
 
   if (isPageLoading) {
@@ -601,8 +629,35 @@ export default function Overview() {
     );
   }
 
+  const sectionItems = [
+    { key: "vitals", label: "Vitals" },
+    { key: "info", label: "Patient Info" },
+    { key: "news2", label: "NEWS2 Score" },
+    { key: "baseline", label: "Personal Baseline" },
+    { key: "alerts", label: "Alerts" },
+    ...(isFeatureEnabled("watches4g") ? [{ key: "watch", label: "4G Watch" }] : []),
+    ...(isManagement ? [
+      { key: "profile", label: "Patient Profile" },
+      { key: "medical", label: "Medical Info" },
+      { key: "reports", label: "Reports" },
+      { key: "prescriptions", label: "Prescriptions" },
+    ] : []),
+  ];
+
   return (
     <>
+      <div
+        className="fixed left-0 right-0 bottom-0 z-[1] flex overflow-hidden"
+        style={{ top: "var(--dashboard-header-h, 88px)" }}
+      >
+      <OverviewSidebar
+        items={sectionItems}
+        active={activePageTab}
+        onChange={setActivePageTab}
+        collapsed={navCollapsed}
+        onToggle={() => setNavCollapsed((open) => !open)}
+      />
+      <div className="min-w-0 flex-1 h-full overflow-y-auto">
       <MainBody>
         {/* Back Button and Patient Details Strip */}
         <div className="mb-6 flex flex-col xl:flex-row xl:items-center justify-start bg-[#252527] p-4 rounded-2xl border border-white/5 shadow-sm gap-4">
@@ -678,35 +733,14 @@ export default function Overview() {
           </div>
         </div>
 
-        {/* ── Page Tabs ── */}
-        <div className="flex items-center gap-1 mb-6 border-b border-white/8 overflow-x-auto scrollbar-none">
-          {[
-            { key: "vitals",        label: "Vitals Overview" },
-            { key: "baseline",      label: "Baseline" },
-            ...(isFeatureEnabled("watches4g") ? [{ key: "watch", label: "4G Watch" }] : []),
-            ...(isManagement ? [
-              { key: "profile",       label: "Patient Profile" },
-              { key: "medical",       label: "Medical Info" },
-              { key: "reports",       label: "Reports" },
-              { key: "prescriptions", label: "Prescriptions" },
-            ] : [])
-          ].map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => setActivePageTab(key)}
-              className={`relative whitespace-nowrap px-5 py-3 text-sm font-medium transition-colors duration-200 shrink-0 ${
-                activePageTab === key
-                  ? "text-white"
-                  : "text-white/40 hover:text-white/70"
-              }`}
-            >
-              {label}
-              {activePageTab === key && (
-                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-[#CCA166] to-[#E5C48B] rounded-full" />
-              )}
-            </button>
-          ))}
-        </div>
+        {/* ── Patient Info ── */}
+        {activePageTab === "info" && (
+          <PatientInfoTab
+            patientDetails={patientDetails}
+            statePatient={statePatient}
+            userId={userId}
+          />
+        )}
 
         {/* ── Patient Profile Tab ── */}
         {activePageTab === "profile" && (
@@ -731,9 +765,23 @@ export default function Overview() {
           <PrescriptionsTab patientId={parsedUserId} patientDetails={patientDetails} />
         )}
 
+        {/* ── NEWS2 Score ── */}
+        {activePageTab === "news2" && (
+          <NewsScore
+            userId={userId}
+            patientDetails={patientDetails}
+            latestVitals={latestVitals}
+          />
+        )}
+
         {/* ── Baseline Tab (Baseline Engine v1, shadow mode) ── */}
         {activePageTab === "baseline" && (
           <BaselineTab patientId={parsedUserId} />
+        )}
+
+        {/* ── Alerts ── */}
+        {activePageTab === "alerts" && (
+          <AlertsTimeline patientId={parsedUserId} className="" />
         )}
 
         {/* ── 4G Watch & measurement schedule ── */}
@@ -853,8 +901,75 @@ export default function Overview() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-[repeat(auto-fit,325px)] gap-4 md:gap-5 xl:gap-6">
-          {vitals.map((item, index) => (
-            item.isTriageDesign ? (
+          {vitals.map((item, index) => {
+            const renderCompactHalf = (half, halfKey) => {
+              const content = (
+                <>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className={`size-7 md:size-8 shrink-0 flex items-center justify-center rounded-full ${half.iconBg}`}>
+                      {half.icon}
+                    </div>
+                    <span className="text-xs md:text-sm text-white/80 truncate">
+                      {half.title}
+                    </span>
+                  </div>
+                  <div className="text-lg md:text-xl xl:text-2xl text-white font-medium leading-tight [text-shadow:1px_1px_5px_rgba(255,0,0,0.16),-1px_-1px_5px_rgba(0,170,255,0.16)]">
+                    {String(half.value).includes("/") ? (
+                      <>
+                        <span>{String(half.value).split("/")[0]}</span>
+                        <span className="text-sm md:text-base font-normal text-white/80 align-baseline ml-0.5">
+                          /{String(half.value).split("/")[1]}
+                        </span>
+                      </>
+                    ) : (
+                      half.value
+                    )}
+                    {half.extension ? (
+                      <span className="text-[10px] md:text-xs text-para ml-1 font-normal">
+                        {half.extension}
+                      </span>
+                    ) : null}
+                  </div>
+                </>
+              );
+
+              const className = "flex-1 min-w-0 p-3 md:p-4 flex flex-col justify-center hover:bg-white/[0.03] transition-colors";
+
+              if (half.action) {
+                return (
+                  <button
+                    key={halfKey}
+                    type="button"
+                    onClick={half.action}
+                    className={`${className} text-left cursor-pointer`}
+                  >
+                    {content}
+                  </button>
+                );
+              }
+
+              return (
+                <Link key={halfKey} to={half.path || "#"} className={className}>
+                  {content}
+                </Link>
+              );
+            };
+
+            if (item.isPair) {
+              return (
+                <div
+                  key={index}
+                  className="bg-[#2F2F31] rounded-3xl overflow-hidden min-h-50 flex"
+                >
+                  {renderCompactHalf(item.left, `${index}-left`)}
+                  <div className="w-px self-stretch bg-white/10 shrink-0 my-4" />
+                  {renderCompactHalf(item.right, `${index}-right`)}
+                </div>
+              );
+            }
+
+            if (item.isTriageDesign) {
+              return (
               <div
                 key={index}
                 onClick={item.action}
@@ -954,7 +1069,10 @@ export default function Overview() {
                   </div>
                 </div>
               </div>
-            ) : (
+              );
+            }
+
+            return (
             <Link
               to={item.path}
               className="bg-[#2F2F31] rounded-3xl overflow-hidden min-h-50  flex flex-col justify-between"
@@ -999,8 +1117,8 @@ export default function Overview() {
                 {chartsReady ? item.img : <div className="h-[120px] w-full animate-pulse bg-white/5 opacity-50 rounded-b-3xl"></div>}
               </div>
             </Link>
-            )
-          ))}
+            );
+          })}
         </div>  {/* end vitals grid */}
         <div className="bg-[#2D2D2F] rounded-3xl border border-[#0F0F0F] flex-wrap gap-3 p-5 xl:py-6.5 xl:px-7.5 mt-6 flex items-center justify-between">
           <div className="flex items-center flex-wrap gap-3 xl:gap-6">
@@ -1028,10 +1146,10 @@ export default function Overview() {
           </button>
         </div>
 
-        {/* --- Alerts Timeline Section --- */}
-        <AlertsTimeline patientId={parsedUserId} />
         </>)}  {/* end vitals tab */}
       </MainBody>
+      </div>
+      </div>
 
       {/* new 2 score modal */}
       <Modal
@@ -1039,7 +1157,11 @@ export default function Overview() {
         modalCondition={news_scrore}
         innerClass="rounded-3xl! max-w-203! bg-[#2F2F31]! border-0! lg:rounded-4xl! xl:rounded-[48px]! mr-0!"
       >
-        <NewsScore userId={userId} />
+        <NewsScore
+          userId={userId}
+          patientDetails={patientDetails}
+          latestVitals={latestVitals}
+        />
       </Modal>
       {/* new 2 score modal */}
 

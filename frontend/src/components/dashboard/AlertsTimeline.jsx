@@ -152,7 +152,7 @@ const PAGE_SIZE = 10;
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export default function AlertsTimeline({ patientId }) {
+export default function AlertsTimeline({ patientId, className = "mt-10" }) {
   // ── filter state (sent to API) ────────────────────────────────────────────
   const [typeTab, setTypeTab] = useState("alerts");          // "alerts" only
   const [alertCategory, setAlertCategory] = useState("vital");         // "vital" | "device"
@@ -262,7 +262,7 @@ export default function AlertsTimeline({ patientId }) {
 
   // ── render ────────────────────────────────────────────────────────────────
   return (
-    <div className="mt-10">
+    <div className={className}>
 
       {/* ── Header & Filters ── */}
       <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-8">
