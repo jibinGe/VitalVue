@@ -6,7 +6,7 @@ import { useDashboardStore } from "@/store/useDashboardStore";
 import PatientCard from "@/components/dashboard/PatientCard";
 import { useWard } from "@/contexts/WardContext";
 import { motion, AnimatePresence } from "framer-motion";
-import { Hart, Spo, Bp, High } from "@/utilities/icons";
+import { Hart, Spo, Bp, Temp, Brain } from "@/utilities/icons";
 import CriticalAlarmModal from "@/components/ui/CriticalAlarmModal";
 
 export default function TvDashboard() {
@@ -59,6 +59,13 @@ export default function TvDashboard() {
       const live = liveVitals[p.id] || {};
       const isRemoved = live.is_removed === true;
 
+      const formatTemperature = (temp) => {
+        if (temp === undefined || temp === null) return null;
+        const numTemp = typeof temp === "object" ? temp.value : temp;
+        if (!numTemp || Number(numTemp) <= 0) return null;
+        return parseFloat(numTemp).toFixed(1);
+      };
+
       const vitals = {
         heartRate: {
           value: live.heart_rate ?? latestHistoryVitals?.heart_rate ?? 0,
@@ -76,7 +83,15 @@ export default function TvDashboard() {
         temperature: {
           value: live.temp ?? latestHistoryVitals?.temp ?? latestHistoryVitals?.temperature ?? 0,
           status: live.temperature_status ?? latestHistoryVitals?.temperature_status ?? "Stable"
-        }
+        },
+        respiratoryRate: {
+          value: live.respiratory_rate ?? live.resp_rate ?? live.rr
+            ?? latestHistoryVitals?.respiratory_rate ?? latestHistoryVitals?.resp_rate ?? latestHistoryVitals?.rr
+            ?? null,
+        },
+        stress: {
+          value: live.stress_level ?? latestHistoryVitals?.stress_level ?? null,
+        },
       };
 
       const liveAssessments = {
@@ -154,12 +169,52 @@ export default function TvDashboard() {
         room: p.room_no || "General",
         ward: p.ward_name || p.ward || p.ward_no,
         lastSync: live.recorded_at || latestHistoryVitals?.recorded_at || new Date().toISOString(),
-        vitals: [
-          { icon: <Hart />, title: "Heart Rate", heartRate: vitals.heartRate?.value || 0, status: vitals.heartRate?.status, historyData: p.vitals_history || [] },
-          { icon: <Spo />, title: "SpO2", spo2: vitals.spo2?.value ? Math.round(vitals.spo2.value) : 0, status: vitals.spo2?.status, historyData: p.vitals_history || [] },
-          { icon: <Bp />, title: "BP Trend", bp: `${vitals.bloodPressure?.systolic || '--'}/${vitals.bloodPressure?.diastolic || '--'}`, status: vitals.bloodPressure?.status, historyData: p.vitals_history || [] },
-          { icon: <High />, title: "AF Warning", afWarning: live.af_warning ?? finalAssessments?.af_warning ?? p.af_warning },
-        ],
+        vitals: (() => {
+          const hrVal = vitals.heartRate?.value ? Math.round(Number(vitals.heartRate.value)) : null;
+          const spo2Val = vitals.spo2?.value ? Math.round(Number(vitals.spo2.value)) : null;
+          const sys = vitals.bloodPressure?.systolic ? Math.round(Number(vitals.bloodPressure.systolic)) : null;
+          const dia = vitals.bloodPressure?.diastolic ? Math.round(Number(vitals.bloodPressure.diastolic)) : null;
+          const bpDisplay = (sys != null && dia != null) ? `${sys}/${dia}` : (sys != null ? `${sys}/--` : '--/--');
+          const rrRaw = vitals.respiratoryRate?.value;
+          const rrVal = rrRaw != null && Number(rrRaw) > 0 ? Math.round(Number(rrRaw)) : null;
+          const tempVal = formatTemperature(vitals.temperature?.value);
+          const stressVal = vitals.stress?.value && String(vitals.stress.value).toUpperCase() !== "N/A"
+            ? String(vitals.stress.value)
+            : null;
+
+          const news2Val = live.news2_score ?? finalAssessments?.news2_score ?? finalAssessments?.news2?.score ?? p.news2_score;
+          const score = news2Val !== undefined && news2Val !== null ? Number(news2Val) : null;
+          const news2Risk = score != null && Number.isFinite(score)
+            ? (score >= 7 ? "High" : score >= 5 ? "Medium" : "Low")
+            : "Low";
+          const news2Status = news2Risk === "High" ? "High" : news2Risk === "Medium" ? "Warning" : "Normal";
+          const news2Color = news2Risk === "High" ? "#E54D4D" : news2Risk === "Medium" ? "#E5DB4C" : "#4DE573";
+
+          return [
+            {
+              isPair: true,
+              top: { icon: <Hart className="size-4" />, iconBg: "bg-green", title: "HR", value: hrVal ?? '--', unit: "bpm" },
+              bottom: { icon: <Spo className="size-4" />, iconBg: "bg-purple", title: "SpO2", value: spo2Val != null ? `${spo2Val}%` : '--', unit: "" },
+            },
+            {
+              isPair: true,
+              top: { icon: <Bp className="size-4" />, iconBg: "bg-pink", title: "BP", value: bpDisplay, unit: "mmHg" },
+              bottom: { icon: <Bp className="size-4" />, iconBg: "bg-aqua", title: "RR", value: rrVal ?? '--', unit: "/min" },
+            },
+            {
+              isPair: true,
+              top: { icon: <Temp className="size-4" />, iconBg: "bg-blue", title: "Temp", value: tempVal ?? '--', unit: "°C" },
+              bottom: { icon: <Brain className="size-4" />, iconBg: "bg-deepBlue", title: "Stress", value: stressVal ?? '--', unit: "" },
+            },
+            {
+              title: "NEWS2",
+              news2Score: score != null && Number.isFinite(score) ? score : '--',
+              news2Status,
+              news2Risk,
+              news2Color,
+            },
+          ];
+        })(),
         alerts: [],
         deviceBattery: live.battery_percent !== undefined ? `${live.battery_percent}%` : (latestHistoryVitals?.battery_percent !== undefined ? `${latestHistoryVitals.battery_percent}%` : (p.device_battery || "80%")),
         phoneBattery: live.phone_battery !== undefined

@@ -36,9 +36,14 @@ import StrokeRisk from "@/components/dashboard/overview/stroke-risk";
 import SeizureRisk from "@/components/dashboard/overview/seizure-risk";
 import { Link } from "react-router-dom";
 
+import SpO2Gauge from "@/components/animation/overview/spo2Gauge";
+import BPTrend from "@/components/animation/overview/BPTrend";
 import HrvScore from "@/components/animation/overview/hrv-score";
+import TempWave from "@/components/animation/overview/tempWave";
 import SleepPattern from "@/components/animation/overview/sleep-pattern";
+import StressPatternChart from "@/components/dashboard/charts/stress-pattern-chart";
 import DoctorReview from "../../../components/dashboard/overview/doctor-review";
+import HeartRateLive from "@/components/charts/HeartRateLive";
 import Movement from "../../../components/animation/overview/movement";
 import AlertsTimeline from "@/components/dashboard/AlertsTimeline";
 import BaselineTab from "@/components/dashboard/overview/BaselineTab";
@@ -412,7 +417,6 @@ export default function Overview() {
       ? latestVitals.primary_vitals.blood_pressure.split('/')[1]
       : (latestVitals?.diastolic ?? latestVitals?.bp_diastolic);
     let tempVal = latestVitals?.primary_vitals?.temp ?? (latestVitals?.temperature ?? latestVitals?.temp);
-    let rrVal = latestVitals?.respiratory_rate ?? latestVitals?.resp_rate ?? latestVitals?.rr;
     let hrvVal = latestVitals?.advanced_metrics?.hrv_score ?? (latestVitals?.hrv_score ?? latestVitals?.hrv ?? currentVitals?.derived_metrics?.hrv);
     let movementVal = latestVitals?.advanced_metrics?.movement_index ?? (latestVitals?.movement ?? latestVitals?.movement_index);
     let sleepVal = latestVitals?.sleep_pattern;
@@ -424,8 +428,6 @@ export default function Overview() {
       if (streamData.bp_systolic !== undefined && streamData.bp_systolic !== null) sysVal = streamData.bp_systolic;
       if (streamData.bp_diastolic !== undefined && streamData.bp_diastolic !== null) diaVal = streamData.bp_diastolic;
       if (streamData.temp !== undefined && streamData.temp !== null) tempVal = streamData.temp;
-      if (streamData.respiratory_rate !== undefined && streamData.respiratory_rate !== null) rrVal = streamData.respiratory_rate;
-      else if (streamData.resp_rate !== undefined && streamData.resp_rate !== null) rrVal = streamData.resp_rate;
       if (streamData.hrv_score !== undefined && streamData.hrv_score !== null) hrvVal = streamData.hrv_score;
       if (streamData.movement_index !== undefined && streamData.movement_index !== null) movementVal = streamData.movement_index;
       if (streamData.stress_level !== undefined && streamData.stress_level !== null) stressVal = streamData.stress_level;
@@ -435,7 +437,6 @@ export default function Overview() {
     // Round values to remove decimals as requested
     if (hrVal !== undefined && hrVal !== null) hrVal = Math.round(Number(hrVal));
     if (spo2Val !== undefined && spo2Val !== null) spo2Val = Math.round(Number(spo2Val));
-    if (rrVal !== undefined && rrVal !== null) rrVal = Math.round(Number(rrVal));
     if (hrvVal !== undefined && hrvVal !== null) hrvVal = Math.round(Number(hrvVal));
     if (movementVal !== undefined && movementVal !== null) movementVal = Math.round(Number(movementVal));
     if (sysVal !== undefined && sysVal !== null) sysVal = Math.round(Number(sysVal));
@@ -456,66 +457,42 @@ export default function Overview() {
 
     const isUnknownSleep = !sleepVal || sleepVal.toLowerCase() === "unknown" || sleepVal === "--";
 
-    const compactHalf = (props) => ({ ...props, isCompact: true });
-
     return [
-      // Three full-size slots, each split vertically into two compact vitals
       {
-        isPair: true,
-        left: compactHalf({
-          icon: <Hart className="size-4" />,
-          iconBg: "bg-green",
-          title: "HR",
-          value: hrVal ?? '--',
-          extension: "bpm",
-          path: `/dashboard/heart-rate/${userId || ""}`,
-        }),
-        right: compactHalf({
-          icon: <Spo className="size-4" />,
-          iconBg: "bg-purple",
-          title: "SpO2",
-          value: spo2Val ? `${spo2Val}%` : '--',
-          extension: "",
-          path: `/dashboard/spo/${userId || ""}`,
-        }),
+        icon: <Hart />,
+        iconBg: "bg-green",
+        title: "Heart Rate",
+        value: hrVal ?? '--',
+        extension: "bpm",
+        img: (hrVal === 0 || !hrVal || !historyData || historyData.length === 0) ? noGraphPlaceholder : <HeartRateLive className="p-4 md:p-6" width={360} historyData={historyData} />,
+        path: `/dashboard/heart-rate/${userId || ""}`,
       },
       {
-        isPair: true,
-        left: compactHalf({
-          icon: <Bp className="size-4" />,
-          iconBg: "bg-pink",
-          title: "BP",
-          value: bpDisplay,
-          extension: "mmHg",
-          path: `/dashboard/bp-trend/${userId || ""}`,
-        }),
-        right: compactHalf({
-          icon: <Bp className="size-4" />,
-          iconBg: "bg-aqua",
-          title: "RR",
-          value: rrVal ?? '--',
-          extension: "/min",
-          action: () => setActivePageTab("news2"),
-        }),
+        icon: <Spo />,
+        iconBg: "bg-purple",
+        title: "SpO2",
+        value: spo2Val ? `${spo2Val}%` : '--',
+        extension: "",
+        img: (spo2Val === 0 || !spo2Val) ? noGraphPlaceholder : <SpO2Gauge value={spo2Val ?? 98} />,
+        path: `/dashboard/spo/${userId || ""}`,
       },
       {
-        isPair: true,
-        left: compactHalf({
-          icon: <Temp className="size-4" />,
-          iconBg: "bg-blue",
-          title: "Temp",
-          value: tempVal ? formatTemperature(tempVal) : '--',
-          extension: "°C",
-          path: `/dashboard/temperature/${userId || ""}`,
-        }),
-        right: compactHalf({
-          icon: <Brain className="size-4" />,
-          iconBg: "bg-deepBlue",
-          title: "Stress",
-          value: stressVal ?? '--',
-          extension: "",
-          path: `/dashboard/stress/${userId || ""}`,
-        }),
+        icon: <Bp />,
+        iconBg: "bg-pink",
+        title: "BP Trend",
+        value: bpDisplay,
+        extension: "mmHg",
+        img: (sysVal === 0 || sysVal === '0' || !sysVal || !historyData || historyData.length === 0) ? noGraphPlaceholder : <BPTrend historyData={historyData} />,
+        path: `/dashboard/bp-trend/${userId || ""}`,
+      },
+      {
+        icon: <Temp />,
+        iconBg: "bg-blue",
+        title: "Temperature",
+        value: tempVal ? formatTemperature(tempVal) : '--',
+        extension: "°C",
+        img: (tempVal === 0 || tempVal === '0' || !tempVal || !historyData || historyData.length === 0) ? noGraphPlaceholder : <TempWave historyData={historyData} />,
+        path: `/dashboard/temperature/${userId || ""}`,
       },
       {
         isTriageDesign: true,
@@ -586,6 +563,15 @@ export default function Overview() {
         extension: "",
         img: isUnknownSleep ? noGraphPlaceholder : <SleepPattern />,
         path: `/dashboard/sleep-pattern/${userId || ""}`,
+      },
+      {
+        icon: <Brain />,
+        iconBg: "bg-deepBlue",
+        title: "Stress Level",
+        value: stressVal ?? '--',
+        extension: "",
+        img: (!historyData || historyData.length === 0) ? noGraphPlaceholder : <StressPatternChart historyData={historyData} />,
+        path: `/dashboard/stress/${userId || ""}`,
       },
     ];
   }, [combinedHistory, latestVitals, userId, apiAssessments, streamData, currentVitals, patientData]);
@@ -902,72 +888,6 @@ export default function Overview() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-[repeat(auto-fit,325px)] gap-4 md:gap-5 xl:gap-6">
           {vitals.map((item, index) => {
-            const renderCompactHalf = (half, halfKey) => {
-              const content = (
-                <>
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className={`size-7 md:size-8 shrink-0 flex items-center justify-center rounded-full ${half.iconBg}`}>
-                      {half.icon}
-                    </div>
-                    <span className="text-xs md:text-sm text-white/80 truncate">
-                      {half.title}
-                    </span>
-                  </div>
-                  <div className="text-lg md:text-xl xl:text-2xl text-white font-medium leading-tight [text-shadow:1px_1px_5px_rgba(255,0,0,0.16),-1px_-1px_5px_rgba(0,170,255,0.16)]">
-                    {String(half.value).includes("/") ? (
-                      <>
-                        <span>{String(half.value).split("/")[0]}</span>
-                        <span className="text-sm md:text-base font-normal text-white/80 align-baseline ml-0.5">
-                          /{String(half.value).split("/")[1]}
-                        </span>
-                      </>
-                    ) : (
-                      half.value
-                    )}
-                    {half.extension ? (
-                      <span className="text-[10px] md:text-xs text-para ml-1 font-normal">
-                        {half.extension}
-                      </span>
-                    ) : null}
-                  </div>
-                </>
-              );
-
-              const className = "flex-1 min-w-0 p-3 md:p-4 flex flex-col justify-center hover:bg-white/[0.03] transition-colors";
-
-              if (half.action) {
-                return (
-                  <button
-                    key={halfKey}
-                    type="button"
-                    onClick={half.action}
-                    className={`${className} text-left cursor-pointer`}
-                  >
-                    {content}
-                  </button>
-                );
-              }
-
-              return (
-                <Link key={halfKey} to={half.path || "#"} className={className}>
-                  {content}
-                </Link>
-              );
-            };
-
-            if (item.isPair) {
-              return (
-                <div
-                  key={index}
-                  className="bg-[#2F2F31] rounded-3xl overflow-hidden min-h-50 flex"
-                >
-                  {renderCompactHalf(item.left, `${index}-left`)}
-                  <div className="w-px self-stretch bg-white/10 shrink-0 my-4" />
-                  {renderCompactHalf(item.right, `${index}-right`)}
-                </div>
-              );
-            }
-
             if (item.isTriageDesign) {
               return (
               <div

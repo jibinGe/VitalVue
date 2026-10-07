@@ -23,10 +23,24 @@ export function latestMeasured(rows) {
   const spo2 = pick("spo2");
   const temp = pick("temp", "temperature");
   const hrv = pick("hrv_score", "hrv");
+  const rr = pick("respiratory_rate", "resp_rate", "rr");
   if (hr !== undefined) out.heart_rate = hr;
   if (spo2 !== undefined) out.spo2 = spo2;
   if (temp !== undefined) { out.temp = temp; out.temperature = temp; }
   if (hrv !== undefined) { out.hrv_score = hrv; out.hrv = hrv; }
+  if (rr !== undefined) {
+    out.respiratory_rate = rr;
+    out.resp_rate = rr;
+    out.rr = rr;
+  }
+  // Stress is often a label ("Low"/"Moderate"/"High"), not a positive number
+  for (let i = live.length - 1; i >= 0; i -= 1) {
+    const s = live[i].stress_level;
+    if (s !== null && s !== undefined && s !== "" && String(s).toUpperCase() !== "N/A") {
+      out.stress_level = s;
+      break;
+    }
+  }
   for (let i = live.length - 1; i >= 0; i -= 1) {
     const sys = live[i].bp_systolic ?? live[i].systolic;
     const dia = live[i].bp_diastolic ?? live[i].diastolic;

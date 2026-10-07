@@ -2,12 +2,11 @@ import React, { useState, useRef, useEffect, useMemo } from "react";
 import { latestMeasured } from "@/utilities/latestVitals";
 import { useWatchStatus } from "@/hooks/useWatchStatus";
 import { Link, useNavigate } from "react-router-dom";
-import { Angle, Bp, Hart, Spo, Temp, Search, High, Brain, Face } from "@/utilities/icons";
+import { Bp, Hart, Spo, Temp, Search, Brain } from "@/utilities/icons";
 import Modal from "@/components/ui/modal";
 import ConfirmationModal from "@/components/ui/ConfirmationModal";
 import CriticalAlarmModal from "@/components/ui/CriticalAlarmModal";
 import Input from "@/components/ui/input";
-import Spo2Gauge from "@/components/animation/overview/spo2Gauge";
 import { motion, AnimatePresence } from "framer-motion";
 
 // Charts
@@ -304,7 +303,15 @@ export default function Home() {
         temperature: {
           value: live.temp ?? latestHistoryVitals?.temp ?? latestHistoryVitals?.temperature ?? 0,
           status: live.temperature_status ?? latestHistoryVitals?.temperature_status ?? "Stable"
-        }
+        },
+        respiratoryRate: {
+          value: live.respiratory_rate ?? live.resp_rate ?? live.rr
+            ?? latestHistoryVitals?.respiratory_rate ?? latestHistoryVitals?.resp_rate ?? latestHistoryVitals?.rr
+            ?? null,
+        },
+        stress: {
+          value: live.stress_level ?? latestHistoryVitals?.stress_level ?? null,
+        },
       };
 
       // Merge assessments for clinical alerts
@@ -392,12 +399,53 @@ export default function Home() {
         phone_number: p.phone_number || "",
         alt_phone: p.alt_phone || "",
         lastSync: live.recorded_at || latestHistoryVitals?.recorded_at || new Date().toISOString(),
-        vitals: [
-          { icon: <Hart />, title: "Heart Rate", heartRate: vitals.heartRate?.value || 0, status: vitals.heartRate?.status, historyData: p.vitals_history || [] },
-          { icon: <Spo />, title: "SpO2", spo2: vitals.spo2?.value ? Math.round(vitals.spo2.value) : 0, status: vitals.spo2?.status, historyData: p.vitals_history || [] },
-          { icon: <Bp />, title: "BP Trend", bp: `${vitals.bloodPressure?.systolic || '--'}/${vitals.bloodPressure?.diastolic || '--'}`, status: vitals.bloodPressure?.status, historyData: p.vitals_history || [] },
-          { icon: <High />, title: "AF Warning", afWarning: live.af_warning ?? finalAssessments?.af_warning ?? p.af_warning },
-        ],
+        vitals: (() => {
+          const hrVal = vitals.heartRate?.value ? Math.round(Number(vitals.heartRate.value)) : null;
+          const spo2Val = vitals.spo2?.value ? Math.round(Number(vitals.spo2.value)) : null;
+          const sys = vitals.bloodPressure?.systolic ? Math.round(Number(vitals.bloodPressure.systolic)) : null;
+          const dia = vitals.bloodPressure?.diastolic ? Math.round(Number(vitals.bloodPressure.diastolic)) : null;
+          const bpDisplay = (sys != null && dia != null) ? `${sys}/${dia}` : (sys != null ? `${sys}/--` : '--/--');
+          const rrRaw = vitals.respiratoryRate?.value;
+          const rrVal = rrRaw != null && Number(rrRaw) > 0 ? Math.round(Number(rrRaw)) : null;
+          const tempRaw = vitals.temperature?.value;
+          const tempVal = tempRaw != null && Number(tempRaw) > 0 ? formatTemperature(tempRaw) : null;
+          const stressVal = vitals.stress?.value && String(vitals.stress.value).toUpperCase() !== "N/A"
+            ? String(vitals.stress.value)
+            : null;
+
+          const news2Val = live.news2_score ?? finalAssessments?.news2_score ?? finalAssessments?.news2?.score ?? p.news2_score;
+          const news2Score = news2Val !== undefined && news2Val !== null ? Number(news2Val) : null;
+          const news2Risk = news2Score != null && Number.isFinite(news2Score)
+            ? (news2Score >= 7 ? "High" : news2Score >= 5 ? "Medium" : "Low")
+            : "Low";
+          const news2Status = news2Risk === "High" ? "High" : news2Risk === "Medium" ? "Warning" : "Normal";
+          const news2Color = news2Risk === "High" ? "#E54D4D" : news2Risk === "Medium" ? "#E5DB4C" : "#4DE573";
+
+          return [
+            {
+              isPair: true,
+              top: { icon: <Hart className="size-4" />, iconBg: "bg-green", title: "HR", value: hrVal ?? '--', unit: "bpm" },
+              bottom: { icon: <Spo className="size-4" />, iconBg: "bg-purple", title: "SpO2", value: spo2Val != null ? `${spo2Val}%` : '--', unit: "" },
+            },
+            {
+              isPair: true,
+              top: { icon: <Bp className="size-4" />, iconBg: "bg-pink", title: "BP", value: bpDisplay, unit: "mmHg" },
+              bottom: { icon: <Bp className="size-4" />, iconBg: "bg-aqua", title: "RR", value: rrVal ?? '--', unit: "/min" },
+            },
+            {
+              isPair: true,
+              top: { icon: <Temp className="size-4" />, iconBg: "bg-blue", title: "Temp", value: tempVal ?? '--', unit: "°C" },
+              bottom: { icon: <Brain className="size-4" />, iconBg: "bg-deepBlue", title: "Stress", value: stressVal ?? '--', unit: "" },
+            },
+            {
+              title: "NEWS2",
+              news2Score: news2Score != null && Number.isFinite(news2Score) ? news2Score : '--',
+              news2Status,
+              news2Risk,
+              news2Color,
+            },
+          ];
+        })(),
         alerts: (() => {
           const alertsList = [];
 
