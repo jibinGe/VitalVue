@@ -576,7 +576,7 @@ async def get_patient_baseline(
 @router.get("/{patient_id}/baseline/timeline")
 async def get_patient_baseline_timeline(
     patient_id: int,
-    range: str = Query("24h", pattern="^(6h|12h|24h|3d|7d)$", description="6h, 12h, 24h (10-min points) or 3d, 7d (hourly)"),
+    range: str = Query("24h", pattern="^(6h|12h|24h|3d|7d|30d)$", description="6h, 12h, 24h (10-min points) or 3d, 7d, 30d (hourly)"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):

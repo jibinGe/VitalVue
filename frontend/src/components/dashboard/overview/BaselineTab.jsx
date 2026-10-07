@@ -16,6 +16,7 @@ const RANGES = [
   { key: "24h", label: "24 Hours" },
   { key: "3d", label: "3 Days" },
   { key: "7d", label: "7 Days" },
+  { key: "30d", label: "30 Days" },
 ];
 
 // Table / view rows. BP combines systolic + diastolic in one row.
@@ -75,9 +76,17 @@ function toDate(iso) {
   return new Date(iso.endsWith("Z") ? iso : `${iso}Z`);
 }
 
+function rangeLabelMode(hours) {
+  if (hours > 24 * 7) return "date";
+  return hours > 24;
+}
+
 function fmtTime(iso, withDay) {
   const d = toDate(iso);
   const time = d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  if (withDay === "date") {
+    return `${d.toLocaleDateString(undefined, { month: "short", day: "numeric" })} ${time}`;
+  }
   return withDay ? `${d.toLocaleDateString(undefined, { weekday: "short" })} ${time}` : time;
 }
 
@@ -220,7 +229,7 @@ function ChartTooltip({ active, payload, view, withDay, unit }) {
 }
 
 function MainChart({ data, view }) {
-  const withDay = data.hours > 24;
+  const withDay = rangeLabelMode(data.hours);
   const isScore = view === "score";
   const unit = isScore ? "" : data.vitals?.[view]?.unit || "";
   const band = isScore ? null : data.bands?.[view];
@@ -334,7 +343,7 @@ export default function BaselineTab({ patientId }) {
   }, [patientId, range]);
 
   const columns = useMemo(() => (data ? tableColumns(data) : []), [data]);
-  const withDay = (data?.hours || 0) > 24;
+  const withDay = rangeLabelMode(data?.hours || 0);
   const learning = !data?.mode || data.mode === "population";
   const markerTimes = new Set((data?.markers || []).map((m) => m.t));
   const thresholds = data?.thresholds;

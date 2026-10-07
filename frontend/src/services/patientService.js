@@ -305,7 +305,7 @@ export const patientService = {
 
   /**
    * Baseline tab: health score + vitals vs personal baseline over a range
-   * (6h | 12h | 24h at 10-min points, 3d | 7d hourly), markers and insights.
+   * (6h | 12h | 24h at 10-min points, 3d | 7d | 30d hourly), markers and insights.
    * GET /api/v1/patients/{patient_id}/baseline/timeline?range=
    */
   async getPatientBaselineTimeline(patientId, range = "24h") {

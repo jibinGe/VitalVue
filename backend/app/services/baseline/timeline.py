@@ -21,6 +21,7 @@ RANGES = {
     "24h": (24,  10, 120),
     "3d":  (72,  60, 360),
     "7d":  (168, 60, 720),
+    "30d": (720, 60, 1440),
 }
 RECENT_HOURS = 2      # "current" part of the range for the score trend
 TREND_POINTS = 5      # score change (points) that counts as improving / worsening
